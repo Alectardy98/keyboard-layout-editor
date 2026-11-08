@@ -32,7 +32,7 @@
 		$scope.version = "0.15";
 
 		// Github data
-		$scope.githubClientId = $location.host() === "localhost" ? "8b7b224a9e212c5c17e2" : "631d93caeaa61c9057ab";
+		$scope.githubClientId = window.KLE_CONFIG.githubClientId;
 		function github(path, method, data) {
 			method = method || "GET";
 			var headers = {};
@@ -79,6 +79,9 @@
 
 		// The keyboard data
 		$scope.keyboard = { keys: [], meta: {} };
+		$scope.vialDocument = null;
+		$scope.fileError = "";
+		$scope.fileNotice = "";
 		$scope.keys = function(newKeys) { if(newKeys) { $scope.keyboard.keys = newKeys; } return $scope.keyboard.keys; };
 
 		// Custom Styles data
@@ -105,7 +108,8 @@
 
 		$scope.save = function(event) {
 			if(!$scope.user || !$scope.user.id) {
-				return;
+				if(event) { event.preventDefault(); event.stopPropagation(); }
+				$scope.downloadJson(); return;
 			}
 			if(event) {
 				event.preventDefault();
@@ -166,7 +170,11 @@
 						data.files[fn_base_old+suffix] = null; // Remove existing file
 					}
 				}
-				doFile(".kbd.json", angular.toJson($serial.serialize(layout), true /*pretty*/));
+				var rows = $serial.serialize(layout);
+				var definition;
+				try { definition = $scope.vialDocument ? VialDocument.exportDocument($scope.vialDocument, rows, $serial) : rows; }
+				catch(error) { $scope.saveError = error.message; return; }
+				doFile(".kbd.json", JSON.stringify(definition, null, 2));
 				doFile(".style.css", css);
 				doFile(".notes.md", notes);
 
@@ -252,21 +260,41 @@
 			})
 		};
 
+		$scope.downloadKleJson = function() {
+			var data = angular.toJson($serial.serialize($scope.keyboard), true);
+			saveAs(new Blob([data], {type:"application/json"}), $scope.getFilename()+".kle.json");
+		};
 		$scope.downloadJson = function() {
-			var data = angular.toJson($serial.serialize($scope.keyboard), true /*pretty*/);
-			var blob = new Blob([data], {type:"application/json"});
-			saveAs(blob, $scope.getFilename()+".json");
+			try {
+				var rows = $serial.serialize($scope.keyboard);
+				var output = $scope.vialDocument ? VialDocument.exportDocument($scope.vialDocument, rows, $serial) : rows;
+				saveAs(new Blob([JSON.stringify(output, null, 2)], {type:"application/json"}), $scope.vialDocument ? "vial.json" : $scope.getFilename()+".json");
+				$scope.fileError = "";
+				$scope.fileNotice = $scope.vialDocument ? "Vial JSON downloaded with its original firmware metadata." : "KLE JSON downloaded.";
+			} catch(error) { $scope.fileError = error.message || String(error); }
 		};
 		$scope.uploadJson = function(file, event) {
 			if(file && file[0]) {
+				if(file[0].size > 4*1024*1024) { $scope.fileError = "Layout files must be 4 MiB or smaller."; return; }
 				var reader = new FileReader();
 				reader.onload = function(event) {
-					transaction("upload", function() {
-						$scope.$apply(function() {
-							$scope.deserializeAndRender($serial.fromJsonL(event.target.result));
-						});
+					$scope.$apply(function() {
+						try {
+							var input = String(event.target.result).replace(/^\uFEFF/, "");
+							var parsed;
+							try { parsed = JSON.parse(input); } catch(strictError) { parsed = $serial.fromJsonL(input); }
+							// Parse/render before committing, so an invalid file cannot replace the current layout.
+							var prepared = prepareDocument(parsed);
+							canCoalesce = false;
+							transaction("upload", function() { applyDocument(prepared); });
+							canCoalesce = false;
+							setGist(null);
+							$scope.fileError = "";
+							$scope.fileNotice = $scope.vialDocument ? "Opened Vial definition. All physical variants are shown for editing; metadata is retained." : "Opened KLE layout.";
+						} catch(error) { $scope.fileError = "Could not open layout: "+(error.message || String(error)); }
 					});
 				};
+				reader.onerror = function() { $scope.$apply(function() { $scope.fileError = "The file could not be read. Your current layout is unchanged."; }); };
 				reader.readAsText(file[0]);
 			}
 		};
@@ -598,24 +626,31 @@
 			key.html = $sce.trustAsHtml($renderKey.html(key,$sanitize));
 		}
 
-		$scope.deserializeAndRender = function(data, skipMetadata) {
-			$scope.serializedObjects = data; // cache serialized objects
-			var backup = angular.copy($scope.keyboard.meta);
-			$scope.keyboard = $serial.deserialize(data);
-			$scope.keys().forEach(function(key) {
-				renderKey(key);
-			});
+		// Prepare and validate before replacing the open document.
+		function prepareDocument(data, skipMetadata) {
+			var imported = VialDocument.open(data);
+			var keyboard = $serial.deserialize(imported.rows);
 			if(skipMetadata) {
-				// Use backup metadata
 				var defaults = $serial.defaultMetaData();
-				for(var k in backup) {
-					if(backup.hasOwnProperty(k) && $scope.keyboard.meta[k] === defaults[k]) {
-						$scope.keyboard.meta[k] = backup[k];
-					}
-				}
+				Object.keys($scope.keyboard.meta).forEach(function(k) {
+					if(keyboard.meta[k] === defaults[k]) keyboard.meta[k] = angular.copy($scope.keyboard.meta[k]);
+				});
 			}
-			$scope.meta = angular.copy($scope.keyboard.meta);
-			updateFromCss($scope.meta.css || '');
+			keyboard.keys.forEach(renderKey);
+			$cssParser.parse(keyboard.meta.css || '');
+			return { keyboard: keyboard, rows: imported.rows, document: imported.document,
+				keepDocument: skipMetadata && !imported.document };
+		}
+		function applyDocument(prepared) {
+			updateFromCss(prepared.keyboard.meta.css || '');
+			if(!prepared.keepDocument) $scope.vialDocument = prepared.document;
+			$scope.serializedObjects = prepared.rows;
+			$scope.keyboard = prepared.keyboard;
+			$scope.meta = angular.copy(prepared.keyboard.meta);
+			$scope.unselectAll();
+		}
+		$scope.deserializeAndRender = function(data, skipMetadata) {
+			applyDocument(prepareDocument(data, skipMetadata));
 		};
 
 		function updateSerialized() {
@@ -668,7 +703,7 @@
 				if(path.substring(0,9) === '/samples/') {
 					base = ''; // Load samples from local folder
 				}
-				$http.get(base + path).success(function(data) {
+				$http.get(path.substring(0,9) === '/samples/' ? path.substring(1) : base + path).success(function(data) {
 					$scope.deserializeAndRender(data);
 					updateSerialized();
 					$scope.loadError = false;
@@ -719,7 +754,7 @@
 		$scope.dirty = false;
 		$scope.saved = false;
 		$scope.saveError = "";
-		var dirtyMessage = 'You have made changes to the layout that are not saved.  You can save your layout to the server by clicking the \'Save\' button.  You can also save your layout locally by bookmarking the \'Permalink\' in the application bar.';
+		var dirtyMessage = 'You have made changes to the layout that are not saved.  Download your JSON before leaving. You can also save your layout to the server by clicking the \'Save\' button.  You can also save your layout locally by bookmarking the \'Permalink\' in the application bar.';
 		window.onbeforeunload = function(e) {
 			if($scope.dirty) return dirtyMessage;
 		};
@@ -743,7 +778,7 @@
 		function transaction(type, fn) {
 			var trans = undoStack.length>0 ? undoStack.last() : null;
 			if(trans === null || !canCoalesce || trans.type !== type) {
-				trans = { type:type, original:angular.copy($scope.keyboard), open:true, dirty:$scope.dirty };
+				trans = { type:type, original:angular.copy($scope.keyboard), originalDocument:JSON.parse(JSON.stringify($scope.vialDocument)), open:true, dirty:$scope.dirty };
 				undoStack.push(trans);
 				if(undoStack.length>32) {
 					undoStack.shift();
@@ -757,6 +792,7 @@
 					$location.path("").hash("").replace();
 				}
 				trans.modified = angular.copy($scope.keyboard);
+				trans.modifiedDocument = JSON.parse(JSON.stringify($scope.vialDocument));
 				trans.open = false;
 				redoStack = [];
 				if(type !== 'rawdata') {
@@ -785,6 +821,7 @@
 			if($scope.canUndo()) {
 				var u = undoStack.pop();
 				$scope.keyboard = angular.copy(u.original);
+				$scope.vialDocument = JSON.parse(JSON.stringify(u.originalDocument));
 				refreshAfterUndoRedo(u.type);
 				redoStack.push(u);
 				$scope.dirty = u.dirty;
@@ -795,6 +832,7 @@
 			if($scope.canRedo()) {
 				var u = redoStack.pop();
 				$scope.keyboard = angular.copy(u.modified);
+				$scope.vialDocument = JSON.parse(JSON.stringify(u.modifiedDocument));
 				refreshAfterUndoRedo(u.type);
 				undoStack.push(u);
 				$scope.dirty = true;
@@ -1188,7 +1226,7 @@
 			});
 		};
 		$scope.loadSample = function(sample) {
-			$http.get(sample).success(function(data) {
+			$http.get(sample.replace(/^\//, '')).success(function(data) {
 				$scope.loadPreset(data, sample);
 			}).error(function() {
 				$scope.loadError = true;
@@ -1450,7 +1488,9 @@
 
 		$scope.getPermalink = function() {
 			var url = $location.absUrl().replace(/#.*$/,"");
-			url += "##" + URLON.stringify($scope.serializedObjects);
+			try {
+				url += "##" + URLON.stringify($scope.vialDocument ? VialDocument.exportDocument($scope.vialDocument, $scope.serializedObjects, $serial) : $scope.serializedObjects);
+			} catch(error) { /* Incomplete coordinate edits cannot form a valid Vial permalink yet. */ }
 			return url;
 		};
 
@@ -1649,6 +1689,11 @@
 		var userLoginSecret;
 		var userLoginWindow;
 		$scope.userLogin = function() {
+			if(!window.KLE_CONFIG.githubClientId || !window.KLE_CONFIG.githubAuthEndpoint) {
+				$scope.oauthError = "GitHub sign-in is available once this site's owner configures the OAuth app and token-exchange service in site-config.js. You can still open and download layouts.";
+				return;
+			}
+			$scope.oauthError = null;
 			if(userLoginWindow) {
 				if(userLoginWindow.closed) {
 					userLoginSecret = null;
@@ -1659,13 +1704,15 @@
 			}
 
 			if(!userLoginWindow && !$scope.user) {
-				var parms = "&client_id="+ $scope.githubClientId +"&redirect_uri="+ ($location.host() === "localhost" ? "http://localhost:8080/oauth.html" : "https://www.keyboard-layout-editor.com/oauth.html");
-				userLoginSecret = (window.performance && window.performance.now ? window.performance.now() : Date.now()).toString() + "_" + (Math.random()).toString();
+				var callback = new URL('oauth.html', window.location.href).href;
+				var parms = "&client_id="+encodeURIComponent($scope.githubClientId)+"&redirect_uri="+encodeURIComponent(callback);
+				var bytes = new Uint8Array(32); window.crypto.getRandomValues(bytes);
+				userLoginSecret = Array.from(bytes, function(value) { return value.toString(16).padStart(2, '0'); }).join('');
+				sessionStorage.setItem('kle.oauth.state', userLoginSecret);
 				userLoginWindow = window.open("https://github.com/login/oauth/authorize?scope=gist&state="+userLoginSecret+parms,
 					"Sign in with Github", "left="+(window.left+50)+",top="+(window.top+50)+",width=1050,height=630,personalbar=0,toolbar=0,scrollbars=1,resizable=1");
-				if(userLoginWindow) {
-					userLoginWindow.focus();
-				}
+				if(userLoginWindow) userLoginWindow.focus();
+				else $scope.oauthError = "Allow popups for this site to sign in with GitHub.";
 			}
 		};
 
@@ -1676,21 +1723,25 @@
 
 		$scope.oauthError = null;
 		window.__oauthError = function(error) {
+			sessionStorage.removeItem('kle.oauth.state');
 			userLoginSecret = null;
 			userLoginWindow = null;
 			$scope.oauthError = error || 'Unknown error.';
-			$scope.oauthToken = "";
+			$cookies.oauthToken = "";
 			updateUserInfo();
+			$scope.$evalAsync();
 		};
 
 		window.__oauthSuccess = function(code, secret) {
-			if(secret !== userLoginSecret) {
+			if(!userLoginSecret || secret !== userLoginSecret || !code) {
 				window.__oauthError('The server returned an incorrect login secret.');
 			} else {
 				userLoginSecret = null;
 				userLoginWindow = null;
+				sessionStorage.removeItem('kle.oauth.state');
 				$cookies.oauthToken = code;
 				updateUserInfo();
+				$scope.$evalAsync();
 			}
 		};
 

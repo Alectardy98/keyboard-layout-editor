@@ -1,0 +1,22 @@
+[
+  {
+    "target": "js/ui-bootstrap-tpls-0.12.0.min.js",
+    "url": "https://cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/0.12.0/ui-bootstrap-tpls.min.js",
+    "sha256": "3abd1473a1eeeb342e2b6f07721ca47ee8a0016504a080a85b223fcb5165e108"
+  },
+  {
+    "target": "js/urlon.js",
+    "url": "https://raw.githubusercontent.com/vjeux/URLON/d61369643d6a3aa382e8d1ae14e42cb077fa7c87/src/urlon.js",
+    "sha256": "e8db7c4bb6adcd54df70d696c80dc2ff10466d4f8dd97993bcb2eb552e22f018"
+  },
+  {
+    "target": "fonts/kbd-webfont.woff",
+    "url": "https://www.keyboard-layout-editor.com/fonts/kbd-webfont.woff",
+    "sha256": "8c410926c840619538be9d35a27ac041681b1b9d108ad7d1237be3ac83a4061e"
+  },
+  {
+    "target": "fonts/combining-diacritical.ttf",
+    "url": "https://www.keyboard-layout-editor.com/fonts/combining-diacritical.ttf",
+    "sha256": "0ac4763392b5a882fb82c213f46da67dc62a0181c1346ba296cc363a3db1c049"
+  }
+]

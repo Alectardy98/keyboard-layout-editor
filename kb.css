@@ -2,23 +2,23 @@
 webfont(family, file, weight=normal, style=normal) {
   @font-face {
     font-family: family;
-    src: url('/fonts/' + file + ".eot");
-    src: url('/fonts/' + file + ".eot?#iefix") format('embedded-opentype'),
-         url('/fonts/' + file + ".woff") format('woff'),
-         url('/fonts/' + file + ".ttf") format('truetype'),
-         url('/fonts/' + file + ".svg#" + family) format('svg');
+    src: url('../fonts/' + file + ".eot");
+    src: url('../fonts/' + file + ".eot?#iefix") format('embedded-opentype'),
+         url('../fonts/' + file + ".woff") format('woff'),
+         url('../fonts/' + file + ".ttf") format('truetype'),
+         url('../fonts/' + file + ".svg#" + family) format('svg');
     font-weight: weight;
     font-style: style;
   }
 }
 /* Set up all the web-fonts we host */
-webfont('engravers_gothic_fsregular', 'EngraversGothic-Regular-webfont');
-webfont('volkswagen_serialregular', 'Volkswagen_Serial-Regular-webfont');
+/* Optional licensed Engravers font is not distributed with this fork. */
+/* Optional Volkswagen font is not distributed; system fallbacks remain. */
 
 /* font and css for combining-diacritical things */
 @font-face {
   font-family: 'combining-diacritical';
-  src:  url('/fonts/combining-diacritical.ttf') format('truetype');
+  src:  url('../fonts/combining-diacritical.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
 }
@@ -152,7 +152,7 @@ for i in (1..9) {
   background-repeat: no-repeat;
 }
 .HOMING .keylabels {
-  background-image: url("nub.png");
+  background-image: url("../nub.png");
   background-repeat: no-repeat;
   background-position: center 90%;
 }
@@ -451,3 +451,5 @@ settings-key(size, adjust = 0) {
     float: none;
   }
 }
+
+.vial-file-toolbar { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }

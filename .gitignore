@@ -23,3 +23,9 @@ fonts/*
 
 # Saved layouts
 layouts/
+
+# Static site output and downloaded, checksum-verified build inputs
+dist/
+.vendor-cache/
+playwright-report/
+test-results/
