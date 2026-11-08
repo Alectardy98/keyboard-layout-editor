@@ -132,10 +132,6 @@ Nav Bar / Header
   <!--***********************************************
   Main Toolbar
   ************************************************-->
-  <div class="vial-file-toolbar">
-    <button type="button" class="btn btn-success" ngf-select="true" ngf-change="uploadJson($files, $event)" accept=".json,application/json"><i class="fa fa-folder-open-o"></i> Open KLE / Vial / VIA JSON</button>
-    <button type="button" class="btn btn-success" ng-click="downloadJson()"><i class="fa fa-download"></i> {{vialDocument ? 'Save definition JSON' : 'Save KLE JSON'}}</button>
-  </div>
   <div class="alert alert-info" ng-if="vialDocument" style="margin-top:10px">
     <strong>Vial / VIA definition: {{vialDocument.name || 'Unnamed keyboard'}}</strong> · {{vialDocument.matrix.rows}} × {{vialDocument.matrix.cols}} matrix.
     Firmware metadata is preserved. Keep matrix row,column legends and layout-option tags intact. All physical variants are visible for editing.
@@ -184,28 +180,32 @@ Nav Bar / Header
   <div class="btn-group" ng-hide="!user || !user.id || !currentGist || !isStarred">
     <button type="button" class="btn btn-default" ng-click="setGistStar(currentGist, false)" ><i class="fa fa-star"></i> Unstar</button>
   </div>
-  <!-- Save button (right aligned) -->
-  <div class="btn-group pull-right" ng-hide="user && user.id">
-    <button type="button" class="btn btn-success hint--bottom hint--no-animate disabled" data-hint="Sign in to save your layouts.">
-      <i class="fa fa-save"></i> Save
-    </button>
-  </div>
-  <div class="btn-group pull-right" ng-hide="!user || !user.id">
-    <button type="button" class="btn btn-success" ng-class="{disabled:!canSave()}" ng-click="save()">
-      <i class="fa fa-save"></i> Save
-    </button>
-  </div>
-  <div class="btn-group pull-right" style="margin-right: 4px;" dropdown>
-    <button type="button" class="btn btn-success dropdown-toggle" dropdown-toggle><i class="fa fa-download"></i> Download <span class="caret"></span></button>
-    <ul class="dropdown-menu" role="menu">
-      <li><a ng-click="downloadSvg()">Download SVG (Experimental)</a></li>
-      <li><a ng-click="downloadPng()">Download PNG (Experimental)</a></li>
-      <li><a ng-click="downloadJpg()">Download JPG (Experimental)</a></li>
-      <li><a ng-click="downloadThumb()">Download Thumbnail (PNG) (Experimental)</a></li>
-      <li class="divider"></li>
-      <li><a ng-click="downloadJson()">{{vialDocument ? "Download vial.json (complete definition)" : "Download JSON"}}</a></li>
-      <li ng-if="vialDocument"><a ng-click="downloadKleJson()">Download KLE JSON (layout only)</a></li>
-    </ul>
+  <!-- Keep Download, GitHub Save and local file actions together when wrapping. -->
+  <div class="vial-file-toolbar pull-right">
+    <div class="btn-group" dropdown>
+      <button type="button" class="btn btn-success dropdown-toggle" dropdown-toggle><i class="fa fa-download"></i> Download <span class="caret"></span></button>
+      <ul class="dropdown-menu" role="menu">
+        <li><a ng-click="downloadSvg()">Download SVG (Experimental)</a></li>
+        <li><a ng-click="downloadPng()">Download PNG (Experimental)</a></li>
+        <li><a ng-click="downloadJpg()">Download JPG (Experimental)</a></li>
+        <li><a ng-click="downloadThumb()">Download Thumbnail (PNG) (Experimental)</a></li>
+        <li class="divider"></li>
+        <li><a ng-click="downloadJson()">{{vialDocument ? "Download vial.json (complete definition)" : "Download JSON"}}</a></li>
+        <li ng-if="vialDocument"><a ng-click="downloadKleJson()">Download KLE JSON (layout only)</a></li>
+      </ul>
+    </div>
+    <div class="btn-group" ng-hide="user && user.id">
+      <button type="button" class="btn btn-success hint--bottom hint--no-animate disabled" data-hint="Sign in to save your layouts.">
+        <i class="fa fa-save"></i> Save
+      </button>
+    </div>
+    <div class="btn-group" ng-hide="!user || !user.id">
+      <button type="button" class="btn btn-success" ng-class="{disabled:!canSave()}" ng-click="save()">
+        <i class="fa fa-save"></i> Save
+      </button>
+    </div>
+    <button type="button" class="btn btn-success" ngf-select="true" ngf-change="uploadJson($files, $event)" accept=".json,application/json"><i class="fa fa-folder-open-o"></i> Open KLE / Vial / VIA JSON</button>
+    <button type="button" class="btn btn-success" ng-click="downloadJson()"><i class="fa fa-download"></i> {{vialDocument ? 'Save definition JSON' : 'Save KLE JSON'}}</button>
   </div>
 
 

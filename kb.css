@@ -67,6 +67,7 @@ html, body {
 
 /* The keyboard background */
 #keyboard {
+  clear: both;
   padding: 4px;
   border-radius: 3px;
   margin-top: 10px;
@@ -452,4 +453,4 @@ settings-key(size, adjust = 0) {
   }
 }
 
-.vial-file-toolbar { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+.vial-file-toolbar { display:flex; flex-wrap:wrap; gap:4px; margin-left:4px; max-width:100%; }
