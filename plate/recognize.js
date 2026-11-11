@@ -1,9 +1,9 @@
 // Recognition proposes switch centres from closed geometry, not filenames.
 // Ambiguous contours and unmatched drawing features remain unchanged.
 (function(root,factory) {
-    if(typeof module==='object' && module.exports) module.exports=factory(require('./geometry.js'));
-    else root.PlateRecognize=factory(root.PlateGeometry);
-}(typeof globalThis!=='undefined'?globalThis:this,function(G) {
+    if(typeof module==='object' && module.exports) module.exports=factory(require('./geometry.js'),require('./measured.js'));
+    else root.PlateRecognize=factory(root.PlateGeometry,root.PlateMeasured);
+}(typeof globalThis!=='undefined'?globalThis:this,function(G,Measured) {
     'use strict';
     function unique(values,tolerance) {
         var result=[];
@@ -81,6 +81,17 @@
         if(Math.min(box.width,box.height)<10 || Math.max(box.width,box.height)>23.5 ||
             area<80 || area/(box.width*box.height)<0.5 || roundness>0.93) return null;
         return {type:'unknown',center:box.center,angle:box.angle,width:box.width,height:box.height,score:0};
+    }
+    // Match actual contours rather than bounding boxes alone. Never claim a
+    // mounting hole just because it happens to be near a spacebar.
+    function matches(points,pattern,center,angle) {
+        var local=points.map(function(p){return G.rotate({x:p.x-center.x,y:p.y-center.y},-(angle || 0));});
+        var a=G.bounds(local),b=G.bounds(pattern);
+        if(['minX','maxX','minY','maxY'].some(function(k){return Math.abs(a[k]-b[k])>0.03;}))return false;
+        function onEdges(p,ring){return ring.some(function(a,i){var b=ring[(i+1)%ring.length],dx=b.x-a.x,dy=b.y-a.y;
+            var t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy || 1)));
+            return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy)<0.03;});}
+        return local.every(function(p){return onEdges(p,pattern);}) && pattern.every(function(p){return onEdges(p,local);});
     }
     function analyze(document,options) {
         options=options || {};
@@ -182,6 +193,20 @@
                 if(match)key.detectedStabilizer={family:'mx-plate',spacing:match[0],vertical:vertical};
             }
         });
+        // The Zenith 5.5u includes both pairs of wire slots plus three pole
+        // support openings. Accept the assembly only when every contour matches.
+        keys.filter(function(k){return k.type==='alps';}).forEach(function(key){
+            [0,Math.PI].some(function(turn){
+                var parts=Measured.space55.map(function(pattern){return small.find(function(c){
+                    return matches(c.points,pattern,key.center,key.capAngle+turn);
+                });});
+                if(parts.some(function(c){return !c;}))return false;
+                if(parts.some(function(c){return keys.some(function(other){return other!==key && other.stabilizers.includes(c);});}))return false;
+                key.stabilizers=parts;key.width=5.5;
+                key.detectedStabilizer={family:'alps-default',spacing:76.9,vertical:false,direction:turn?'north':'south'};
+                return true;
+            });
+        });
         keys.sort(function(a,b){return b.center.y-a.center.y || a.center.x-b.center.x;});
         var rows=[];
         keys.forEach(function(key) {
@@ -189,12 +214,48 @@
             if(!row) {row={y:key.center.y,keys:[]};rows.push(row);}
             row.keys.push(key);
         });
+        // Infer caps from neighbouring, already supported footprints. Quarter-u
+        // widths fill only available space; switch centres and intentional gaps
+        // are never moved. A chain of ordinary 1u keys is the initial reference.
+        rows.forEach(function(row){
+            row.keys.sort(function(a,b){return a.center.x-b.center.x;});
+            var list=row.keys,trusted=new Set(list.filter(function(k,i){
+                return k.width>1 || [list[i-1],list[i+1]].some(function(n){return n && Math.abs(Math.abs(n.center.x-k.center.x)-19.05)<0.03;});
+            }));
+            for(var pass=0;pass<list.length;pass++){
+                var changed=false;
+                list.forEach(function(k,i){
+                    if(k.width>2.75 || k.height!==1 || Math.abs(k.capAngle)>1e-6)return;
+                    var neighbours=[list[i-1],list[i+1]].filter(Boolean);
+                    var proposals=neighbours.filter(function(n){return trusted.has(n);}).map(function(n){
+                        return 2*Math.abs(n.center.x-k.center.x)/19.05-n.width;
+                    }).filter(function(w){return w>=k.width-0.002 && w<=2.75 && Math.abs(w*4-Math.round(w*4))<0.006;});
+                    if(!proposals.length)return;
+                    var width=Math.round(Math.min(...proposals)*4)/4;
+                    if(neighbours.some(function(n){return (width+n.width)*19.05/2>Math.abs(n.center.x-k.center.x)+0.03;}))return;
+                    if(width>k.width+0.01){k.width=width;changed=true;}
+                    if(!trusted.has(k)){trusted.add(k);changed=true;}
+                });
+                if(!changed)break;
+            }
+        });
         keys=[];
         rows.forEach(function(row) {
             row.keys.sort(function(a,b){return a.center.x-b.center.x;});
             row.keys.forEach(function(key){keys.push(key);});
         });
         keys.forEach(function(key,index) {key.id='key-'+String(index+1).padStart(3,'0');counts[key.type]++;});
+        // Append miscellaneous controls after switches to keep historical
+        // switch IDs stable when opening a saved plate project.
+        document.contours.forEach(function(c){
+            if(options.layer && !c.parts.some(function(p){return p.layer===options.layer;}))return;
+            if(keys.some(function(k){return k.contours.includes(c)||k.stabilizers.includes(c);}))return;
+            var b=G.bounds(c.points),t=G.bounds(Measured.ec11),center={x:b.cx-t.cx,y:b.cy-t.cy};
+            if(!matches(c.points,Measured.ec11,center,0))return;
+            keys.push({id:'key-'+String(keys.length+1).padStart(3,'0'),center:center,holeAngle:0,capAngle:0,
+                type:'ec11',core:{width:15.5,height:14.101933},contours:[c],stabilizers:[],editable:c.editable,width:1,height:1});
+            counts.ec11=(counts.ec11 || 0)+1;
+        });
         var types=Object.keys(counts).filter(function(type){return counts[type]>0;});
         return {keys:keys,counts:counts,type:types.length===1?types[0]:types.length?'mixed':'unknown',
             ambiguous:ambiguous,duplicates:duplicate,unassigned:document.contours.filter(function(c) {

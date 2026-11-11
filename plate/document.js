@@ -41,7 +41,7 @@
         function makeKeys(defaultKey) {
             return keys.map(function(source,index) {
                 var key=defaultKey();key.width=key.width2=source.width;key.height=key.height2=source.height;
-                key.labels=['Key '+(index+1)];key._plateId=source.id;
+                key.labels=[source.type==='ec11'?'EC11':'Key '+(index+1)];key._plateId=source.id;
                 position(key,source.center,source.capAngle,frame);return key;
             });
         }
@@ -58,6 +58,11 @@
             after.forEach(function(key) {
                 var config=ensure(key,seen),previous=old.get(key._plateId),source=original[key._plateId];
                 if(previous) {
+                    // Plate cap dimensions use quarter-key units, never quarter
+                    // millimetres. Do not quantize the measured switch position.
+                    ['width','height','width2','height2'].forEach(function(field){
+                        if(key[field]!==previous[field] && Number.isFinite(key[field]))key[field]=Math.round(key[field]*4)/4;
+                    });
                     if(options.keepStemOnResize!==false) {
                         key.x-=(key.width-previous.width)/2;key.y-=(key.height-previous.height)/2;
                     }
@@ -182,7 +187,11 @@
             makeKeys:makeKeys,reconcile:reconcile,setAnchors:setAnchors,exclude:exclude,apply:apply,plan:plan,exportFile:exportFile,
             physical:function(key){return physical(key,frame);},position:function(key,center,angle){position(key,center,angle,frame);},
             snapshot:function(){return copy(settings);},restore:function(snapshot){
-                settings=copy(snapshot);this.settings=settings;
+                settings=copy(snapshot);
+                // Older projects did not recognize every miscellaneous opening.
+                // Missing references stay fixed, rather than becoming deletions.
+                Object.keys(original).forEach(function(id){if(!settings[id])settings[id]={anchor:null,profile:null,excluded:true};});
+                this.settings=settings;
             }};
     }
     // Rigidly align an incoming layout to one or more explicit anchor pairs.

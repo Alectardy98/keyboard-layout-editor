@@ -1,9 +1,9 @@
 // Physical dimensions in mm. Keep data separate from the editor and recognizer.
 // Drawing references and preset limitations are recorded in docs/plate-editor.md.
 (function(root,factory) {
-    if(typeof module==='object' && module.exports) module.exports=factory(require('polygon-clipping'),require('./geometry.js'));
-    else root.PlateProfiles=factory(root.polygonClipping,root.PlateGeometry);
-}(typeof globalThis!=='undefined'?globalThis:this,function(clip,G) {
+    if(typeof module==='object' && module.exports) module.exports=factory(require('polygon-clipping'),require('./geometry.js'),require('./measured.js'));
+    else root.PlateProfiles=factory(root.polygonClipping,root.PlateGeometry,root.PlateMeasured);
+}(typeof globalThis!=='undefined'?globalThis:this,function(clip,G,Measured) {
     'use strict';
     // Boolean operations on coincident edges need a common numerical grid.
     // 0.00001 mm is well below the preview arc tolerance (0.005 mm); only
@@ -42,7 +42,7 @@
             if(!Number.isFinite(distance) || distance<10 || distance>250) throw Error('Stabilizer spacing must be between 10 and 250 mm.');
             return distance;
         }
-        var table=style==='alps-at101'?at101Spacing:style==='alps-aek'?aekSpacing:mxSpacing;
+        var table=style==='alps-default'?aekSpacing:style==='alps-at101'?at101Spacing:style==='alps-aek'?aekSpacing:mxSpacing;
         if(table[size]!==undefined) return table[size];
         throw Error('No '+(style.startsWith('alps')?'Alps':'MX/Costar')+' spacing preset for '+size+'u. Enter the measured stabilizer spacing.');
     }
@@ -54,6 +54,10 @@
         var vertical=options.axis==='vertical' || (options.axis!=='horizontal' && key.height>key.width);
         var size=vertical?key.height:key.width,minSize=style.startsWith('alps')?1.75:2;
         if(size<minSize && !options.forceStabilizer) return [];
+        if(style==='alps-default' && size===5.5 && !options.spacing) {
+            var measured=Measured.space55.map(polygon);
+            return place(measured,{x:0,y:0},(vertical?Math.PI/2:0)+(options.direction==='north'?Math.PI:0));
+        }
         var distance=spacing(style,size,options.spacing),offset=Number(options.stemOffset || 0);
         if(!Number.isFinite(offset) || Math.abs(offset)>distance/2-5) throw Error('The stem offset is outside the stabilizer span.');
         var centers=[-distance/2-offset,distance/2-offset],pieces=[];
@@ -72,7 +76,7 @@
             }
         } else if(style==='costar') {
             centers.forEach(function(x){pieces.push(rectangle(3.3,14.2,x,-0.65));});
-        } else if(style==='alps-aek' || style==='alps-at101') {
+        } else if(style==='alps-default' || style==='alps-aek' || style==='alps-at101') {
             var width=options.slotWidth===undefined || options.slotWidth===null || options.slotWidth===''?(style==='alps-at101'?2.5:2.67):Number(options.slotWidth);
             var height=options.slotHeight===undefined || options.slotHeight===null || options.slotHeight===''?(style==='alps-at101'?4.8:5.21):Number(options.slotHeight);
             var y=options.slotOffset===undefined || options.slotOffset===null || options.slotOffset===''?(style==='alps-at101'?-6.4:-6.48):Number(options.slotOffset);
@@ -87,6 +91,7 @@
         });
     }
     function switchShape(options) {
+        if(options.switch==='ec11') return polygon(Measured.ec11);
         var preset=switches[options.switch];
         if(options.switch==='custom') {
             var width=Number(options.customWidth),height=Number(options.customHeight);
@@ -114,6 +119,30 @@
             });});
         });
     }
-    return {switches:switches,spacing:spacing,stabilizers:stabilizers,switchShape:switchShape,generate:generate,
+    // Primary KLE rectangle is the raised area of a stepped cap: its centre
+    // is the switch stem. The secondary rectangle is the full cap footprint.
+    var presets=[
+        {id:'alps-1',label:'1u',width:1},
+        {id:'alps-125',label:'1.25u',width:1.25},
+        {id:'alps-15',label:'1.5u',width:1.5},
+        {id:'alps-15-right',label:'1.5u stepped right',width:1,full:1.5},
+        {id:'alps-15-left',label:'1.5u stepped left',width:1,full:1.5,left:true},
+        {id:'alps-175-stabs',label:'1.75u — stabilizers',width:1.75,stabs:true},
+        {id:'alps-175',label:'1.75u — no stabilizers',width:1.75},
+        {id:'alps-175-step125',label:'1.75u stepped — 1.25u raised area',width:1.25,full:1.75},
+        {id:'alps-175-step15',label:'1.75u stepped — 1.5u raised area',width:1.5,full:1.75},
+        {id:'alps-2',label:'2u — stabilizers',width:2,stabs:true},
+        {id:'alps-225',label:'2.25u — stabilizers',width:2.25,stabs:true},
+        {id:'alps-55',label:'5.5u — complete spacebar supports',width:5.5,stabs:true}
+    ];
+    function preset(id) {
+        var p=presets.find(function(p){return p.id===id;});
+        if(id==='ec11')p={label:'EC11',width:1};
+        if(!p)throw Error('Unknown key preset.');
+        return {key:{width:p.width,width2:p.full || p.width,height:1,height2:1,
+            x2:p.left?p.width-p.full:0,stepped:!!p.full,labels:[p.label]},
+            options:{switch:id==='ec11'?'ec11':'alps',stabilizer:p.stabs?'alps-default':'none',direction:'south'}};
+    }
+    return {presets:presets,preset:preset,switches:switches,spacing:spacing,stabilizers:stabilizers,switchShape:switchShape,generate:generate,
         polygon:polygon,rings:rings,union:union,place:place,clip:clip};
 }));

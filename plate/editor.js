@@ -7,7 +7,7 @@
         var workspace=!!root.KLE_PLATE_WORKSPACE;
         var ui=scope.plate={workspace:workspace,model:null,error:'',notice:'',busy:false,paths:[],warnings:[],
             units:'mm',layer:'',layers:[],options:{switch:'original',stabilizer:'original',direction:'south',mount:'plate',
-                axis:'auto',switchRotation:0,extraSize:0,spacing:'',stemOffset:0},alpsFamily:'alps-aek',
+                axis:'auto',switchRotation:0,extraSize:0,spacing:'',stemOffset:0},alpsFamily:'alps-default',
             stabChoice:'original',pending:null};
         function guarded(fn) {
             try {ui.error='';fn();}catch(error){ui.error=error.message || String(error);}
@@ -81,6 +81,23 @@
             if(scope.dirty && !root.confirm('Re-read the original DXF with these units/layer? This discards plate edits in this tab.'))return;
             guarded(function(){var d=ui.model.document;load(D.exportBytes(d),d.name,{units:ui.units,layer:ui.layer});});
         };
+        ui.presets=root.PlateProfiles?.presets || [];
+        ui.addPreset=function(id){guarded(function(){
+            if(!ui.model)throw Error('Open a DXF first.');
+            var preset=root.PlateProfiles.preset(id);
+            // One transaction includes the key and its geometry, so Undo never
+            // leaves an unprofiled key behind.
+            hooks.transaction('plate-add',function(){
+                var key=$serial.defaultKeyProps(),last=scope.selectedKeys[scope.selectedKeys.length-1];
+                Object.assign(key,preset.key);
+                key.x=last?last.x+Math.max(last.width,last.width2 || 0)+(last.x2 || 0):0;
+                key.y=last?last.y:Math.max(0,...scope.keys().map(function(k){return k.y+k.height;}));
+                scope.keys().push(key);ui.model.reconcile([],scope.keys());
+                ui.model.apply([key],preset.options);hooks.renderKey(key);
+                scope.unselectAll();scope.selectedKeys.push(key);scope.multi=angular.copy(key);
+            });
+            scope.calcKbHeight();ui.notice='Added '+preset.key.labels[0]+'. The raised area is centred on the stem; move the new key into position.';
+        });};
         ui.select=select;
         ui.isSelected=function(id){return scope.selectedKeys.some(function(k){return k._plateId===id;});};
         ui.isAnchor=function(id){return !!ui.model?.settings[id]?.anchor;};
