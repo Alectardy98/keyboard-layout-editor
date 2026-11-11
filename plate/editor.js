@@ -38,7 +38,7 @@
             keyboard.meta.name=name.replace(/\.dxf$/i,'')+' — inferred layout';
             ui.model=model;ui.document=document;ui.recognized=recognized;ui.layers=[...new Set(document.primitives.map(function(p){return p.layer;}))].sort();
             ui.layer=ui.importLayer=options?.layer || '';ui.pending=null;
-            ui.units=document.factor===25.4?'in':document.factor===10?'cm':'mm';
+            ui.units=document.units.override || (document.units.declaredFactor?'header':document.factor===25.4?'in':document.factor===10?'cm':'mm');
             var b=document.bounds,margin=5;
             ui.viewBox=[b.minX-margin,-b.maxY-margin,Math.max(20,b.width+margin*2),Math.max(20,b.height+margin*2)].join(' ');
             keyboard.keys.forEach(hooks.renderKey);
@@ -119,7 +119,7 @@
             guarded(function() {
                 var fields=Object.keys($serial.defaultKeyProps()).concat('_plateId');
                 var data={format:'keebal-plate-project',version:1,source:ui.document.source,encoding:ui.document.encoding,
-                    name:ui.document.name,unitOverride:ui.document.units.confirmed?(ui.document.factor===25.4?'in':ui.document.factor===10?'cm':'mm'):null,
+                    name:ui.document.name,unitOverride:ui.document.units.override,
                     layer:ui.importLayer,frame:ui.model.frame,settings:ui.model.snapshot(),
                     meta:scope.keyboard.meta,keys:scope.keys().map(function(key){var item={};fields.forEach(function(f){item[f]=key[f];});return item;})};
                 saveAs(new Blob([JSON.stringify(data)],{type:'application/json'}),ui.document.name.replace(/\.dxf$/i,'')+'.plate.json');

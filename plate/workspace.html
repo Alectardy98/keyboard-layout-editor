@@ -16,7 +16,7 @@
   <div class="plate-units" ng-if="plate.model">
     <strong>{{plate.document.name}}</strong>
     <span>{{plate.keyCount}} keys ({{plate.editableCount}} editable) · MX {{plate.recognized.counts.mx}} / Alps {{plate.recognized.counts.alps}} / Universal {{plate.recognized.counts.universal}} / Unknown {{plate.recognized.counts.unknown}}</span>
-    <label>Drawing units <select class="form-control" ng-model="plate.units"><option value="mm">Millimetres</option><option value="in">Inches</option><option value="cm">Centimetres</option></select></label>
+    <label>Drawing units <select class="form-control" ng-model="plate.units"><option value="header" ng-if="plate.document.units.declaredFactor">File units ({{plate.document.units.declaredFactor}} mm/unit)</option><option value="mm">Millimetres</option><option value="in">Inches</option><option value="cm">Centimetres</option></select></label>
     <label>Recognition layer <select class="form-control" ng-model="plate.layer"><option value="">All layers</option><option ng-repeat="layer in plate.layers" value="{{layer}}">{{layer}}</option></select></label>
     <button class="btn btn-default" ng-click="plate.reinterpret()">Confirm / re-read</button>
     <span class="text-warning" ng-if="!plate.document.units.confirmed">Unitless DXF: confirm the units before edited export.</span>

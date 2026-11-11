@@ -200,7 +200,9 @@
         primitives.forEach(function(p){allPoints=allPoints.concat(p.points);});
         return {source:source,encoding:encoding,name:name || 'plate.dxf',raw:raw,parsed:parsed,primitives:primitives,
             contours:paths.closed,open:paths.open,bounds:G.bounds(allPoints),factor:factor,
-            units:{code:code,factor:factor,confirmed:confirmed,inferred:inferred},unsupported:unsupported};
+            units:{code:code,factor:factor,declaredFactor:unitFactors[code] || null,
+                override:['mm','in','cm'].includes(options.units)?options.units:null,
+                confirmed:confirmed,inferred:inferred},unsupported:unsupported};
     }
     function format(n) {
         if(!Number.isFinite(n) || Math.abs(n)>1e9) throw Error('Cannot export an invalid DXF coordinate.');
