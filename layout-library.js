@@ -97,5 +97,14 @@
             total:filtered.length, first:filtered.length ? (page - 1) * size + 1 : 0,
             last:Math.min(page * size, filtered.length)};
     }
-    return {file:FILE, empty:empty, parse:parse, serialize:serialize, apply:apply, view:view, folderName:folderName};
+    // Gist HEAD reads can lag a successful PATCH. Prefer a confirmed revision
+    // until HEAD includes it, or a later commit becomes visible.
+    function newestRevision(history, hint) {
+        var head=history && history[0];
+        if(!hint || !hint.version) return head;
+        if(!head) return hint;
+        if(history.some(function(commit){return commit.version===hint.version;})) return head;
+        return Date.parse(head.committed_at)>Date.parse(hint.committed_at) ? head : hint;
+    }
+    return {file:FILE, empty:empty, parse:parse, serialize:serialize, apply:apply, view:view, folderName:folderName,newestRevision:newestRevision};
 }));

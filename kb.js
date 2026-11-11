@@ -1798,6 +1798,12 @@
 	kbApp.controller('savedLayoutsCtrl', function($scope, $modalInstance, $q, params) {
 		var library = window.LayoutLibrary, closed = false, indexGist = null;
 		var seen = Object.create(null), pending = params.starred ? 2 : 1, ownListed = false;
+		var hintKey='kle.folder-revision.v1.'+params.user.toLowerCase(),hint=null;
+		try {
+			var savedHint=JSON.parse(window.localStorage.getItem(hintKey));
+			if(savedHint && /^[A-Za-z0-9_-]{1,100}$/.test(savedHint.id) &&
+				/^[a-f0-9]{40}$/i.test(savedHint.version) && Number.isFinite(Date.parse(savedHint.committed_at))) hint=savedHint;
+		} catch(error) { /* Storage is an optional revision hint, never the folder store. */ }
 		$scope.params = params;
 		$scope.layouts = [];
 		$scope.organization = library.empty();
@@ -1868,16 +1874,29 @@
 		function findIndex(gists) {
 			var matches = gists.filter(function(gist) { return gist.files && gist.files[library.file]; });
 			if(matches.length > 1) throw Error('Multiple folder files were found. Folder editing is disabled to avoid overwriting them.');
-			return matches.length ? matches[0].id : null;
+			return matches.length ? matches[0].id : (hint ? hint.id : null);
 		}
-		function readIndex(id) {
+		function decodeIndex(gist) {
+			var file=gist.files && gist.files[library.file];
+			if(!gist.owner || gist.owner.login.toLowerCase() !== params.user.toLowerCase())
+				throw Error('The folder file does not belong to your GitHub account.');
+			if(!file || file.truncated) throw Error('The folder file is missing or incomplete; it will not be overwritten.');
+			return library.parse(file.content);
+		}
+		function rememberRevision(id,commit) {
+			hint={id:id,version:commit.version,committed_at:commit.committed_at};
+			try {window.localStorage.setItem(hintKey,JSON.stringify(hint));}
+			catch(error) { /* Private browsing can disable persistent cache hints. */ }
+		}
+		function readIndex(id,version) {
 			if(!id) return $q.when(library.empty());
-			return request('/gists/' + id).then(function(response) {
-				var gist = response.data, file = gist.files && gist.files[library.file];
-				if(!gist.owner || gist.owner.login.toLowerCase() !== params.user.toLowerCase())
-					throw Error('The folder file does not belong to your GitHub account.');
-				if(!file || file.truncated) throw Error('The folder file is missing or incomplete; it will not be overwritten.');
-				return library.parse(file.content);
+			return request('/gists/' + id + (version ? '/'+version : '')).then(function(response) {
+				var gist=response.data,document=decodeIndex(gist);
+				if(version || !hint || hint.id!==id) return document;
+				var latest=library.newestRevision(gist.history,hint);
+				if(latest.version!==gist.history?.[0]?.version) return readIndex(id,latest.version);
+				rememberRevision(id,latest);
+				return document;
 			});
 		}
 		function finished() { if(!closed && --pending === 0) $scope.loading = false; }
@@ -1928,7 +1947,12 @@
 				return request(indexGist ? '/gists/' + indexGist : '/gists', indexGist ? 'PATCH' : 'POST', payload).then(function(response) {
 					if(!response.data || !response.data.id) throw Error('GitHub did not confirm the folder save. Reopen My Layouts before retrying.');
 					indexGist = response.data.id;
-					return readIndex(indexGist).then(function(saved) {
+					var commit=response.data.history?.[0];
+					if(!commit || !/^[a-f0-9]{40}$/i.test(commit.version) || !Number.isFinite(Date.parse(commit.committed_at)) ||
+						library.serialize(decodeIndex(response.data))!==content)
+						throw Error('GitHub did not acknowledge the expected folder revision. Reopen My Layouts before retrying.');
+					rememberRevision(indexGist,commit);
+					return readIndex(indexGist,commit.version).then(function(saved) {
 						if(library.serialize(saved) !== content)
 							throw Error('Folder readback differs from the save. Reopen My Layouts to see the latest settings.');
 						return saved;

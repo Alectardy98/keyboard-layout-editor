@@ -27,7 +27,11 @@ rewritten by folder actions. The original KLE therefore continues to load and
 save the same layouts; it simply does not display our folder organization.
 Opening the list, filtering, searching and paging make no writes.
 
-Folder saves re-read the latest index and verify the saved content. Avoid editing
+Folder saves re-read the index and verify the exact GitHub commit returned by the
+save. GitHub's HEAD reads can temporarily lag writes, so the browser retains only
+an index ID/revision hint to keep recently confirmed changes visible on reload.
+Folder names and assignments are always read from GitHub, not that hint.
+Avoid editing
 folders simultaneously in different browser windows: GitHub Gist updates do not
 provide a folder transaction or lock. Invalid, incomplete, duplicated or newer
 folder indexes disable folder edits rather than overwriting them.
