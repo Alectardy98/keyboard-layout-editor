@@ -40,10 +40,21 @@ All rights reserved.
 <script type="text/javascript" src="serial.js"></script>
 <script type="text/javascript" src="vial-document.js"></script>
 <script type="text/javascript" src="layout-library.js?v=20261111-folder-revisions"></script>
+<!-- plate-engine:start — the build loads this engine only in plate.html -->
+<script type="text/javascript" src="js/dxf-parser.js"></script>
+<script type="text/javascript" src="js/polygon-clipping.js"></script>
+<script type="text/javascript" src="plate/geometry.js?v=20261111-plate"></script>
+<script type="text/javascript" src="plate/dxf.js?v=20261111-plate"></script>
+<script type="text/javascript" src="plate/profiles.js?v=20261111-plate"></script>
+<script type="text/javascript" src="plate/recognize.js?v=20261111-plate"></script>
+<script type="text/javascript" src="plate/document.js?v=20261111-plate"></script>
+<!-- plate-engine:end -->
+<script type="text/javascript" src="plate/editor.js?v=20261111-plate"></script>
+<link rel="stylesheet" href="plate/editor.css?v=20261111-plate">
 <script type="text/javascript" src="site-config.js"></script>
-<script type="text/javascript" src="kb.js?v=20261111-folder-revisions"></script>
+<script type="text/javascript" src="kb.js?v=20261111-plate"></script>
 </head>
-<body ng-controller="kbCtrl"
+<body ng-controller="kbCtrl" ng-class="{'plate-page':plate.workspace}"
       ng-mouseup="selectRelease($event)"
       ng-mousemove="selectMove($event)"
       ui-keydown="{'shift-191' : 'showHelp($event)',
@@ -73,6 +84,7 @@ Nav Bar / Header
 
     <!-- Left-aligned NavBar buttons -->
     <ul class="nav navbar-nav">
+      <li><a href="plate.html" target="_blank" rel="noopener"><i class="fa fa-crop"></i> Plate editor</a></li>
       <!-- Presets dropdown -->
       <li class="dropdown" dropdown>
         <a class="dropdown-toggle" dropdown-toggle><i class="fa fa-keyboard-o"></i> Preset <b class="caret"></b></a>
@@ -129,6 +141,8 @@ Nav Bar / Header
 </nav>
 
 <div class="body" ng-cloak>
+  <div ng-if="plate.workspace" ng-include="'plate/workspace.html'"></div>
+  <div class="alert alert-danger" role="alert" ng-if="!plate.workspace && plate.error">{{plate.error}}</div>
 
   <!--***********************************************
   Main Toolbar
@@ -207,6 +221,7 @@ Nav Bar / Header
     </div>
     <button type="button" class="btn btn-success" ngf-select="true" ngf-change="uploadJson($files, $event)" accept=".json,application/json"><i class="fa fa-folder-open-o"></i> Open KLE / Vial / VIA JSON</button>
     <button type="button" class="btn btn-success" ng-click="downloadJson()"><i class="fa fa-download"></i> {{vialDocument ? 'Save definition JSON' : 'Save KLE JSON'}}</button>
+    <button type="button" class="btn btn-default" ng-if="!plate.workspace" ngf-select="true" ngf-change="plate.open($files)" accept=".dxf">Open plate DXF</button>
   </div>
 
 
@@ -252,7 +267,7 @@ Nav Bar / Header
          class="key {{key.profile}}"
          ng-mouseover="hoveredKey=key"
          ng-mouseleave="hoveredKey=null"
-         ng-class="{hover: hoveredKey==key, selected: selectedKeys.indexOf(key)>=0, HOMING:key.nub}"
+         ng-class="{hover: hoveredKey==key, selected: selectedKeys.indexOf(key)>=0, HOMING:key.nub, 'plate-anchor-key':plate.isAnchor(key._plateId)}"
          ng-bind-html="key.html">
       </div>
     </div>

@@ -1,6 +1,13 @@
-# Keyboard Layout Editor — Vial / VIA support
+# Keyboard Layout Editor — Vial / VIA and DXF plates
 
 The original [Keyboard Layout Editor](https://www.keyboard-layout-editor.com/) interface, with support for opening and editing **Vial and VIA keyboard-definition JSON files**. GitHub sign-in, Gist saving, presets, raw layout editing, and the existing KLE tools remain available.
+
+The **[DXF plate editor](https://keebal.com/kle/plate.html)** displays a plate
+above an inferred KLE layout. Convert MX/Alps switch openings, select North/South
+stabilizers and Plate/PCB MX mounting, and edit keys relative to fixed anchors.
+The imported outline, mounting geometry and physical coordinate frame stay in
+place. Pattern changes require Apply; unchanged DXFs round-trip exactly.
+See the **[plate workflow, dimensions and limitations](docs/plate-editor.md)**.
 
 **Public editor: [keebal.com/kle](https://keebal.com/kle/).** Sign in with the same
 GitHub account to open layouts saved on the original KLE. Saved and starred lists
@@ -62,7 +69,7 @@ Open **http://127.0.0.1:4180/**. The static site is generated in `dist/`. The fi
 
 Push the changes to your own repository, then choose **Settings → Pages → Build and deployment → Source: GitHub Actions**. The included workflow builds and tests the editor, then deploys the default branch. Both `main` and `master` are supported. Pull requests only build/test.
 
-The resulting URL is normally `https://alectardy98.github.io/keyboard-layout-editor/`. Project-subdirectory paths are supported. Nothing has been published automatically.
+The resulting URL is normally `https://alectardy98.github.io/keyboard-layout-editor/`. Project-subdirectory paths are supported. The workflow publishes the repository's default branch.
 
 ## Preserve GitHub sign-in
 

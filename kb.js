@@ -22,6 +22,13 @@
 		// Default tooltip behaviour
 		$tooltipProvider.options({animation: false, appendToBody: true});
 	});
+	// Angular 1.2 lowercases ng-attr-viewBox. Set the SVG's case-sensitive
+	// attribute explicitly so the drawing is fitted in actual millimetres.
+	kbApp.directive('plateViewBox', function() {
+		return {restrict:'A',link:function(scope,element,attrs) {
+			scope.$watch(attrs.plateViewBox,function(value) {if(value)element[0].setAttribute('viewBox',value);});
+		}};
+	});
 
 	// The main application controller
 	kbApp.controller('kbCtrl', ['$scope','$http','$location','$timeout', '$sce', '$sanitize', '$modal', '$cookies', '$confirm', '$q', function($scope, $http, $location, $timeout, $sce, $sanitize, $modal, $cookies, $confirm, $q) {
@@ -82,6 +89,7 @@
 		$scope.vialDocument = null;
 		$scope.fileError = "";
 		$scope.fileNotice = "";
+		var plateAdapter = null;
 		$scope.keys = function(newKeys) { if(newKeys) { $scope.keyboard.keys = newKeys; } return $scope.keyboard.keys; };
 
 		// Custom Styles data
@@ -285,6 +293,7 @@
 							try { parsed = JSON.parse(input); } catch(strictError) { parsed = $serial.fromJsonL(input); }
 							// Parse/render before committing, so an invalid file cannot replace the current layout.
 							var prepared = prepareDocument(parsed);
+							if($scope.plate && $scope.plate.offerLayout(prepared)) return;
 							canCoalesce = false;
 							transaction("upload", function() { applyDocument(prepared); });
 							canCoalesce = false;
@@ -650,7 +659,10 @@
 			$scope.unselectAll();
 		}
 		$scope.deserializeAndRender = function(data, skipMetadata) {
-			applyDocument(prepareDocument(data, skipMetadata));
+			var prepared = prepareDocument(data, skipMetadata);
+			if($scope.plate && $scope.plate.offerLayout(prepared)) return false;
+			applyDocument(prepared);
+			return true;
 		};
 
 		function updateSerialized() {
@@ -681,7 +693,7 @@
 						}
 					}
 
-					$scope.deserializeAndRender(jsonl.parse(json));
+					if($scope.deserializeAndRender(jsonl.parse(json)) === false) return;
 					if(css) {
 						updateFromCss($scope.meta.css = css);
 						$scope.keyboard.meta.css = $scope.meta.css;
@@ -704,7 +716,7 @@
 					base = ''; // Load samples from local folder
 				}
 				$http.get(path.substring(0,9) === '/samples/' ? path.substring(1) : base + path).success(function(data) {
-					$scope.deserializeAndRender(data);
+					if($scope.deserializeAndRender(data) === false) return;
 					updateSerialized();
 					$scope.loadError = false;
 				}).error(function() {
@@ -776,9 +788,12 @@
 		}
 
 		function transaction(type, fn) {
+			var plateModel = $scope.plate && $scope.plate.model;
+			var beforeKeys = plateModel ? angular.copy($scope.keys()) : null;
 			var trans = undoStack.length>0 ? undoStack.last() : null;
-			if(trans === null || !canCoalesce || trans.type !== type) {
+			if(trans === null || !canCoalesce || trans.type !== type || type.indexOf('plate-')===0) {
 				trans = { type:type, original:angular.copy($scope.keyboard), originalDocument:JSON.parse(JSON.stringify($scope.vialDocument)), open:true, dirty:$scope.dirty };
+				if(plateModel) trans.originalPlate = plateModel.snapshot();
 				undoStack.push(trans);
 				if(undoStack.length>32) {
 					undoStack.shift();
@@ -788,6 +803,14 @@
 			try {
 				fn();
 			} finally {
+				if(plateModel) {
+					var blocked = plateModel.reconcile(beforeKeys, $scope.keys(), {keepStemOnResize:type!=='plate-align'});
+					$scope.keys().forEach(renderKey);
+					if($scope.selectedKeys.length) $scope.multi = angular.copy($scope.selectedKeys.last());
+					if(blocked) $scope.plate.notice = 'Anchor and unsupported source positions are locked. Unlock an anchor before moving or removing it.';
+					trans.modifiedPlate = plateModel.snapshot();
+					if(plateAdapter) plateAdapter.refresh();
+				}
 				if(!$scope.currentGist) {
 					$location.path("").hash("").replace();
 				}
@@ -822,7 +845,9 @@
 				var u = undoStack.pop();
 				$scope.keyboard = angular.copy(u.original);
 				$scope.vialDocument = JSON.parse(JSON.stringify(u.originalDocument));
+				if(u.originalPlate && $scope.plate.model) $scope.plate.model.restore(u.originalPlate);
 				refreshAfterUndoRedo(u.type);
+				if(plateAdapter) plateAdapter.refresh();
 				redoStack.push(u);
 				$scope.dirty = u.dirty;
 			}
@@ -833,7 +858,9 @@
 				var u = redoStack.pop();
 				$scope.keyboard = angular.copy(u.modified);
 				$scope.vialDocument = JSON.parse(JSON.stringify(u.modifiedDocument));
+				if(u.modifiedPlate && $scope.plate.model) $scope.plate.model.restore(u.modifiedPlate);
 				refreshAfterUndoRedo(u.type);
+				if(plateAdapter) plateAdapter.refresh();
 				undoStack.push(u);
 				$scope.dirty = true;
 			}
@@ -1215,6 +1242,11 @@
 		};
 
 		$scope.loadPreset = function(preset, path) {
+			if($scope.plate && $scope.plate.model) {
+				try {$scope.plate.offerLayout(prepareDocument(preset));}
+				catch(error) {$scope.plate.error = error.message;}
+				return;
+			}
 			confirmNavigate().then(function() {
 				transaction("preset", function() {
 					$scope.deserializeAndRender(preset);
@@ -1334,6 +1366,10 @@
 			serializedTimer = $timeout(function() {
 				try {
 					$scope.deserializeException = "";
+					if($scope.plate && $scope.plate.model) {
+						$scope.plate.offerLayout(prepareDocument(fromJsonPretty($scope.serialized), true));
+						return;
+					}
 					transaction("rawdata", function() {
 						$scope.deserializeAndRender(fromJsonPretty($scope.serialized), true);
 					});
@@ -1786,6 +1822,11 @@
 			editor.setFontSize(14);
 			editor.renderer.setVScrollBarAlwaysVisible(true);
 		};
+		plateAdapter = PlateEditor.attach($scope, {
+			transaction:transaction, renderKey:renderKey, applyDocument:applyDocument,
+			resetUndoStack:resetUndoStack, setGist:setGist, updateSerialized:updateSerialized,
+			prepareDocument:prepareDocument
+		});
 	}]);
 
 	// Simple modal-popup controller
