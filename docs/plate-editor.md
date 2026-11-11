@@ -180,3 +180,18 @@ possible. Two-unit-and-larger Alps addition presets include stabilizers; 1.75u h
 explicit with/without choices. Choosing a preset adds both the cap and its cutouts
 in one undoable action. Older saved projects preserve newly recognized openings as
 fixed geometry until “Restore excluded openings” is used.
+
+### ZKB2 Enter
+
+`rama-zenith-5140_Zenith_BAE.dxf` supplies the measured **ZKB2 Enter** pattern.
+Recognition requires the Alps opening, both lower wire slots and the complete upper
+barrel assembly (a 6.25 mm circle plus two 2.2 mm square holes). All five support
+openings belong to Enter, so moving or deleting it cannot leave its barrel behind.
+A partial assembly or an unrelated mounting circle does not trigger recognition.
+
+The cap matches the [Zenith reference KLE](https://keebal.com/kle/#/gists/adbf3023fd999e77b4d713f066977768):
+a 2.25u lower section and a 1u upper-right section. Internally, the lower rectangle
+is primary to keep its centre on the real switch; the secondary rectangle is 1×2u
+at (+1.25u, −1u). This draws the same outline as the reference's 1×2u primary and
+2.25×1u secondary at (−1.25u, +1u). No switch or plate geometry is repositioned.
+The **Add Alps Keys → ZKB2 Enter** preset includes the entire assembly.
