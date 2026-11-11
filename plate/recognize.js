@@ -207,6 +207,19 @@
                 return true;
             });
         });
+        // ZKB2 big-ass Enter: require both lower wire slots and all three
+        // upper barrel openings. A lone nearby mounting circle is not enough.
+        keys.filter(function(k){return k.type==='alps';}).forEach(function(key){
+            var parts=Measured.zkb2Supports.map(function(pattern){return small.find(function(c){
+                return matches(c.points,pattern,key.center,key.capAngle);
+            });});
+            if(parts.some(function(c){return !c || keys.some(function(other){return other!==key && other.stabilizers.includes(c);});}))return;
+            key.stabilizers=parts;key.width=2.25;key.height=1;key.label='ZKB2 Enter';
+            // The primary rectangle stays centred on the real switch. This
+            // is the same union as KLE's 1x2 / 2.25x1 reference representation.
+            key.capShape={width2:1,height2:2,x2:1.25,y2:-1};
+            key.detectedStabilizer={family:'alps-zkb2',spacing:28,vertical:false,direction:'south'};
+        });
         keys.sort(function(a,b){return b.center.y-a.center.y || a.center.x-b.center.x;});
         var rows=[];
         keys.forEach(function(key) {

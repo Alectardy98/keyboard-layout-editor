@@ -54,6 +54,10 @@
         var vertical=options.axis==='vertical' || (options.axis!=='horizontal' && key.height>key.width);
         var size=vertical?key.height:key.width,minSize=style.startsWith('alps')?1.75:2;
         if(size<minSize && !options.forceStabilizer) return [];
+        if(style==='alps-zkb2') {
+            if(key.width!==2.25 || key.height!==1 || vertical)throw Error('ZKB2 Enter uses a 2.25u lower section with an upper-right extension.');
+            return place(Measured.zkb2Supports.map(polygon),{x:0,y:0},options.direction==='north'?Math.PI:0);
+        }
         if(style==='alps-default' && size===5.5 && !options.spacing) {
             var measured=Measured.space55.map(polygon);
             return place(measured,{x:0,y:0},(vertical?Math.PI/2:0)+(options.direction==='north'?Math.PI:0));
@@ -133,15 +137,16 @@
         {id:'alps-175-step15',label:'1.75u stepped — 1.5u raised area',width:1.5,full:1.75},
         {id:'alps-2',label:'2u — stabilizers',width:2,stabs:true},
         {id:'alps-225',label:'2.25u — stabilizers',width:2.25,stabs:true},
+        {id:'alps-zkb2',label:'ZKB2 Enter',width:2.25,zkb2:true,stabs:true},
         {id:'alps-55',label:'5.5u — complete spacebar supports',width:5.5,stabs:true}
     ];
     function preset(id) {
         var p=presets.find(function(p){return p.id===id;});
         if(id==='ec11')p={label:'EC11',width:1};
         if(!p)throw Error('Unknown key preset.');
-        return {key:{width:p.width,width2:p.full || p.width,height:1,height2:1,
-            x2:p.left?p.width-p.full:0,stepped:!!p.full,labels:[p.label]},
-            options:{switch:id==='ec11'?'ec11':'alps',stabilizer:p.stabs?'alps-default':'none',direction:'south'}};
+        return {key:{width:p.width,width2:p.zkb2?1:p.full || p.width,height:1,height2:p.zkb2?2:1,
+            x2:p.zkb2?1.25:p.left?p.width-p.full:0,y2:p.zkb2?-1:0,stepped:!!p.full,labels:[p.label]},
+            options:{switch:id==='ec11'?'ec11':'alps',stabilizer:p.zkb2?'alps-zkb2':p.stabs?'alps-default':'none',direction:'south'}};
     }
     return {presets:presets,preset:preset,switches:switches,spacing:spacing,stabilizers:stabilizers,switchShape:switchShape,generate:generate,
         polygon:polygon,rings:rings,union:union,place:place,clip:clip};

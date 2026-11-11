@@ -41,7 +41,8 @@
         function makeKeys(defaultKey) {
             return keys.map(function(source,index) {
                 var key=defaultKey();key.width=key.width2=source.width;key.height=key.height2=source.height;
-                key.labels=[source.type==='ec11'?'EC11':'Key '+(index+1)];key._plateId=source.id;
+                if(source.capShape)Object.assign(key,source.capShape);
+                key.labels=[source.label || (source.type==='ec11'?'EC11':'Key '+(index+1))];key._plateId=source.id;
                 position(key,source.center,source.capAngle,frame);return key;
             });
         }
