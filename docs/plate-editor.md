@@ -149,3 +149,34 @@ Independent ezdxf 1.4.5 read/audit found no additional errors or warnings in the
 27 exported files compared with their originals. Three additional real MX plate
 references also passed MX-to-Alps centre-preservation checks. These tests verify
 file/geometry handling, not physical fit or manufacturing acceptance.
+
+## Alps key and encoder presets
+
+The plate workspace has **Add Alps Keys**, **Add MX Keys** (reserved for future
+presets), and **Add Other**. The normal KLE editor keeps its original Add Key menu.
+Alps includes 1u, 1.25u, 1.5u, stepped 1.5u left/right, optional-stabilizer 1.75u,
+stepped 1.75u with a 1.25u or 1.5u raised area, 2u, 2.25u and 5.5u. Stepped 1.5u
+presets use a 1u raised area. The primary KLE rectangle is that raised area; the
+secondary rectangle is the full footprint. The cutout is centred on the raised
+area. These choices do not assume that every vintage stepped cap has that stem.
+
+**Alps default** uses the user-supplied `rama_zenith_alps.dxf` measurements:
+Key 63 has 24 mm stabilizer spacing; Keys 16 and 52 use 28 mm, despite their
+different 2u and 2.25u cap widths. Slots are 2.67 × 5.21 mm at Y = −6.48 mm.
+Key 71 is 5.5u with four 2.6 × 5.1 mm slots at X = ±38.45, Y = ±6.45 mm,
+plus the three measured pole-support openings. All seven supports belong to the
+spacebar and move/delete with it. Original records remain intact until edited.
+North rotates the entire pattern. This is a measured preset, not a promise of
+compatibility with every Alps spacebar.
+
+**Add Other → EC11** reproduces the measured Zenith clearance contour, including
+its reliefs. Recognition requires the matching contour, not merely a similar
+bounding rectangle. Other EC11 mounting arrangements may need a different cutout.
+
+Cap sizes use **0.25u increments**, where **1u = 19.05 mm** for both MX and Alps.
+Recognition uses supported neighbouring cap widths to infer coherent rows without
+moving measured stems or forcing every gap closed. Intentional cluster gaps remain
+possible. Two-unit-and-larger Alps addition presets include stabilizers; 1.75u has
+explicit with/without choices. Choosing a preset adds both the cap and its cutouts
+in one undoable action. Older saved projects preserve newly recognized openings as
+fixed geometry until “Restore excluded openings” is used.
