@@ -195,3 +195,22 @@ is primary to keep its centre on the real switch; the secondary rectangle is 1×
 at (+1.25u, −1u). This draws the same outline as the reference's 1×2u primary and
 2.25×1u secondary at (−1.25u, +1u). No switch or plate geometry is repositioned.
 The **Add Alps Keys → ZKB2 Enter** preset includes the entire assembly.
+
+### FC660M 6.25u with two barrels
+
+The `fc660m_alps_v17.dxf` spacebar is labelled **6.25u** when its complete measured
+pattern is present: two wire slots (83.7181 mm centre spacing) and two barrel
+assemblies. Each barrel comprises a 6.25 mm circle and two 2.2 mm square retaining
+holes. Barrel centres are approximately ±28.5 mm from the switch; retaining holes
+are ±5.975 mm from each barrel. All eight support openings move/delete with the
+spacebar. Recognition requires the full pattern, supports North/South orientation,
+and leaves isolated or incomplete assemblies unclaimed. The **Add Alps Keys →
+6.25u — two barrel stabilizers** preset reproduces these measured cutouts; it does
+not replace other 6.25u stabilizer standards.
+
+The original FC660M file contains two slightly different, overlapping outlines at
+the spacebar switch. The imported key therefore remains protected from geometric
+editing under the existing duplicate-geometry rule. Recognition still groups and
+labels its complete assembly. The new 6.25u preset is editable; clean up the duplicate
+switch outlines in CAD before editing that imported key. No source outlines are
+silently discarded.
