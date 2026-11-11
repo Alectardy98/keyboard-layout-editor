@@ -33,14 +33,14 @@
 
 		// Github data
 		$scope.githubClientId = window.KLE_CONFIG.githubClientId;
-		function github(path, method, data) {
+		function github(path, method, data, options) {
 			method = method || "GET";
 			var headers = {};
 			headers["Accept"] = "application/vnd.github.v3+json";
 			if($cookies.oauthToken) {
 				headers["Authorization"] = "token " + $cookies.oauthToken;
 			}
-			return $http({method:method, url:"https://api.github.com"+path, headers:headers, data:data, cache:false});
+			return $http({method:method, url:"https://api.github.com"+path, headers:headers, data:data, cache:false, timeout:options && options.timeout});
 		}
 		$scope.currentGist = null;
 		$scope.isStarred = false;
@@ -1750,9 +1750,9 @@
 			activeModal = $modal.open({
 				templateUrl:"savedLayouts.html",
 				controller:"savedLayoutsCtrl",
-				windowClass:"modal-xl",
+				windowClass:"modal-xl layout-library-dialog",
 				scope:$scope,
-				resolve: { params: function() { return { github:github, starred:starred }; } }
+				resolve: { params: function() { return { github:github, starred:starred, user:$scope.user.id }; } }
 			});
 			activeModal.result.then(function(params) {
 				if(params.load) {
@@ -1795,61 +1795,182 @@
 		$scope.cancel = function() { $modalInstance.dismiss('cancel'); };
 	});
 
-	kbApp.controller('savedLayoutsCtrl', function($scope, $modalInstance, params) {
+	kbApp.controller('savedLayoutsCtrl', function($scope, $modalInstance, $q, params) {
+		var library = window.LayoutLibrary, closed = false, indexGist = null;
+		var seen = Object.create(null), pending = params.starred ? 2 : 1, ownListed = false;
 		$scope.params = params;
-		$scope.ok = function() { $modalInstance.close($scope.params); };
-		$scope.cancel = function() { $modalInstance.dismiss('cancel'); };
-		$scope.load = function(gist) { $scope.params.load = gist;	$scope.ok(); }
-		$scope.delete = function(gist) { $scope.params.delete = gist;	$scope.ok(); }
-
 		$scope.layouts = [];
+		$scope.organization = library.empty();
+		$scope.organizationReady = false;
+		$scope.organizing = false;
 		$scope.loading = true;
 		$scope.loadError = null;
-		var collection = params.starred ? "/gists/starred" : "/gists";
-		var closed = false, index = 0, pages = Object.create(null), seen = Object.create(null);
+		$scope.folderError = null;
+		$scope.folderNotice = '';
+		$scope.folderFilter = 'all';
+		$scope.search = '';
+		$scope.page = 1;
+		$scope.folderEditor = null;
+		$scope.folderDraft = {name:''};
 		$scope.$on('$destroy', function() { closed = true; });
-		function stop(message) {
-			if(!closed) { $scope.loading = false; $scope.loadError = message; }
-		}
-		function loadPage(path) {
+		$scope.ok = function() { if(!$scope.organizing) $modalInstance.close($scope.params); };
+		$scope.cancel = function() { if(!$scope.organizing) $modalInstance.dismiss('cancel'); };
+		$scope.load = function(gist) { if(!$scope.organizing) { $scope.params.load = gist; $scope.ok(); } };
+		$scope.delete = function(gist) { if(!$scope.organizing) { $scope.params.delete = gist; $scope.ok(); } };
+
+		function request(path, method, data) { return params.github(path, method, data, {timeout:20000}); }
+		function updateView() {
 			if(closed) return;
-			if(pages[path] || Object.keys(pages).length >= 100) {
-				stop('GitHub returned too many pages. Layouts already loaded remain available.');
-				return;
-			}
-			pages[path] = true;
-			return params.github(path).then(function(response) {
-				if(closed) return;
-				if(!Array.isArray(response.data)) {
-					stop('GitHub did not return a layout list. Please reopen this window to retry.');
-					return;
-				}
-				response.data.forEach(function(layout) {
-					if(!layout.id || seen[layout.id]) return;
-					var files = Object.keys(layout.files || {});
-					if(files.some(function(fn) { return fn.indexOf('.kbd.json') >= 0; })) {
-						seen[layout.id] = true;
-						layout.index = ++index;
-						$scope.layouts.push(layout);
-					}
-				});
-				var link = response.headers('link') || '';
-				var next = link.match(/<([^>]+)>;\s*rel="next"/);
-				if(!next) { $scope.loading = false; return; }
-				// Follow only this GitHub collection; never send credentials to a link's host.
-				try {
+			if(!$scope.organizing) $scope.layouts.forEach(function(layout) { layout._folder = $scope.organization.layouts[layout.id] || ''; });
+			$scope.view = library.view($scope.layouts, $scope.organization, $scope.folderFilter, $scope.search, $scope.page, 30);
+			$scope.page = $scope.view.page;
+			$scope.pageLayouts = $scope.view.items;
+		}
+		$scope.filterChanged = function() { $scope.page = 1; updateView(); };
+		$scope.changePage = function(direction) { $scope.page += direction; updateView(); };
+		$scope.selectedFolder = function() {
+			return $scope.organization.folders.filter(function(folder) { return folder.id === $scope.folderFilter; })[0];
+		};
+		updateView();
+
+		// Fetch every API page, but render only a small navigable page in the dialog.
+		function loadCollection(collection, includeLayouts) {
+			var pages = Object.create(null), ids = Object.create(null), gists = [];
+			function loadPage(path) {
+				if(closed) return $q.reject(Error('The layout window was closed.'));
+				if(pages[path] || Object.keys(pages).length >= 100)
+					return $q.reject(Error('GitHub returned too many pages. Layouts already loaded remain available.'));
+				pages[path] = true;
+				return request(path).then(function(response) {
+					if(closed) throw Error('The layout window was closed.');
+					if(!Array.isArray(response.data)) throw Error('GitHub did not return a layout list.');
+					response.data.forEach(function(gist) {
+						if(!gist.id || ids[gist.id]) return;
+						ids[gist.id] = true;
+						gists.push(gist);
+						if(includeLayouts && !seen[gist.id] && Object.keys(gist.files || {}).some(function(name) { return name.indexOf('.kbd.json') >= 0; })) {
+							seen[gist.id] = true;
+							gist.index = $scope.layouts.length + 1;
+							$scope.layouts.push(gist);
+						}
+					});
+					updateView();
+					var next = (response.headers('link') || '').match(/<([^>]+)>;\s*rel="next"/);
+					if(!next) return gists;
 					var url = new URL(next[1], 'https://api.github.com' + collection);
-					if(url.origin !== 'https://api.github.com' || url.pathname !== collection ||
-						url.username || url.password || url.hash) throw new Error('Invalid pagination link');
+					if(url.origin !== 'https://api.github.com' || url.pathname !== collection || url.username || url.password || url.hash)
+						throw Error('GitHub returned an unexpected pagination link.');
 					return loadPage(url.pathname + url.search);
-				} catch(error) {
-					stop('GitHub returned an unexpected pagination link. Layouts already loaded remain available.');
-				}
-			}, function() {
-				stop('Could not load all layouts from GitHub. Please reopen this window to retry.');
+				});
+			}
+			return loadPage(collection + '?per_page=100');
+		}
+		function findIndex(gists) {
+			var matches = gists.filter(function(gist) { return gist.files && gist.files[library.file]; });
+			if(matches.length > 1) throw Error('Multiple folder files were found. Folder editing is disabled to avoid overwriting them.');
+			return matches.length ? matches[0].id : null;
+		}
+		function readIndex(id) {
+			if(!id) return $q.when(library.empty());
+			return request('/gists/' + id).then(function(response) {
+				var gist = response.data, file = gist.files && gist.files[library.file];
+				if(!gist.owner || gist.owner.login.toLowerCase() !== params.user.toLowerCase())
+					throw Error('The folder file does not belong to your GitHub account.');
+				if(!file || file.truncated) throw Error('The folder file is missing or incomplete; it will not be overwritten.');
+				return library.parse(file.content);
 			});
 		}
-		loadPage(collection + '?per_page=100');
+		function finished() { if(!closed && --pending === 0) $scope.loading = false; }
+		loadCollection('/gists', !params.starred).then(function(gists) {
+			ownListed = true;
+			indexGist = findIndex(gists);
+			return readIndex(indexGist);
+		}).then(function(document) {
+			if(!closed) {
+				$scope.organization = document;
+				$scope.organizationReady = true;
+				updateView();
+			}
+			finished();
+		}, function(error) {
+			if(!closed) {
+				$scope.folderError = error.message || 'Could not load folder settings. Reopen this window to retry.';
+				if(!params.starred && !ownListed) $scope.loadError = 'Could not load every layout. Layouts already loaded remain available.';
+			}
+			finished();
+		});
+		if(params.starred) loadCollection('/gists/starred', true).then(finished, function(error) {
+			if(!closed) $scope.loadError = error.message || 'Could not load every starred layout. Reopen this window to retry.';
+			finished();
+		});
+
+		function saveOrganization(operation) {
+			if(!$scope.organizationReady || $scope.organizing) return;
+			$scope.folderError = null;
+			$scope.folderNotice = '';
+			try { library.apply($scope.organization, operation); }
+			catch(error) { $scope.folderError = error.message; updateView(); return; }
+			$scope.organizing = true;
+			// Re-read the latest metadata before changing it; never PATCH layout Gists.
+			// Rediscover before the first POST, including retries after an uncertain save.
+			var current = indexGist ? readIndex(indexGist) : loadCollection('/gists', false).then(function(gists) {
+				indexGist = findIndex(gists);
+				return readIndex(indexGist);
+			});
+			current.then(function(document) {
+				var changed = library.apply(document, operation), content = library.serialize(changed);
+				var payload = {files:{}};
+				payload.files[library.file] = {content:content};
+				if(!indexGist) {
+					payload.description = 'Keebal layout folder organization';
+					payload.public = false;
+				}
+				return request(indexGist ? '/gists/' + indexGist : '/gists', indexGist ? 'PATCH' : 'POST', payload).then(function(response) {
+					if(!response.data || !response.data.id) throw Error('GitHub did not confirm the folder save. Reopen My Layouts before retrying.');
+					indexGist = response.data.id;
+					return readIndex(indexGist).then(function(saved) {
+						if(library.serialize(saved) !== content)
+							throw Error('Folder readback differs from the save. Reopen My Layouts to see the latest settings.');
+						return saved;
+					});
+				});
+			}).then(function(document) {
+				if(closed) return;
+				$scope.organization = document;
+				$scope.organizing = false;
+				$scope.folderEditor = null;
+				$scope.folderNotice = 'Folder changes saved to GitHub.';
+				if(operation.type === 'remove' && $scope.folderFilter === operation.id) $scope.folderFilter = 'unfiled';
+				updateView();
+			}, function(error) {
+				if(closed) return;
+				$scope.organizing = false;
+				$scope.folderError = error.message || 'The save could not be confirmed. Reopen My Layouts to check before retrying.';
+				updateView();
+			});
+		}
+		$scope.editFolder = function(action) {
+			if(!$scope.organizationReady || $scope.organizing) return;
+			var folder = $scope.selectedFolder();
+			if(action !== 'create' && !folder) return;
+			$scope.folderEditor = action;
+			$scope.folderDraft.name = action === 'create' ? '' : folder.name;
+			$scope.folderDraft.id = action === 'create' ? 'folder-' + window.crypto.randomUUID() : folder.id;
+			$scope.folderError = null;
+			$scope.folderNotice = '';
+		};
+		$scope.cancelFolderEditor = function() { if(!$scope.organizing) $scope.folderEditor = null; };
+		$scope.submitFolder = function() {
+			saveOrganization({type:$scope.folderEditor, id:$scope.folderDraft.id,
+				name:$scope.folderDraft.name});
+		};
+		$scope.removeFolder = function() {
+			if($scope.folderDraft.id) saveOrganization({type:'remove', id:$scope.folderDraft.id});
+		};
+		$scope.moveLayout = function(layout) {
+			if(layout._folder !== ($scope.organization.layouts[layout.id] || ''))
+				saveOrganization({type:'move', layout:layout.id, folder:layout._folder});
+		};
 	});
 
 	kbApp.directive('kbdColorPicker', function($timeout) {

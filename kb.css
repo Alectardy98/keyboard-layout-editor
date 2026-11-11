@@ -248,6 +248,29 @@ for i in (1..9) {
 
 /* Help Dialog */
 .modal-xl .modal-dialog { width: 80vw; }
+.layout-library-dialog .modal-dialog { width: 94vw; max-width: 1100px; }
+.layout-library-dialog .modal-body { max-height: calc(100vh - 190px); overflow: auto; }
+.layout-library-toolbar { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.layout-library-toolbar label { margin: 0; }
+.layout-library-folder { flex: 1 1 190px; }
+.layout-library-search { flex: 1 1 220px; }
+.layout-library-menu button { display: block; width: 100%; padding: 5px 20px; text-align: left; background: transparent; border: 0; white-space: nowrap; }
+.layout-library-menu button:hover { background: #f5f5f5; }
+.layout-library-menu button:disabled { color: #999; cursor: default; }
+.layout-library-editor { padding: 12px; margin-bottom: 12px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; }
+.layout-library-editor input { margin-bottom: 10px; }
+.layout-library-table { overflow: auto; max-height: 49vh; }
+.layout-library-table .table { margin-bottom: 0; }
+.layout-library-table td { vertical-align: middle !important; }
+.layout-library-name { min-width: 150px; max-width: 330px; overflow-wrap: anywhere; }
+.layout-library-table select { min-width: 130px; max-width: 190px; }
+.layout-library-actions { min-width: 180px; }
+.layout-library-actions .btn { margin: 2px 0; }
+.layout-library-help { margin: 12px 0 0; font-size: 12px; }
+.layout-library-footer { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.layout-library-range { margin-right: auto; }
+.layout-library-pages { display: flex; align-items: center; gap: 10px; }
+.layout-library-footer > .btn { margin: 0 !important; }
 .modal-xxl .modal-dialog { width: 90vw; }
 
 /* Our "README" dialog; we want the body of the dialog itself to be scrollable */

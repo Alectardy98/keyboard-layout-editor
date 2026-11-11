@@ -8,6 +8,30 @@ follow GitHub's pagination so older layouts are included. This deployment uses a
 Cloudflare gateway for its domain and private OAuth exchange; GitHub Pages remains
 the upstream asset host. The setup instructions below also cover independent forks.
 
+## Saved layouts and folders
+
+Sign in, open your account menu, and choose **My Layouts** or **Starred Layouts**.
+Use the small left/right arrows to browse 30 layouts at a time, or search by
+name. All GitHub pages are fetched, including layouts beyond the original
+30-result limit.
+
+Use **Folders → New folder** to create a folder. Each layout's **Move to folder**
+selector saves its assignment immediately; the Folder filter shows that folder's
+layouts. The menu can rename or remove the selected folder. Removing a folder
+returns its layouts to **Unfiled**.
+
+Organization follows your GitHub account through one separate, unlisted Gist,
+**keebal-layout-folders.json**, created on the first folder change. It is not an
+access-control feature. No layout Gist, filename, layout JSON, CSS or notes are
+rewritten by folder actions. The original KLE therefore continues to load and
+save the same layouts; it simply does not display our folder organization.
+Opening the list, filtering, searching and paging make no writes.
+
+Folder saves re-read the latest index and verify the saved content. Avoid editing
+folders simultaneously in different browser windows: GitHub Gist updates do not
+provide a folder transaction or lock. Invalid, incomplete, duplicated or newer
+folder indexes disable folder edits rather than overwriting them.
+
 ## Open and save a keyboard
 
 1. Click **Open KLE / Vial / VIA JSON**, or drop a JSON file onto the keyboard.
