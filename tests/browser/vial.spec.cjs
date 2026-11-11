@@ -65,7 +65,7 @@ test('OAuth callback and Gist save/reopen retain the full Vial definition',async
  await context.route('**/site-config.js',r=>r.fulfill({contentType:'text/javascript',body:'window.KLE_CONFIG={githubClientId:"test-client",githubAuthEndpoint:"https://oauth.example.test/token"};'}));
  let authorization;
  await context.route('https://github.com/login/oauth/authorize?**',r=>{authorization=new URL(r.request().url());return r.fulfill({status:302,headers:{location:authorization.searchParams.get('redirect_uri')+'?code=fake-code&state='+authorization.searchParams.get('state')}});});
- let exchanges=0,saved;
+ let exchanges=0,saved,gistPages=[];
  await context.route('https://oauth.example.test/token',async r=>{
   exchanges++;
   expect(r.request().postDataJSON().redirect_uri).toBe('http://127.0.0.1:5189/keyboard-layout-editor/oauth.html');
@@ -73,12 +73,16 @@ test('OAuth callback and Gist save/reopen retain the full Vial definition',async
  });
  await context.route('https://api.github.com/**',async r=>{
   const req=r.request(),url=new URL(req.url());
-  const headers={'Access-Control-Allow-Origin':'http://127.0.0.1:5189','Access-Control-Allow-Headers':'authorization,content-type,accept','Access-Control-Allow-Methods':'GET,POST,PATCH,PUT,DELETE,OPTIONS'};
+  const headers={'Access-Control-Allow-Origin':'http://127.0.0.1:5189','Access-Control-Allow-Headers':'authorization,content-type,accept','Access-Control-Allow-Methods':'GET,POST,PATCH,PUT,DELETE,OPTIONS','Access-Control-Expose-Headers':'Link'};
   if(req.method()==='OPTIONS')return r.fulfill({status:204,headers});
   if(url.pathname==='/user')return r.fulfill({json:{login:'test-user'},headers});
   const previous={id:'previous-gist',description:'Existing KLE layout',updated_at:'2026-11-08',
    owner:{login:'test-user'},files:{'saved.kbd.json':{content:'[["Esc","A"]]'}}};
-  if(url.pathname==='/gists' && req.method()==='GET')return r.fulfill({json:[previous],headers});
+  if(url.pathname==='/gists' && req.method()==='GET'){
+   gistPages.push(url.pathname+url.search);
+   if(url.searchParams.get('page')==='2')return r.fulfill({json:[previous,{...previous,id:'older-gist',description:'Older KLE layout'}],headers});
+   return r.fulfill({json:[previous,{id:'not-a-layout',files:{'notes.txt':{content:'notes'}}}],headers:{...headers,Link:'<https://api.github.com/gists?page=2&per_page=100>; rel="next"'}});
+  }
   if(url.pathname==='/gists/previous-gist')return r.fulfill({json:previous,headers});
   if(url.pathname==='/gists' && req.method()==='POST'){
    saved=req.postDataJSON();return r.fulfill({json:{...saved,id:'test-gist',owner:{login:'test-user'}},headers});
@@ -94,7 +98,10 @@ test('OAuth callback and Gist save/reopen retain the full Vial definition',async
  await page.getByText('test-user',{exact:true}).click();
  await page.getByRole('link',{name:/My Layouts/}).click();
  await expect(page.getByText('Existing KLE layout',{exact:true})).toBeVisible();
- await page.getByRole('link',{name:/Load$/}).click();
+ await expect(page.getByText('Older KLE layout',{exact:true})).toBeVisible();
+ expect(gistPages).toEqual(['/gists?per_page=100','/gists?page=2&per_page=100']);
+ await expect(page.locator('.modal-body tr[ng-repeat]')).toHaveCount(2);
+ await page.getByRole('row').filter({hasText:'Existing KLE layout'}).getByRole('link',{name:/Load$/}).click();
  await expect(page.locator('#keyboard .keycap')).toHaveCount(2);
  await openFile(page,fixture('f50'));await expect(page.getByRole('status')).toContainText('Opened Vial');
  await page.getByRole('button',{name:/Save$/}).click();
