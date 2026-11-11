@@ -86,3 +86,18 @@ test('excluding a false detection preserves its original cutout and can be undon
  const pending=page.waitForEvent('download');await page.getByRole('button',{name:'Download edited DXF'}).click();expect(fs.readFileSync(await(await pending).path(),'utf8')).toBe(makeFixture());
  await page.getByRole('button',{name:/Undo$/}).click();await expect(page.locator('#keyboard .keycap')).toHaveCount(4);
 });
+
+test('plate preset menus create complete Alps and EC11 geometry in one undo step',async({page})=>{
+ await open(page);
+ await expect(page.getByRole('button',{name:'Add Key',exact:true})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Add MX Keys',exact:true})).toBeDisabled();
+ await page.getByRole('button',{name:'Add Alps Keys',exact:true}).click();
+ await page.getByRole('link',{name:'5.5u — complete spacebar supports',exact:true}).click();
+ await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
+ let result=await scopeRead(page,()=>{let s=angular.element(document.body).scope();return {error:s.plate.error,added:s.plate.model.plan(s.keys()).additions.length};});
+ expect(result.error).toBe('');expect(result.added).toBe(8);
+ await page.getByRole('button',{name:/Undo$/}).click();await expect(page.locator('#keyboard .keycap')).toHaveCount(4);
+ await page.getByRole('button',{name:'Add Other',exact:true}).click();await page.getByRole('link',{name:'EC11 — Zenith opening',exact:true}).click();
+ result=await scopeRead(page,()=>{let s=angular.element(document.body).scope();return {error:s.plate.error,added:s.plate.model.plan(s.keys()).additions.length};});
+ expect(result.error).toBe('');expect(result.added).toBe(1);
+});
