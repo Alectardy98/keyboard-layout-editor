@@ -207,6 +207,19 @@
                 return true;
             });
         });
+        // FC660M 6.25u: two complete barrel assemblies plus the wire slots.
+        // Match the whole pattern; do not absorb isolated mounting circles.
+        keys.filter(function(k){return k.type==='alps';}).forEach(function(key){
+            [0,Math.PI].some(function(turn){
+                var parts=Measured.space625Barrels.map(function(pattern){return small.find(function(c){
+                    return matches(c.points,pattern,key.center,key.capAngle+turn);
+                });});
+                if(parts.some(function(c){return !c || keys.some(function(other){return other!==key && other.stabilizers.includes(c);});}))return false;
+                key.stabilizers=parts;key.width=6.25;key.height=1;key.label='6.25u';
+                key.detectedStabilizer={family:'alps-barrel625',spacing:83.7181,vertical:false,direction:turn?'north':'south'};
+                return true;
+            });
+        });
         // ZKB2 big-ass Enter: require both lower wire slots and all three
         // upper barrel openings. A lone nearby mounting circle is not enough.
         keys.filter(function(k){return k.type==='alps';}).forEach(function(key){
