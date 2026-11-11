@@ -143,8 +143,8 @@ test('malformed, oversized, binary and overlapping DXF edits fail before produci
 });
 
 test('Alps preset sizes, stepped stems and complete Zenith spacebar supports',()=>{
- assert.equal(P.presets.length,12);
- for(const item of P.presets){const p=P.preset(item.id);assert.equal(p.key.width*4%1,0);assert.ok(P.generate(p.options,p.key).length);if(p.key.width>=2)assert.equal(p.options.stabilizer,'alps-default');}
+ assert.equal(P.presets.length,13);
+ for(const item of P.presets){const p=P.preset(item.id);assert.equal(p.key.width*4%1,0);assert.ok(P.generate(p.options,p.key).length);if(p.key.width>=2)assert.ok(['alps-default','alps-zkb2'].includes(p.options.stabilizer));}
  const left=P.preset('alps-15-left').key,right=P.preset('alps-15-right').key;
  assert.equal(left.width,1);assert.equal(left.width2,1.5);assert.equal(left.x2,-.5);assert.equal(right.x2,0);
  assert.equal(P.generate(P.preset('alps-55').options,{width:5.5,height:1}).length,8);
@@ -169,4 +169,30 @@ test('neighbour-supported cap sizing fills quarter-unit gaps without moving hole
  const shapes=[{x:200,w:1},{x:219.05,w:1},{x:250.00625,w:2.25}].map(p=>({points:G.rectangle(15.5,12.8,{x:p.x,y:150})}));
  const p=plate(D.exportBytes(d,[],shapes));const k=p.r.keys.find(k=>Math.abs(k.center.x-250.00625)<.01);
  assert.equal(k.width,2.25);near(k.center.x,250.00625);
+});
+
+test('ZKB2 Enter owns its upper barrel and matches the reference reverse-L footprint',()=>{
+ const base=plate(),preset=P.preset('alps-zkb2');
+ const rings=P.rings(P.place(P.generate(preset.options,preset.key),{x:150,y:-80},0));
+ const p=plate(D.exportBytes(base.d,[],rings.map(points=>({points}))));
+ const source=p.r.keys.find(k=>k.label==='ZKB2 Enter');assert.ok(source);assert.equal(source.stabilizers.length,5);
+ const key=p.keys.find(k=>k._plateId===source.id);
+ assert.deepEqual([key.width,key.height,key.width2,key.height2,key.x2,key.y2],[2.25,1,1,2,1.25,-1]);
+ const before=p.m.physical(key).center;near(before.x,150);near(before.y,-80);
+ // Equivalent to reference primary 1x2 with secondary 2.25x1 at (-1.25,+1).
+ const primary={x:key.x+1.25,y:key.y-1,width:1,height:2};
+ near(primary.x-1.25,key.x);near(primary.y+1,key.y);
+ assert.deepEqual(Buffer.from(p.m.exportFile(p.keys)),Buffer.from(D.exportBytes(base.d,[],rings.map(points=>({points})))));
+ key.x+=1;
+ const moved=R.analyze(D.parse(p.m.exportFile(p.keys),'moved.dxf')).keys.find(k=>k.label==='ZKB2 Enter');
+ near(moved.center.x,169.05);assert.equal(moved.stabilizers.length,5);
+ const all=new Set(source.contours.concat(source.stabilizers).flatMap(c=>c.parts.map(p=>p.raw.id)));
+ const deletion=p.m.plan(p.keys.filter(k=>k!==key));assert.equal(deletion.edits.filter(e=>all.has(e.record.id)).length,all.size);
+});
+test('a partial barrel assembly does not claim unrelated holes as ZKB2 Enter',()=>{
+ const base=plate(),preset=P.preset('alps-zkb2');
+ const rings=P.rings(P.place(P.generate(preset.options,preset.key),{x:150,y:-80},0));
+ // Leave the lower switch and slots but omit one upper support.
+ const p=plate(D.exportBytes(base.d,[],rings.slice(0,-1).map(points=>({points}))));
+ assert.equal(p.r.keys.some(k=>k.label==='ZKB2 Enter'),false);
 });
