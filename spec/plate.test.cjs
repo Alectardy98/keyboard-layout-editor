@@ -143,8 +143,8 @@ test('malformed, oversized, binary and overlapping DXF edits fail before produci
 });
 
 test('Alps preset sizes, stepped stems and complete Zenith spacebar supports',()=>{
- assert.equal(P.presets.length,13);
- for(const item of P.presets){const p=P.preset(item.id);assert.equal(p.key.width*4%1,0);assert.ok(P.generate(p.options,p.key).length);if(p.key.width>=2)assert.ok(['alps-default','alps-zkb2'].includes(p.options.stabilizer));}
+ assert.equal(P.presets.length,14);
+ for(const item of P.presets){const p=P.preset(item.id);assert.equal(p.key.width*4%1,0);assert.ok(P.generate(p.options,p.key).length);if(p.key.width>=2)assert.ok(['alps-default','alps-zkb2','alps-barrel625'].includes(p.options.stabilizer));}
  const left=P.preset('alps-15-left').key,right=P.preset('alps-15-right').key;
  assert.equal(left.width,1);assert.equal(left.width2,1.5);assert.equal(left.x2,-.5);assert.equal(right.x2,0);
  assert.equal(P.generate(P.preset('alps-55').options,{width:5.5,height:1}).length,8);
@@ -195,4 +195,26 @@ test('a partial barrel assembly does not claim unrelated holes as ZKB2 Enter',()
  // Leave the lower switch and slots but omit one upper support.
  const p=plate(D.exportBytes(base.d,[],rings.slice(0,-1).map(points=>({points}))));
  assert.equal(p.r.keys.some(k=>k.label==='ZKB2 Enter'),false);
+});
+
+test('6.25u twin-barrel spacebar owns all eight supports through moves and deletion',()=>{
+ const base=plate(),preset=P.preset('alps-625-barrels');
+ const rings=P.rings(P.place(P.generate(preset.options,preset.key),{x:150,y:-80},0));
+ assert.equal(rings.length,9);
+ const bytes=D.exportBytes(base.d,[],rings.map(points=>({points}))),p=plate(bytes);
+ const source=p.r.keys.find(k=>k.label==='6.25u');assert.ok(source);assert.equal(source.width,6.25);assert.equal(source.stabilizers.length,8);
+ assert.deepEqual(Buffer.from(p.m.exportFile(p.keys)),Buffer.from(bytes));
+ const key=p.keys.find(k=>k._plateId===source.id);key.x+=1;
+ const moved=R.analyze(D.parse(p.m.exportFile(p.keys),'moved')).keys.find(k=>k.label==='6.25u');
+ near(moved.center.x,169.05);assert.equal(moved.stabilizers.length,8);
+ const all=new Set(source.contours.concat(source.stabilizers).flatMap(c=>c.parts.map(p=>p.raw.id)));
+ assert.equal(p.m.plan(p.keys.filter(k=>k!==key)).edits.filter(e=>all.has(e.record.id)).length,all.size);
+});
+test('6.25u barrel recognition requires both complete assemblies and supports north orientation',()=>{
+ const base=plate(),preset=P.preset('alps-625-barrels');
+ const rings=P.rings(P.place(P.generate({...preset.options,direction:'north'},preset.key),{x:150,y:-80},0));
+ const full=plate(D.exportBytes(base.d,[],rings.map(points=>({points}))));
+ assert.equal(full.r.keys.find(k=>k.label==='6.25u').detectedStabilizer.direction,'north');
+ const partial=plate(D.exportBytes(base.d,[],rings.slice(0,-1).map(points=>({points}))));
+ assert.equal(partial.r.keys.some(k=>k.label==='6.25u'),false);
 });
