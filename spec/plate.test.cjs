@@ -141,3 +141,32 @@ test('malformed, oversized, binary and overlapping DXF edits fail before produci
  assert.throws(()=>D.parse('AutoCAD Binary DXF\0','bad.dxf'),/ASCII/);assert.throws(()=>D.parse('0\nSECTION\n2'),'bad.dxf');
  const {d}=plate();assert.throws(()=>D.exportEdits(d,[{record:d.raw.entities[0]},{record:d.raw.entities[0]}]),/share the same/);
 });
+
+test('Alps preset sizes, stepped stems and complete Zenith spacebar supports',()=>{
+ assert.equal(P.presets.length,12);
+ for(const item of P.presets){const p=P.preset(item.id);assert.equal(p.key.width*4%1,0);assert.ok(P.generate(p.options,p.key).length);if(p.key.width>=2)assert.equal(p.options.stabilizer,'alps-default');}
+ const left=P.preset('alps-15-left').key,right=P.preset('alps-15-right').key;
+ assert.equal(left.width,1);assert.equal(left.width2,1.5);assert.equal(left.x2,-.5);assert.equal(right.x2,0);
+ assert.equal(P.generate(P.preset('alps-55').options,{width:5.5,height:1}).length,8);
+ assert.equal(P.generate(P.preset('alps-175-stabs').options,{width:1.75,height:1}).length,3);
+ assert.equal(P.generate(P.preset('alps-175').options,{width:1.75,height:1}).length,1);
+});
+test('measured spacebar and encoder round-trip; all supports move with the key',()=>{
+ const {d}=plate(),shapes=P.rings(P.place(P.generate(P.preset('alps-55').options,{width:5.5,height:1}),{x:150,y:-100},0));
+ shapes.push(...P.rings(P.place(P.generate(P.preset('ec11').options,{width:1,height:1}),{x:200,y:0},0)));
+ const bytes=D.exportBytes(d,[],shapes.map(points=>({points}))),p=plate(bytes);
+ const space=p.r.keys.find(k=>k.width===5.5),encoder=p.r.keys.find(k=>k.type==='ec11');
+ assert.ok(space);assert.equal(space.stabilizers.length,7);assert.ok(encoder);
+ assert.deepEqual(Buffer.from(p.m.exportFile(p.keys)),Buffer.from(bytes));
+ const key=p.keys.find(k=>k._plateId===space.id);key.x+=1;
+ const moved=R.analyze(D.parse(p.m.exportFile(p.keys),'moved'));
+ const after=moved.keys.find(k=>k.width===5.5);near(after.center.x,space.center.x+19.05);assert.equal(after.stabilizers.length,7);
+ const snapshot=p.m.snapshot();delete snapshot[encoder.id];p.m.restore(snapshot);
+ assert.equal(p.m.settings[encoder.id].excluded,true);
+});
+test('neighbour-supported cap sizing fills quarter-unit gaps without moving holes',()=>{
+ const {d}=plate();
+ const shapes=[{x:200,w:1},{x:219.05,w:1},{x:250.00625,w:2.25}].map(p=>({points:G.rectangle(15.5,12.8,{x:p.x,y:150})}));
+ const p=plate(D.exportBytes(d,[],shapes));const k=p.r.keys.find(k=>Math.abs(k.center.x-250.00625)<.01);
+ assert.equal(k.width,2.25);near(k.center.x,250.00625);
+});
