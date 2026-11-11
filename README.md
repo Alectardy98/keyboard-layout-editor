@@ -2,6 +2,12 @@
 
 The original [Keyboard Layout Editor](https://www.keyboard-layout-editor.com/) interface, with support for opening and editing **Vial and VIA keyboard-definition JSON files**. GitHub sign-in, Gist saving, presets, raw layout editing, and the existing KLE tools remain available.
 
+**Public editor: [keebal.com/kle](https://keebal.com/kle/).** Sign in with the same
+GitHub account to open layouts saved on the original KLE. Saved and starred lists
+follow GitHub's pagination so older layouts are included. This deployment uses a
+Cloudflare gateway for its domain and private OAuth exchange; GitHub Pages remains
+the upstream asset host. The setup instructions below also cover independent forks.
+
 ## Open and save a keyboard
 
 1. Click **Open KLE / Vial / VIA JSON**, or drop a JSON file onto the keyboard.

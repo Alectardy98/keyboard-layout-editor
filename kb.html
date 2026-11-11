@@ -40,7 +40,7 @@ All rights reserved.
 <script type="text/javascript" src="serial.js"></script>
 <script type="text/javascript" src="vial-document.js"></script>
 <script type="text/javascript" src="site-config.js"></script>
-<script type="text/javascript" src="kb.js"></script>
+<script type="text/javascript" src="kb.js?v=20261111-gist-pages"></script>
 </head>
 <body ng-controller="kbCtrl"
       ng-mouseup="selectRelease($event)"
@@ -1101,6 +1101,8 @@ Markdown dialog for displaying README, etc.
     <h4 class="modal-title">{{params.starred ? 'Starred Layouts' : 'Saved Layouts'}}</h4>
   </div>
   <div class="modal-body">
+    <p ng-show="loading" role="status">Loading layouts from GitHub…</p>
+    <p ng-show="loadError" class="alert alert-warning" role="alert">{{loadError}}</p>
     <table class="table table-hover">
       <thead>
         <tr>
@@ -1112,7 +1114,7 @@ Markdown dialog for displaying README, etc.
         </tr>
       </thead>
       <tbody>
-        <tr ng-if="layouts.length === 0">
+        <tr ng-if="layouts.length === 0 && !loading && !loadError">
           <td colspan='5'>{{params.starred ? 'No starred layouts.' : 'No saved layouts.'}}</td>
         </tr>
         <tr ng-repeat="layout in layouts">

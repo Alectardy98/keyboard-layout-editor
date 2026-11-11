@@ -1803,18 +1803,53 @@
 		$scope.delete = function(gist) { $scope.params.delete = gist;	$scope.ok(); }
 
 		$scope.layouts = [];
-		params.github(params.starred ? "/gists/starred" : "/gists").then(function(response) {
-			var index = 0;
-			response.data.forEach(function(layout) {
-				for(var fn in layout.files) {
-					if(fn.indexOf(".kbd.json")>=0) {
+		$scope.loading = true;
+		$scope.loadError = null;
+		var collection = params.starred ? "/gists/starred" : "/gists";
+		var closed = false, index = 0, pages = Object.create(null), seen = Object.create(null);
+		$scope.$on('$destroy', function() { closed = true; });
+		function stop(message) {
+			if(!closed) { $scope.loading = false; $scope.loadError = message; }
+		}
+		function loadPage(path) {
+			if(closed) return;
+			if(pages[path] || Object.keys(pages).length >= 100) {
+				stop('GitHub returned too many pages. Layouts already loaded remain available.');
+				return;
+			}
+			pages[path] = true;
+			return params.github(path).then(function(response) {
+				if(closed) return;
+				if(!Array.isArray(response.data)) {
+					stop('GitHub did not return a layout list. Please reopen this window to retry.');
+					return;
+				}
+				response.data.forEach(function(layout) {
+					if(!layout.id || seen[layout.id]) return;
+					var files = Object.keys(layout.files || {});
+					if(files.some(function(fn) { return fn.indexOf('.kbd.json') >= 0; })) {
+						seen[layout.id] = true;
 						layout.index = ++index;
 						$scope.layouts.push(layout);
-						break;
 					}
+				});
+				var link = response.headers('link') || '';
+				var next = link.match(/<([^>]+)>;\s*rel="next"/);
+				if(!next) { $scope.loading = false; return; }
+				// Follow only this GitHub collection; never send credentials to a link's host.
+				try {
+					var url = new URL(next[1], 'https://api.github.com' + collection);
+					if(url.origin !== 'https://api.github.com' || url.pathname !== collection ||
+						url.username || url.password || url.hash) throw new Error('Invalid pagination link');
+					return loadPage(url.pathname + url.search);
+				} catch(error) {
+					stop('GitHub returned an unexpected pagination link. Layouts already loaded remain available.');
 				}
+			}, function() {
+				stop('Could not load all layouts from GitHub. Please reopen this window to retry.');
 			});
-		});
+		}
+		loadPage(collection + '?per_page=100');
 	});
 
 	kbApp.directive('kbdColorPicker', function($timeout) {
