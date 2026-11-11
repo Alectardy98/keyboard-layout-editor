@@ -10,7 +10,7 @@ const out=path.join(root,'dist');
 await fs.rm(out,{recursive:true,force:true});
 await fs.mkdir(out,{recursive:true});
 async function copy(source,target){await fs.mkdir(path.dirname(path.join(out,target)),{recursive:true});await fs.copyFile(path.join(root,source),path.join(out,target));}
-for(const file of ['kb.html','kb.js','extensions.js','serial.js','render.js','vial-document.js','site-config.js','oauth.html','oauth.js','favicon.ico','nub.png','colors.json','keys.json','pickers.json','switches.json','README.md','CHANGELOG.md','CONTRIB.md','LICENSE.md'])await copy(file,file);
+for(const file of ['kb.html','kb.js','extensions.js','serial.js','render.js','vial-document.js','layout-library.js','site-config.js','oauth.html','oauth.js','favicon.ico','nub.png','colors.json','keys.json','pickers.json','switches.json','README.md','CHANGELOG.md','CONTRIB.md','LICENSE.md'])await copy(file,file);
 await copy('kb.html','index.html');
 // Only the public client ID and exchange-service URL are embedded in the site.
 const publicConfig = {};
