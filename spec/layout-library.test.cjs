@@ -60,3 +60,14 @@ test('special property names cannot affect the Object prototype or overwrite lay
  assert.equal({}.polluted,undefined);
  assert.equal(library.file.endsWith('.kbd.json'),false);
 });
+
+test('a confirmed revision wins over stale HEAD until the current history catches up',()=>{
+ const a={version:'a'.repeat(40),committed_at:'2026-11-11T12:00:00Z'};
+ const b={version:'b'.repeat(40),committed_at:'2026-11-11T12:00:01Z'};
+ const c={version:'c'.repeat(40),committed_at:'2026-11-11T12:00:02Z'};
+ assert.equal(library.newestRevision([a],b),b);
+ assert.equal(library.newestRevision([c,b,a],b),c);
+ assert.equal(library.newestRevision([c],b),c);
+ assert.equal(library.newestRevision([a],null),a);
+ assert.equal(library.newestRevision([],b),b);
+});
