@@ -11,8 +11,14 @@ async function setup(page,context,options={}){
  }));
  const original=structuredClone(layouts),writes=[];
  const state={rejectWrites:!!options.rejectWrites,metadata:null,staleReadback:false,previousMetadata:null};
+ const revisions=new Map();let revisionCount=0,headSnapshot=null;
+ function revision(metadata){
+  const commit={version:String(++revisionCount).padStart(40,'0'),committed_at:new Date(Date.UTC(2026,10,11,12,0,revisionCount)).toISOString()};
+  metadata.history=[commit,...(metadata.history||[])];revisions.set(commit.version,structuredClone(metadata));return metadata;
+ }
  if(options.document)state.metadata={id:'folder-index',owner:{login:'test-user'},public:false,
   files:{[library.file]:{content:JSON.stringify(options.document),truncated:false}}};
+ if(state.metadata)revision(state.metadata);
  const headers={'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Headers':'authorization,content-type,accept',
   'Access-Control-Allow-Methods':'GET,POST,PATCH,DELETE,OPTIONS','Access-Control-Expose-Headers':'Link'};
  await context.route('https://api.github.com/**',async route=>{
@@ -27,7 +33,14 @@ async function setup(page,context,options={}){
    if(start+100<all.length)responseHeaders.Link='<https://api.github.com'+url.pathname+'?page='+(number+1)+'&per_page=100>; rel="next"';
    return route.fulfill({json:all.slice(start,start+100),headers:responseHeaders});
   }
-  if(url.pathname==='/gists/folder-index'&&method==='GET')return route.fulfill({json:state.staleReadback&&state.previousMetadata?state.previousMetadata:state.metadata,headers});
+  if(url.pathname==='/gists/folder-index'&&method==='GET'){
+   if(!headSnapshot)headSnapshot=structuredClone(state.metadata);
+   return route.fulfill({json:options.cacheHead===false?state.metadata:headSnapshot,headers});
+  }
+  if(/^\/gists\/folder-index\/[a-f0-9]{40}$/.test(url.pathname)&&method==='GET'){
+   const version=url.pathname.split('/').pop();
+   return route.fulfill({json:state.staleReadback&&state.previousMetadata?state.previousMetadata:revisions.get(version),headers});
+  }
   if((url.pathname==='/gists'&&method==='POST')||(url.pathname==='/gists/folder-index'&&method==='PATCH')){
    const payload=request.postDataJSON();writes.push({method,path:url.pathname,payload});
    expect(Object.keys(payload.files)).toEqual([library.file]);
@@ -35,6 +48,7 @@ async function setup(page,context,options={}){
    if(state.rejectWrites)return route.fulfill({status:503,json:{message:'Test save failure'},headers});
    state.previousMetadata=structuredClone(state.metadata);
    state.metadata={...(state.metadata||{id:'folder-index',owner:{login:'test-user'},public:false}),files:{[library.file]:{content:payload.files[library.file].content,truncated:false}}};
+   revision(state.metadata);
    return route.fulfill({status:method==='POST'?201:200,json:state.metadata,headers});
   }
   const found=layouts.find(layout=>url.pathname==='/gists/'+layout.id);
@@ -84,6 +98,8 @@ test('arrows reach older layouts; folders persist without rewriting any stock KL
  await page.getByRole('textbox',{name:'New folder name'}).fill('IBM');
  await page.getByRole('button',{name:'Create folder',exact:true}).click();await saved(page);
  const id=backend.document().folders[0].id;
+ const hint=await page.evaluate(()=>JSON.parse(localStorage.getItem('kle.folder-revision.v1.test-user')));
+ expect(Object.keys(hint).sort()).toEqual(['committed_at','id','version']);
  await page.getByRole('combobox',{name:'Move Layout 117 to folder',exact:true}).selectOption({label:'IBM'});await saved(page);
  expect(backend.document().layouts['layout-117']).toBe(id);
  await page.getByRole('combobox',{name:'Folder',exact:true}).selectOption(id);
@@ -146,7 +162,7 @@ test('starred layouts share the account folders and opening or cancelling a fold
 
 test('fresh metadata is merged before a move and inconsistent readback cannot report success',async({page,context})=>{
  const document=library.apply(library.empty(),{type:'create',id:'folder-ibm',name:'IBM'});
- const backend=await setup(page,context,{document});await openList(page);
+ const backend=await setup(page,context,{document,cacheHead:false});await openList(page);
  const concurrent=library.apply(document,{type:'create',id:'folder-sun',name:'Sun'});
  backend.state.metadata.files[library.file].content=library.serialize(concurrent);
  await page.getByRole('combobox',{name:'Move Layout 001 to folder',exact:true}).selectOption({label:'IBM'});await saved(page);
