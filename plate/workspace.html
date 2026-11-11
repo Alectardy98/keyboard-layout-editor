@@ -1,0 +1,74 @@
+<section class="plate-workspace" aria-label="DXF plate editor">
+  <div class="plate-heading">
+    <div><h1>Plate editor</h1><p>Inspect the DXF above; edit its inferred KLE layout below. All dimensions are in millimetres.</p></div>
+    <a class="btn btn-default" href="./" target="_blank" rel="noopener">Open normal KLE editor</a>
+  </div>
+  <div class="plate-actions">
+    <button type="button" class="btn btn-primary" ngf-select="true" ngf-change="plate.open($files)" accept=".dxf" ng-disabled="plate.busy">Open DXF plate</button>
+    <button type="button" class="btn btn-default" ngf-select="true" ngf-change="plate.openProject($files)" accept=".json" ng-disabled="plate.busy">Open plate project</button>
+    <button type="button" class="btn btn-success" ng-click="plate.download()" ng-disabled="!plate.model || plate.busy">Download edited DXF</button>
+    <button type="button" class="btn btn-default" ng-click="plate.saveProject()" ng-disabled="!plate.model || plate.busy">Save plate project</button>
+    <span ng-if="plate.busy" role="status">Reading drawing…</span>
+  </div>
+  <p class="plate-fixed-frame"><i class="fa fa-anchor" aria-hidden="true"></i> The original plate outline, mounting holes and coordinate frame stay fixed. Keycap resizing keeps the switch centre; stabilizer changes require Apply.</p>
+  <p class="alert alert-danger" role="alert" ng-if="plate.error">{{plate.error}}</p>
+  <p class="alert alert-info" role="status" ng-if="plate.notice">{{plate.notice}}</p>
+  <div class="plate-units" ng-if="plate.model">
+    <strong>{{plate.document.name}}</strong>
+    <span>{{plate.keyCount}} keys ({{plate.editableCount}} editable) · MX {{plate.recognized.counts.mx}} / Alps {{plate.recognized.counts.alps}} / Universal {{plate.recognized.counts.universal}} / Unknown {{plate.recognized.counts.unknown}}</span>
+    <label>Drawing units <select class="form-control" ng-model="plate.units"><option value="mm">Millimetres</option><option value="in">Inches</option><option value="cm">Centimetres</option></select></label>
+    <label>Recognition layer <select class="form-control" ng-model="plate.layer"><option value="">All layers</option><option ng-repeat="layer in plate.layers" value="{{layer}}">{{layer}}</option></select></label>
+    <button class="btn btn-default" ng-click="plate.reinterpret()">Confirm / re-read</button>
+    <span class="text-warning" ng-if="!plate.document.units.confirmed">Unitless DXF: confirm the units before edited export.</span>
+  </div>
+  <div class="plate-columns" ng-if="plate.model">
+    <section class="plate-drawing">
+      <h2>Plate drawing <small>Click a cutout to select; Shift-click for several</small></h2>
+      <svg class="plate-svg" plate-view-box="plate.viewBox" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" role="img" aria-label="DXF plate preview">
+        <path ng-repeat="path in plate.paths track by path.id" ng-attr-d="{{path.d}}" class="plate-path" ng-class="{'plate-switch':path.key,'plate-selected':plate.isSelected(path.key),'plate-anchor':plate.isAnchor(path.key)}" ng-click="plate.select(path.key,$event)"></path>
+      </svg>
+      <div class="plate-legend"><span>Fixed drawing</span><span>Switch cutouts</span><span>Selected</span><span>Anchor</span></div>
+      <p ng-if="plate.recognized.ambiguous.length || plate.recognized.duplicates.length" class="text-warning">{{plate.recognized.ambiguous.length}} ambiguous contours / {{plate.recognized.duplicates.length}} duplicate openings were left unchanged.</p>
+      <p class="help-block">Blocks, non-XY geometry and unsupported entities are preserved. Some may be preview-only or omitted from the preview. Explode/flatten them in CAD to edit their openings.</p>
+      <ul class="plate-warnings"><li ng-repeat="(type,count) in plate.document.unsupported">{{type}}: {{count}} preserved without an editable preview</li></ul>
+      <ul class="plate-warnings" ng-if="plate.warnings.length"><li ng-repeat="warning in plate.warnings track by $index">{{warning}}</li></ul>
+    </section>
+    <section class="plate-controls" aria-label="Plate cutout controls">
+      <fieldset><legend>Reference keys</legend>
+        <p>{{plate.selectedCount || 0}} selected · {{plate.anchorCount}} anchors</p><p class="plate-coordinates">{{plate.selectedInfo}}</p>
+        <p class="text-warning" ng-if="plate.selectedReadOnly">Selection includes read-only geometry. Explode blocks, resolve overlaps, flatten to XY and remove polyline width/thickness in CAD before editing.</p>
+        <div class="plate-buttons"><button class="btn btn-default" ng-click="plate.anchor(true)" ng-disabled="!plate.selectedCount">Lock as anchor</button><button class="btn btn-default" ng-click="plate.anchor(false)" ng-disabled="!plate.selectedCount">Unlock selected</button></div>
+        <div class="plate-buttons plate-secondary-actions"><button class="btn btn-default btn-sm" ng-click="plate.exclude()" ng-disabled="!plate.selectedCount">Mark as fixed geometry</button><button class="btn btn-link btn-sm" ng-click="plate.restoreExcluded()">Restore excluded openings</button></div>
+        <p class="help-block">Anchors keep their switch centre and rotation. Other keys move relative to this fixed frame. The first detected key starts locked.</p>
+        <p class="help-block">If a mounting window was detected as a key, mark it as fixed geometry before bulk conversion.</p>
+      </fieldset>
+      <fieldset><legend>Switch opening</legend>
+        <p class="text-warning" ng-if="plate.mixedProfiles">Mixed selection. Apply uses the options shown below.</p>
+        <label>Profile <select class="form-control" ng-model="plate.options.switch" aria-label="Switch profile"><option value="original">Keep imported opening</option><option value="mx">MX — 14 × 14 mm</option><option value="alps">Alps — 15.5 × 12.8 mm</option><option value="custom">Custom rectangle</option></select></label>
+        <div class="plate-pair" ng-if="plate.options.switch==='custom'"><label>Width (mm)<input type="number" class="form-control" ng-model="plate.options.customWidth" min="5" max="30" step="0.01"></label><label>Height (mm)<input type="number" class="form-control" ng-model="plate.options.customHeight" min="5" max="30" step="0.01"></label></div>
+        <div class="plate-pair" ng-if="plate.options.switch!=='original'"><label>Switch rotation <select class="form-control" ng-model="plate.options.switchRotation" ng-options="v as (v+'°') for v in [0,90,180,270]"></select></label><label>Extra size (mm)<input type="number" class="form-control" ng-model="plate.options.extraSize" min="0" max="1" step="0.01"></label></div>
+      </fieldset>
+      <fieldset><legend>Stabilizers</legend>
+        <label>Style <select class="form-control" ng-model="plate.stabChoice" aria-label="Stabilizer style"><option value="original">Keep imported stabilizers</option><option value="none">None — remove associated stabilizers</option><option value="mx">MX</option><option value="costar">Costar</option><option value="alps">Native Alps</option></select></label>
+        <div ng-if="plate.stabChoice!=='original' &amp;&amp; plate.stabChoice!=='none'">
+          <label ng-if="plate.stabChoice==='alps'">Alps keycap family <select class="form-control" ng-model="plate.alpsFamily"><option value="alps-aek">AEK / common Alps</option><option value="alps-at101">AT101</option></select></label>
+          <div ng-if="plate.stabChoice==='alps'" class="plate-pair"><label>Slot width (mm)<input type="number" class="form-control" min="1" max="10" step="0.01" ng-model="plate.options.slotWidth" placeholder="Family preset"></label><label>Slot height (mm)<input type="number" class="form-control" min="1" max="20" step="0.01" ng-model="plate.options.slotHeight" placeholder="Family preset"></label><label>Slot Y offset (mm)<input type="number" class="form-control" min="-30" max="30" step="0.01" ng-model="plate.options.slotOffset" placeholder="Family preset"></label></div>
+          <label class="plate-block">Orientation</label>
+          <div class="plate-buttons" role="group" aria-label="Stabilizer orientation"><button class="btn btn-default" ng-class="{active:plate.options.direction==='north'}" ng-attr-aria-pressed="{{plate.options.direction==='north'}}" ng-click="plate.options.direction='north'">North</button><button class="btn btn-default" ng-class="{active:plate.options.direction==='south'}" ng-attr-aria-pressed="{{plate.options.direction==='south'}}" ng-click="plate.options.direction='south'">South</button></div>
+          <div ng-if="plate.stabChoice==='mx'"><label class="plate-block">MX mounting</label><div class="plate-buttons" role="group" aria-label="MX mounting"><button class="btn btn-default" ng-class="{active:plate.options.mount==='plate'}" ng-attr-aria-pressed="{{plate.options.mount==='plate'}}" ng-click="plate.options.mount='plate'">Plate mount</button><button class="btn btn-default" ng-class="{active:plate.options.mount==='pcb'}" ng-attr-aria-pressed="{{plate.options.mount==='pcb'}}" ng-click="plate.options.mount='pcb'">PCB mount</button></div></div>
+          <div class="plate-pair"><label>Key axis<select class="form-control" ng-model="plate.options.axis"><option value="auto">Auto from key size</option><option value="horizontal">Horizontal</option><option value="vertical">Vertical</option></select></label><label>Custom spacing (mm)<input type="number" class="form-control" ng-model="plate.options.spacing" min="10" max="250" step="0.01" placeholder="Preset"></label></div>
+          <div class="plate-pair"><label>Stem offset (mm)<input type="number" class="form-control" ng-model="plate.options.stemOffset" min="-100" max="100" step="0.01"></label><label class="plate-force"><input type="checkbox" ng-model="plate.options.forceStabilizer"> Force on short key</label></div>
+          <p class="help-block">North/South is relative to the key. Native Alps presets start at 1.75u; MX/Costar at 2u. Unusual caps need measured spacing. PCB mount requires compatible PCB support.</p>
+        </div>
+      </fieldset>
+      <div class="plate-buttons plate-apply"><button class="btn btn-primary" ng-click="plate.apply(false)" ng-disabled="!plate.selectedCount || plate.selectedReadOnly">Apply to selected keys</button><button class="btn btn-default" ng-click="plate.apply(true)" ng-disabled="!plate.editableCount">Apply to all editable keys</button></div>
+      <p class="help-block">Only Apply replaces geometry. Keep both profiles on “Keep imported” and Apply to revert a key's cutout edits. Use KLE Undo/Redo for layout, anchor and pattern changes.</p>
+    </section>
+  </div>
+  <fieldset class="plate-alignment" ng-if="plate.pending"><legend>Align incoming KLE to anchors</legend>
+    <p>Pair each fixed anchor with its matching key. Translation and rotation are allowed; scaling is never used.</p>
+    <label ng-repeat="anchor in plate.pending.anchors">{{anchor.label}}<select class="form-control" ng-model="anchor.index" ng-options="choice.index as choice.label for choice in plate.pending.choices"><option value="">Choose incoming key</option></select></label>
+    <button class="btn btn-primary" ng-click="plate.alignLayout()">Align layout to anchors</button><button class="btn btn-default" ng-click="plate.cancelAlignment()">Cancel</button>
+  </fieldset>
+  <h2 class="plate-kle-heading">KLE layout <small>Inferred keycap sizes are estimates; review before replacing stabilizer patterns</small></h2>
+</section>

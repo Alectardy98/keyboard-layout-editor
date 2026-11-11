@@ -1,0 +1,205 @@
+// Recognition proposes switch centres from closed geometry, not filenames.
+// Ambiguous contours and unmatched drawing features remain unchanged.
+(function(root,factory) {
+    if(typeof module==='object' && module.exports) module.exports=factory(require('./geometry.js'));
+    else root.PlateRecognize=factory(root.PlateGeometry);
+}(typeof globalThis!=='undefined'?globalThis:this,function(G) {
+    'use strict';
+    function unique(values,tolerance) {
+        var result=[];
+        values.sort(function(a,b){return a-b;}).forEach(function(value) {
+            if(!result.length || Math.abs(value-result[result.length-1])>tolerance) result.push(value);
+        });
+        return result;
+    }
+    function pairs(values,size) {
+        var result=[];
+        for(var i=0;i<values.length;i++) for(var j=i+1;j<values.length;j++) {
+            var distance=values[j]-values[i];
+            if(Math.abs(distance-size)<0.26) result.push({low:values[i],high:values[j],center:(values[i]+values[j])/2});
+        }
+        return result.slice(0,64);
+    }
+    function coverage(edges,axis,at,low,high) {
+        var total=0;
+        edges.forEach(function(edge) {
+            if(edge.axis===axis && Math.abs(edge.at-at)<0.06)
+                total+=Math.max(0,Math.min(high,edge.high)-Math.max(low,edge.low));
+        });
+        return Math.min(1,total/(high-low));
+    }
+    function cores(loop) {
+        var initial=G.minimumBox(loop.points);
+        if(Math.min(initial.width,initial.height)<10 || Math.max(initial.width,initial.height)>170 ||
+            Math.min(initial.width,initial.height)>24) return [];
+        var result=[];
+        G.axes(loop.points).forEach(function(base) {
+            [base,base+Math.PI/2].forEach(function(angle) {
+                var points=loop.points.map(function(p){return G.rotate(p,-angle);}),edges=[];
+                points.forEach(function(p,i) {
+                    var q=points[(i+1)%points.length];
+                    if(G.distance(p,q)<0.75) return;
+                    if(Math.abs(p.x-q.x)<0.015) edges.push({axis:'x',at:(p.x+q.x)/2,low:Math.min(p.y,q.y),high:Math.max(p.y,q.y)});
+                    if(Math.abs(p.y-q.y)<0.015) edges.push({axis:'y',at:(p.y+q.y)/2,low:Math.min(p.x,q.x),high:Math.max(p.x,q.x)});
+                });
+                var xs=unique(edges.filter(function(e){return e.axis==='x';}).map(function(e){return e.at;}),0.03);
+                var ys=unique(edges.filter(function(e){return e.axis==='y';}).map(function(e){return e.at;}),0.03);
+                [{type:'mx',width:14,height:14},{type:'alps',width:15.5,height:12.8}].forEach(function(profile) {
+                    pairs(xs,profile.width).forEach(function(x) {
+                        pairs(ys,profile.height).forEach(function(y) {
+                            var center={x:x.center,y:y.center},valid=true;
+                            [-1,0,1].forEach(function(sx) {[-1,0,1].forEach(function(sy) {
+                                if(!G.contains(points,{x:center.x+sx*(profile.width/2-0.6),y:center.y+sy*(profile.height/2-0.6)})) valid=false;
+                            });});
+                            if(!valid) return;
+                            var sides=[coverage(edges,'x',x.low,y.low,y.high),coverage(edges,'x',x.high,y.low,y.high),
+                                coverage(edges,'y',y.low,x.low,x.high),coverage(edges,'y',y.high,x.low,x.high)];
+                            var score=sides.reduce(function(a,b){return a+b;},0)/4;
+                            if(score<0.42 || Math.min(...sides)<0.10) return;
+                            var world=G.rotate(center,angle),candidate={type:profile.type,center:world,angle:angle,
+                                width:x.high-x.low,height:y.high-y.low,score:score};
+                            var found=result.find(function(c){return c.type===candidate.type && G.distance(c.center,world)<0.15;});
+                            if(!found) result.push(candidate);
+                            else if(score>found.score) Object.assign(found,candidate);
+                        });
+                    });
+                });
+            });
+        });
+        return result;
+    }
+    function normalizedAngle(angle) {
+        var result=((angle%(Math.PI/2))+Math.PI/2)%(Math.PI/2);
+        if(result>Math.PI/4) result-=Math.PI/2;
+        return Math.abs(result)<1e-8?0:result;
+    }
+    function unknownCandidate(loop) {
+        if(loop.parts.every(function(p){return p.type==='CIRCLE';})) return null;
+        var box=G.minimumBox(loop.points),area=Math.abs(G.area(loop.points)),perimeter=0;
+        loop.points.forEach(function(p,i){perimeter+=G.distance(p,loop.points[(i+1)%loop.points.length]);});
+        var roundness=perimeter?4*Math.PI*area/(perimeter*perimeter):1;
+        if(Math.min(box.width,box.height)<10 || Math.max(box.width,box.height)>23.5 ||
+            area<80 || area/(box.width*box.height)<0.5 || roundness>0.93) return null;
+        return {type:'unknown',center:box.center,angle:box.angle,width:box.width,height:box.height,score:0};
+    }
+    function analyze(document,options) {
+        options=options || {};
+        var keys=[],unknown=[],ambiguous=[],duplicate=[],counts={mx:0,alps:0,universal:0,unknown:0};
+        document.contours.forEach(function(loop,index) {
+            if(keys.length+unknown.length>2000)throw Error('More than 2,000 possible keys. Choose a smaller drawing or isolate the plate in CAD.');
+            loop.id='contour-'+index;
+            if(options.layer && !loop.parts.some(function(part){return part.layer===options.layer;})) return;
+            var found=cores(loop),centers=[];
+            found.forEach(function(core) {
+                var group=centers.find(function(g){return G.distance(g[0].center,core.center)<0.2;});
+                if(group) group.push(core);else centers.push([core]);
+            });
+            if(centers.length>1) {ambiguous.push(loop);return;}
+            if(centers.length===1) {
+                var group=centers[0].sort(function(a,b){return b.score-a.score;}),best=group[0];
+                var type=group.some(function(c){return c.type==='mx';}) && group.some(function(c){return c.type==='alps';})?'universal':best.type;
+                keys.push({center:best.center,holeAngle:best.angle,capAngle:normalizedAngle(best.angle),type:type,
+                    core:best,contours:[loop],editable:loop.editable,width:1,height:1,stabilizers:[]});
+            } else {
+                var candidate=unknownCandidate(loop);
+                if(candidate) unknown.push({candidate:candidate,loop:loop});
+            }
+        });
+        // Repetition suggests an unknown switch family; a lone encoder window
+        // or other miscellaneous opening is not automatically turned into a key.
+        unknown.forEach(function(item) {
+            var a=Math.min(item.candidate.width,item.candidate.height),b=Math.max(item.candidate.width,item.candidate.height);
+            var peers=unknown.filter(function(other) {
+                return Math.abs(Math.min(other.candidate.width,other.candidate.height)-a)<0.15 &&
+                    Math.abs(Math.max(other.candidate.width,other.candidate.height)-b)<0.15;
+            });
+            if(peers.length>=3) {
+                var c=item.candidate;
+                keys.push({center:c.center,holeAngle:c.angle,capAngle:normalizedAngle(c.angle),type:'unknown',
+                    core:c,contours:[item.loop],editable:item.loop.editable,width:1,height:1,stabilizers:[]});
+            }
+        });
+        var uniqueKeys=[];
+        keys.forEach(function(key) {
+            var existing=uniqueKeys.find(function(other){return G.distance(other.center,key.center)<0.15;});
+            if(existing) {
+                existing.editable=false;existing.contours=existing.contours.concat(key.contours);duplicate.push(key);
+            } else uniqueKeys.push(key);
+        });
+        keys=uniqueKeys;
+        var keyContours=new Set(keys.flatMap(function(key){return key.contours.map(function(c){return c.id;});}));
+        var small=document.contours.filter(function(c){return !keyContours.has(c.id) && c.editable;});
+        var pairCandidates=[];
+        keys.forEach(function(key) {
+            [key.capAngle,key.capAngle+Math.PI/2].forEach(function(angle,axis) {
+                var features=small.map(function(contour) {
+                    var local=contour.points.map(function(p){return G.rotate({x:p.x-key.center.x,y:p.y-key.center.y},-angle);});
+                    var b=G.bounds(local),family=null;
+                    if(b.width>2.2 && b.width<2.9 && b.height>4.5 && b.height<5.5 && Math.abs(Math.abs(b.cy)-6.45)<0.45) family='alps';
+                    if(b.width>6.8 && b.width<7.2 && b.height>14.7 && b.height<15.9 && Math.abs(Math.abs(b.cy)-1.5)<1) family='mx-pcb';
+                    if(b.width>3.1 && b.width<3.5 && b.height>13.9 && b.height<14.5 && Math.abs(Math.abs(b.cy)-0.65)<0.5) family='costar';
+                    return {contour:contour,box:b,family:family};
+                }).filter(function(f){return f.family && Math.abs(f.box.cx)>6 && Math.abs(f.box.cx)<85;});
+                features.filter(function(f){return f.box.cx<0;}).forEach(function(left) {
+                    features.filter(function(f){return f.box.cx>0;}).forEach(function(right) {
+                        if(left.family!==right.family || Math.abs(left.box.cx+right.box.cx)>0.25 ||
+                            Math.abs(left.box.cy-right.box.cy)>0.25 || Math.abs(left.box.width-right.box.width)>0.15 ||
+                            Math.abs(left.box.height-right.box.height)>0.15) return;
+                        pairCandidates.push({key:key,parts:[left.contour,right.contour],family:left.family,
+                            span:right.box.cx-left.box.cx,axis:axis,offsetY:(left.box.cy+right.box.cy)/2,
+                            score:right.box.cx-left.box.cx});
+                    });
+                });
+            });
+        });
+        pairCandidates.sort(function(a,b){return a.score-b.score;});
+        var usedStabs=new Set();
+        pairCandidates.forEach(function(pair) {
+            if(pair.key.stabilizers.length || pair.parts.some(function(c){return usedStabs.has(c.id);})) return;
+            pair.parts.forEach(function(c){usedStabs.add(c.id);});
+            pair.key.stabilizers=pair.parts;
+            pair.key.detectedStabilizer={family:pair.family,spacing:pair.span,vertical:!!pair.axis,
+                direction:pair.offsetY>0?'north':'south'};
+            var guesses=pair.family==='alps'?[[24,1.75],[28,2],[41,2.75],[83.72,6.25],[90.6,6.5]]:
+                [[23.8,2],[38.1,3],[95.25,6],[100,6.25],[114.3,7],[133.35,8]];
+            var nearest=guesses.slice().sort(function(a,b){return Math.abs(a[0]-pair.span)-Math.abs(b[0]-pair.span);})[0];
+            var length=Math.abs(nearest[0]-pair.span)<0.6?nearest[1]:Math.max(2,Math.round((pair.span/19.05+1)*4)/4);
+            if(pair.axis)pair.key.height=length;else pair.key.width=length;
+        });
+        keys.forEach(function(key) {
+            var box=G.minimumBox(key.contours[0].points);
+            key.compound=box.width>24 || box.height>24;
+            if(key.compound && key.width===1 && key.height===1) {
+                var vertical=box.height>box.width,long=Math.max(box.width,box.height),short=Math.min(box.width,box.height);
+                // Common MX clip-in housings extend 4.2 mm beyond each
+                // stabilizer centre. Use their span for a combined opening;
+                // its overall length is not the keycap width in key units.
+                var presets=[[23.8,2],[38.1,3],[57.15,4],[69.342,4.5],[85.725,5.5],[95.25,6],
+                    [100,6.25],[104.76,6.5],[114.3,7],[133.35,8]];
+                var match=short>12.5 && short<15.5?presets.find(function(p){return Math.abs(long-8.4-p[0])<0.35;}):null;
+                var size=match?match[1]:Math.max(2,Math.round(long/19.05*4)/4);
+                if(vertical)key.height=size;else key.width=size;
+                if(match)key.detectedStabilizer={family:'mx-plate',spacing:match[0],vertical:vertical};
+            }
+        });
+        keys.sort(function(a,b){return b.center.y-a.center.y || a.center.x-b.center.x;});
+        var rows=[];
+        keys.forEach(function(key) {
+            var row=rows.find(function(row){return Math.abs(row.y-key.center.y)<0.25;});
+            if(!row) {row={y:key.center.y,keys:[]};rows.push(row);}
+            row.keys.push(key);
+        });
+        keys=[];
+        rows.forEach(function(row) {
+            row.keys.sort(function(a,b){return a.center.x-b.center.x;});
+            row.keys.forEach(function(key){keys.push(key);});
+        });
+        keys.forEach(function(key,index) {key.id='key-'+String(index+1).padStart(3,'0');counts[key.type]++;});
+        var types=Object.keys(counts).filter(function(type){return counts[type]>0;});
+        return {keys:keys,counts:counts,type:types.length===1?types[0]:types.length?'mixed':'unknown',
+            ambiguous:ambiguous,duplicates:duplicate,unassigned:document.contours.filter(function(c) {
+                return !keys.some(function(k){return k.contours.includes(c) || k.stabilizers.includes(c);});
+            })};
+    }
+    return {analyze:analyze,cores:cores,normalizedAngle:normalizedAngle};
+}));
