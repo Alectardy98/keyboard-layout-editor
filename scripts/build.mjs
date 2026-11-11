@@ -11,7 +11,14 @@ await fs.rm(out,{recursive:true,force:true});
 await fs.mkdir(out,{recursive:true});
 async function copy(source,target){await fs.mkdir(path.dirname(path.join(out,target)),{recursive:true});await fs.copyFile(path.join(root,source),path.join(out,target));}
 for(const file of ['kb.html','kb.js','extensions.js','serial.js','render.js','vial-document.js','layout-library.js','site-config.js','oauth.html','oauth.js','favicon.ico','nub.png','colors.json','keys.json','pickers.json','switches.json','README.md','CHANGELOG.md','CONTRIB.md','LICENSE.md'])await copy(file,file);
-await copy('kb.html','index.html');
+const editorHtml=await fs.readFile(path.join(root,'kb.html'),'utf8');
+const normalHtml=editorHtml.replace(/<!-- plate-engine:start[\s\S]*?<!-- plate-engine:end -->/,'');
+await fs.writeFile(path.join(out,'kb.html'),normalHtml);
+await fs.writeFile(path.join(out,'index.html'),normalHtml);
+const plateHtml=editorHtml.replace('<head>','<head>\n<script>window.KLE_PLATE_WORKSPACE=true;</script>');
+await fs.writeFile(path.join(out,'plate.html'),plateHtml);
+await fs.cp(path.join(root,'plate'),path.join(out,'plate'),{recursive:true});
+await fs.cp(path.join(root,'docs'),path.join(out,'docs'),{recursive:true});
 // Only the public client ID and exchange-service URL are embedded in the site.
 const publicConfig = {};
 if(process.env.KLE_GITHUB_CLIENT_ID) publicConfig.githubClientId = process.env.KLE_GITHUB_CLIENT_ID;
@@ -44,7 +51,9 @@ const files={
  'file-saver/FileSaver.min.js':'js/FileSaver.min.js',
  'dot/doT.min.js':'js/doT.min.js',
  'html2canvas/dist/html2canvas.min.js':'js/html2canvas.min.js',
- 'hint.css/hint.min.css':'css/hint.min.css'
+ 'hint.css/hint.min.css':'css/hint.min.css',
+ 'dxf-parser/dist/dxf-parser.js':'js/dxf-parser.js',
+ 'polygon-clipping/dist/polygon-clipping.umd.min.js':'js/polygon-clipping.js'
 };
 for(const[source,target]of Object.entries(files))await copy('node_modules/'+source,target);
 // Keep the redistribution notices accompanying the packaged libraries.
