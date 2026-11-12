@@ -477,3 +477,7 @@ settings-key(size, adjust = 0) {
 }
 
 .vial-file-toolbar { display:flex; flex-wrap:wrap; gap:4px; margin-left:4px; max-width:100%; }
+
+.navbar-nav > li > a.editor-nav-link
+  font-size: 18px
+  line-height: 20px
