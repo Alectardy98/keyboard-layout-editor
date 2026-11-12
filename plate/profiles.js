@@ -268,6 +268,12 @@
     Families.filter(function(f){return f.type==='mx' && !f.legacy;}).forEach(function(f){mxPresets.push({id:f.id,label:f.label,width:f.width,mount:f.mount});});
     var toprePresets=Families.filter(function(f){return f.type==='topre';}).map(function(f){return {id:f.id,label:f.label,width:f.width};});
     function preset(id) {
+        if(holeRecipes && holeRecipes[id]){
+            var recipe=holeRecipes[id],base=preset(recipe.presetId);
+            base.options=Object.assign(componentOptions(base.options),recipe.defaults,{stabilizer:id});
+            if(recipe.style==='costar')base.options.switch='alps';
+            return base;
+        }
         var family=Families.find(function(f){return f.id===id;});
         if(family)return {key:Object.assign({width:family.width,height:family.height,width2:family.width,height2:family.height,labels:[family.label]},family.capShape || {}),options:{switch:id,stabilizer:family.parts.length>1?id:'none',mount:family.mount || 'pcb'}};
         if(id==='alps-625-all')id='alps-7-all';
@@ -306,7 +312,9 @@
         o.components=true;return o;
     }
     function geometryOptions(input){
-        var o=Object.assign({},input,{components:false}),f=family(o.stabilizer),p=integratedPatterns[o.stabilizer];
+        var o=Object.assign({},input,{components:false});
+        if(holeRecipes && holeRecipes[o.stabilizer])o.stabilizer=holeRecipes[o.stabilizer].style;
+        var f=family(o.stabilizer),p=integratedPatterns[o.stabilizer];
         if(f||p){
             var type=f?f.type:p.type;
             if(o.switch!==type)throw Error('This compatibility pattern requires a '+type.toUpperCase()+' switch. Choose a matching stabilizer pattern.');
@@ -322,7 +330,7 @@
         var o=componentOptions(input),id=o.stabilizer,cap=null;
         var aliases={'alps-barrel625':'alps-625-barrels','mx-wide2':'mx-compat-2','mx-wide225':'mx-compat-2.25'};
         if(!['original','none','mx','costar','alps-default','alps-aek','alps-at101'].includes(id))cap=preset(aliases[id] || id).key;
-        if(o.fitStandardHole && ['mx','alps-default','alps-aek','alps-at101'].includes(id))cap={width:2,height:1,width2:2,height2:1};
+        if(o.fitStandardHole && ['mx','costar','alps-default','alps-aek','alps-at101'].includes(id))cap={width:2,height:1,width2:2,height2:1};
         var f=family(id),p=integratedPatterns[id];
         // Joined templates contain their own switch opening. Choosing one
         // explicitly converts that opening, rather than failing on the old type.
@@ -400,6 +408,91 @@
         Families.filter(function(f){return !baseTopre(f.id)&&(f.type==='topre'?group.id==='topre':f.type==='mx'?group.id==='mx-'+(f.mount||'pcb'):group.id==='alps');})
             .forEach(function(f){group.patterns.push({id:f.id,label:f.label+(f.legacy?' (previous alignment)':'')});});
     });
-    return {replacement:replacement,isIntegratedPattern:function(id){return !!family(id)||!!integratedPatterns[id];},componentOptions:componentOptions,geometryOptions:geometryOptions,sameComponents:sameComponents,inferComponents:inferComponents,stabilizerCategories:stabilizerCategories,presets:presets,mxPresets:mxPresets,toprePresets:toprePresets,preset:preset,switches:switches,spacing:spacing,stabilizers:stabilizers,switchShape:switchShape,generate:generate,
+    // One catalogue supplies both replacement holes and KLE Add menus.
+    // IDs stay stable; user-facing names and numeric ordering live here.
+    var holeRecipes={},holeTypes=[
+        {id:'alps',label:'Alps default',category:'alps',holes:[]},
+        {id:'costar',label:'Costar',category:'alps',holes:[]},
+        {id:'mx-pcb',label:'PCB mount',category:'mx',holes:[]},
+        {id:'mx-plate',label:'Plate mount',category:'mx',holes:[]},
+        {id:'topre',label:'Topre',category:'topre',holes:[]}
+    ];
+    var descriptions={
+        'alps-default':'standard','alps-aek':'standard','alps-at101':'standard','costar':'standard',mx:'standard',
+        'alps-multistep':'Caps Multistep','mx-multistep':'Caps Multistep',
+        'alps-55':'spacebar — complete supports','alps-canon8':'spacebar — Canon supports',
+        'alps-canon-vertical2':'Canon vertical — 1.25u wide','alps-barrel625':'spacebar — twin barrels',
+        'alps-975-barrel':'spacebar — barrel support','alps-z150':'Z150 Enter — wire and barrel',
+        'alps-bae':'5140 BAE — wire and barrel','alps-zkb2':'ZKB2 Enter — wire and barrel',
+        'alps-7-all':'spacebar — all stabs','alps-7-all-flex':'spacebar — all stabs and flex',
+        'alps-multi275':'multi-stab','mx-ansi-iso':'ANSI–ISO compatibility',
+        'mx-space625-7':'spacebar — 6.25u / 7u compatibility','mx-companion125-7':'companion — 7u mount',
+        'mx-bottom125':'bottom row — previous alignment','mx-bottom125-aligned':'bottom row',
+        'mx-bottom125-wide':'bottom row — wide opening','mx-bottom125-large':'bottom row — larger variant',
+        'mx-plate-option2':'standard — option 2','mx-plate-vertical2-option2':'vertical — option 2',
+        'mx-wide2':'measured opening','mx-wide225':'measured opening','mx-caps175-option2':'Caps Multistep — option 2',
+        'mx-space625-left':'spacebar — left support (previous alignment)','mx-space625-left-aligned':'spacebar — left support',
+        'topre-mod-dual':'modifier — dual hole','topre-mod-right':'modifier — right hole','topre-mod-left':'modifier — left hole',
+        'topre-7':'spacebar','topre-6.25':'spacebar — paired supports','topre-7-wide':'spacebar — 114.3 mm support span'
+    };
+    var presetAliases={'alps-default':'alps-2','alps-aek':'alps-2','alps-at101':'alps-2','costar':'alps-2','alps-barrel625':'alps-625-barrels','mx-wide2':'mx-compat-2','mx-wide225':'mx-compat-2.25'};
+    function menuEntry(id,presetId,label){
+        var k=preset(presetId).key,size=Math.max(k.width,k.height,k.width2||0,k.height2||0);
+        var desc=descriptions[id] || label.replace(/^Topre\s+/,'').replace(/^(?:vertical\s+)?\d+(?:\.\d+)?u\s*(?:[—–-]\s*)?/i,'').replace(/\b(?:mx |pcb mount |plate mount )/gi,'').replace(/\s+\d+(?:\.\d+)?u$/,'').trim();
+        if(!desc || /^\d+(?:\.\d+)?u?$/.test(desc))desc='standard';
+        return {id:id,presetId:presetId,size:size,label:size+'u '+desc};
+    }
+    function order(a,b){return a.size-b.size || a.label.localeCompare(b.label,undefined,{numeric:true}) || a.id.localeCompare(b.id);}
+    stabilizerCategories.forEach(function(group){group.patterns.forEach(function(p){
+        if(['alps-aek','alps-at101'].includes(p.id))return;
+        var type=holeTypes.find(function(t){return t.id===(p.id==='costar'?'costar':group.id);});
+        var pid=p.id==='mx'?'mx-2-'+group.id.slice(3):presetAliases[p.id]||p.id;
+        type.holes.push(menuEntry(p.id,pid,p.label));
+    });});
+    function standard(type,size,pid,style,description,defaults){
+        var id='hole-'+type+'-'+size+(description==='vertical'?'vertical':description==='ISO Enter'?'iso':description==='spacebar — offset stem'?'offset':'');
+        holeRecipes[id]={presetId:pid,style:style,defaults:defaults||{}};
+        var entry=menuEntry(id,id,size+'u '+description);entry.label=size+'u '+description;entry.size=size;
+        holeTypes.find(function(t){return t.id===type;}).holes.push(entry);
+    }
+    // Explicit sizes backed by ai03's published generators; no nearest-size inference.
+    presets.push({id:'alps-65',label:'6.5u spacebar — standard',width:6.5,stabs:true});
+    for(var size of [1.75,2.25,2.75,6.25,6.5])standard('alps',size,size===1.75?'alps-175-stabs':size===6.5?'alps-65':size===6.25?'alps-625-barrels':size===2.25?'alps-225':'alps-multi275','alps-default',size>=5.5?'spacebar — standard':'standard');
+    ['pcb','plate'].forEach(function(mount){
+        for(var size of [2.25,2.75,3,6,6.25,7,8])standard('mx-'+mount,size,'mx-'+size+'-'+mount,'mx',size>=6?'spacebar — standard':'standard',{mount:mount});
+        standard('mx-'+mount,2,'mx-vertical-'+mount,'mx','vertical',{mount:mount,switchRotation:90});
+        standard('mx-'+mount,2,'mx-iso-'+mount,'mx','ISO Enter',{mount:mount,switchRotation:90});
+        standard('mx-'+mount,6,'mx-6-offset-'+mount,'mx','spacebar — offset stem',{mount:mount,stemOffset:9.525});
+    });
+    standard('alps',2,'alps-vertical2','alps-canon-vertical2','vertical — 1u wide');
+    // Costar uses the existing independent clip recipe, not a combined Cherry cutout.
+    for(var size of [2.25,2.75,3,6.25,7,8])standard('costar',size,'mx-'+size+'-pcb','costar',size>=6?'spacebar — standard':'standard');
+    holeTypes.forEach(function(t){t.holes.sort(order);});
+    var addMenus={};
+    holeTypes.forEach(function(t){addMenus[t.id]=t.holes.map(function(h){return {id:h.presetId,label:h.label,size:h.size,hole:h.id};});});
+    function addBasic(type,items){
+        items.forEach(function(p){
+            if(addMenus[type].some(function(e){return e.id===p.id;}))return;
+            var entry=menuEntry(p.id,p.id,p.label);addMenus[type].push(entry);
+        });
+        addMenus[type].sort(order);
+    }
+    addBasic('alps',presets.filter(function(p){return !p.stabs&&!p.canon&&!p.bae&&!p.zkb2&&!p.barrels;}));
+    ['mx-pcb','mx-plate'].forEach(function(t){addBasic(t,mxPresets.filter(function(p){return !p.mount&&!p.stabs&&!integratedPatterns[p.id];}));});
+    addBasic('topre',toprePresets.filter(function(p){return baseTopre(p.id);}));
+    function holeDefaults(id,type){
+        var entry=holeTypes.filter(function(t){return !type||t.id===type;}).flatMap(function(t){return t.holes;}).find(function(h){return h.id===id;});
+        if(!entry)return {};
+        var o=componentOptions(preset(entry.presetId).options),result={};
+        ['switchRotation','stemOffset','axis','mxPattern'].forEach(function(k){result[k]=o[k];});
+        return Object.assign(result,holeRecipes[id]?.defaults || {});
+    }
+    function menuPreset(id,hole){
+        var p=preset(id);
+        if(hole){var entry=holeTypes.flatMap(function(t){return t.holes;}).find(function(h){return h.id===hole&&h.presetId===id;});
+            if(entry){p.options=componentOptions(p.options);p.options.stabilizer=hole;p.key.labels=[entry.label];}}
+        return p;
+    }
+    return {holeStyle:function(id){return holeRecipes[id]?.style || id;},holeTypes:holeTypes,addMenus:addMenus,menuPreset:menuPreset,holeDefaults:holeDefaults,replacement:replacement,isIntegratedPattern:function(id){return !!family(id)||!!integratedPatterns[id];},componentOptions:componentOptions,geometryOptions:geometryOptions,sameComponents:sameComponents,inferComponents:inferComponents,stabilizerCategories:stabilizerCategories,presets:presets,mxPresets:mxPresets,toprePresets:toprePresets,preset:preset,switches:switches,spacing:spacing,stabilizers:stabilizers,switchShape:switchShape,generate:generate,
         pcbCompatibility:pcbCompatibility,polygon:polygon,rings:rings,union:union,place:place,clip:clip};
 }));

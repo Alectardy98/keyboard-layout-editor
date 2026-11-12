@@ -253,24 +253,30 @@
             if(previous.length+ids.length>64)throw Error('A key can bind at most 64 additional shapes.');
             config.bindings=previous.concat(ids.map(function(cid){return {contour:cid,center:copy(at.center),angle:at.angle};}));
         }
-        function manualSource(name,ids){
+        function manualSource(name,ids,guess){
             if(!Array.isArray(ids)||!ids.length||ids.length>64||new Set(ids).size!==ids.length)throw Error('Select between one and 64 separate openings.');
             var contours=ids.map(function(cid){var c=contoursById.get(cid);
                 if(!c || !c.editable || Object.values(original).some(function(k){return k.contours.concat(k.stabilizers).some(function(p){return p.id===cid;}) || G.contains(c.points,k.center);}))
                     throw Error('Selected geometry is unsupported, is a plate outline, or already belongs to a key.');
                 return c;
             }),b=G.bounds(contours[0].points);
-            return {id:name,manual:true,center:{x:b.cx,y:b.cy},capAngle:0,holeAngle:0,type:'unknown',
+            var source={id:name,manual:true,center:{x:b.cx,y:b.cy},capAngle:0,holeAngle:0,type:'unknown',
                 core:{width:b.width,height:b.height},contours:contours,stabilizers:[],editable:true,width:1,height:1};
+            if(guess){
+                if(![guess.center?.x,guess.center?.y,guess.angle].every(Number.isFinite))throw Error('Invalid guessed switch position.');
+                source.center=copy(guess.center);source.capAngle=source.holeAngle=guess.angle;
+            }
+            return source;
         }
-        function addFromContours(ids,defaultKey,width,height,label){
+        function addFromContours(ids,defaultKey,width,height,label,guess){
             if(![width,height].every(function(n){return Number.isFinite(n)&&n>=.5&&n<=24&&Math.abs(n*4-Math.round(n*4))<1e-8;}))throw Error('Key sizes must be 0.5–24u in quarter-unit steps.');
             if(typeof label!=='string'||label.length>80)throw Error('Use a key name of at most 80 characters.');
             var available=selectableContours();if(!ids.every(function(cid){return available.includes(cid);}))throw Error('Select unassigned editable openings.');
-            var name=id(),source=manualSource(name,ids),key=defaultKey();
+            var name=id(),source=manualSource(name,ids,guess),key=defaultKey();
             key._plateId=name;key.width=key.width2=width;key.height=key.height2=height;key.labels=[label || 'Custom key'];
-            position(key,source.center,0,frame);original[name]=source;
-            settings[name]={anchor:null,profile:null,sourceContours:ids.slice()};return key;
+            position(key,source.center,source.capAngle,frame);original[name]=source;
+            settings[name]={anchor:null,profile:null,sourceContours:ids.slice()};
+            if(guess)settings[name].sourceGuess=copy(guess);return key;
         }
         function plan(layout) {
             supportOwners();
@@ -431,7 +437,7 @@
                 Object.keys(original).forEach(function(id){if(original[id].manual)delete original[id];});
                 Object.keys(settings).forEach(function(id){if(settings[id].sourceContours){
                     if(!/^new-\d+$/.test(id))throw Error('Invalid manually identified key.');
-                    original[id]=manualSource(id,settings[id].sourceContours);
+                    original[id]=manualSource(id,settings[id].sourceContours,settings[id].sourceGuess);
                 }});
                 supportOwners();
                 // Older projects did not recognize every miscellaneous opening.

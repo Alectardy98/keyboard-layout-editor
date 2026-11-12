@@ -91,6 +91,16 @@
           </div>
         </div>
       </fieldset>
+      <fieldset><legend>Apply best guess</legend>
+        <p class="help-block">Select an orange unmatched opening; Shift-click to include its supports. Looser shape matching suggests a key without changing the imported cuts.</p>
+        <button class="btn btn-default" ng-click="plate.findBestGuess()" ng-disabled="!plate.pickedShapes.length">Find closest fit</button>
+        <p class="help-block" ng-if="plate.guessSearched &amp;&amp; !plate.guessMatches.length">No close fit found. Use Map to new key for a manual assignment.</p>
+        <div ng-if="plate.guessMatches.length">
+          <label>Suggested key<select class="form-control" ng-model="plate.guessIndex" ng-options="i as (m.label+' — '+(m.score*100 | number:0)+'% shape match') for (i,m) in plate.guessMatches"></select></label>
+          <p class="help-block">Approximate, not verified. Similar holes may fit different caps; review the selection.</p>
+          <button class="btn btn-primary" ng-click="plate.applyBestGuess()">Apply best guess</button>
+        </div>
+      </fieldset>
     </section>
   </div>
   <section class="plate-stabilizers" ng-if="plate.model" aria-label="Stabilizer controls">
@@ -110,8 +120,8 @@
         </div>
         <details class="plate-stab-advanced" ng-if="plate.stabAction==='replace' &amp;&amp; !plate.isIntegratedPattern(plate.stabChoice)"><summary>Advanced</summary>
         <div class="plate-stab-options" ng-if="plate.stabAction==='replace' &amp;&amp; !plate.isIntegratedPattern(plate.stabChoice)">
-          <div ng-if="plate.stabChoice==='alps-default' || plate.stabChoice==='alps-aek' || plate.stabChoice==='alps-at101'" class="plate-pair"><label>Slot width (mm)<input type="number" class="form-control" min="1" max="10" step="0.01" ng-model="plate.options.slotWidth" placeholder="Family preset"></label><label>Slot height (mm)<input type="number" class="form-control" min="1" max="20" step="0.01" ng-model="plate.options.slotHeight" placeholder="Family preset"></label><label>Slot Y offset (mm)<input type="number" class="form-control" min="-30" max="30" step="0.01" ng-model="plate.options.slotOffset" placeholder="Family preset"></label></div>
-          <div class="plate-stab-mx" ng-if="plate.stabChoice==='mx'">
+          <div ng-if="plate.stabStyle()==='alps-default' || plate.stabStyle()==='alps-aek' || plate.stabStyle()==='alps-at101'" class="plate-pair"><label>Slot width (mm)<input type="number" class="form-control" min="1" max="10" step="0.01" ng-model="plate.options.slotWidth" placeholder="Family preset"></label><label>Slot height (mm)<input type="number" class="form-control" min="1" max="20" step="0.01" ng-model="plate.options.slotHeight" placeholder="Family preset"></label><label>Slot Y offset (mm)<input type="number" class="form-control" min="-30" max="30" step="0.01" ng-model="plate.options.slotOffset" placeholder="Family preset"></label></div>
+          <div class="plate-stab-mx" ng-if="plate.stabStyle()==='mx'">
             <label ng-if="plate.options.mount==='plate'">Clip-in template<select class="form-control" ng-model="plate.options.mxPattern"><option value="cherry">Cherry nominal — short/long wire clearance</option><option value="legacy">Earlier editor template (saved-project compatibility)</option></select></label>
             <div ng-if="plate.options.mount==='pcb'" class="plate-pair plate-stab-dimensions">
               <label>Housing clearance width (mm)<input class="form-control" type="number" min="6" max="10" step="0.05" ng-model="plate.options.pcbWidth" placeholder="7"></label>

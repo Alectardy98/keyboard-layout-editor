@@ -103,23 +103,21 @@
         };
         ui.stabCategories=root.PlateProfiles?.stabilizerCategories || [];
         ui.stabCategory='alps';ui.stabFamily='alps';ui.stabAction='original';
-        var stabTypeLists={mx:[{id:'mx-pcb',label:'PCB mount'},{id:'mx-plate',label:'Plate mount'}],alps:[{id:'alps',label:'Alps default'}],topre:[{id:'topre',label:'Topre'}]};
+        var holeTypes=root.PlateProfiles?.holeTypes || [];
+        var stabTypeLists={alps:holeTypes.filter(function(t){return t.category==='alps';}),mx:holeTypes.filter(function(t){return t.category==='mx';}),topre:holeTypes.filter(function(t){return t.category==='topre';})};
         ui.stabTypes=function(){return stabTypeLists[ui.stabFamily];};
         ui.changeStabFamily=function(){ui.stabCategory=ui.stabTypes()[0].id;ui.changeStabCategory();};
         ui.flipHole=function(direction){ui.options.holeOrientation=direction;ui.options.direction='south';};
         ui.holeDirection=function(){return ui.options.holeOrientation || ui.options.direction || 'south';};
-        var holeLists={},legacyAlpsHoles={'alps-aek':{id:'alps-aek',label:'2u'},'alps-at101':{id:'alps-at101',label:'2u'}};
-        ui.stabCategories.forEach(function(g){holeLists[g.id]=g.patterns.filter(function(p){return !['alps-aek','alps-at101'].includes(p.id);}).map(function(p){
-            return {id:p.id,label:p.id==='alps-default'?'2u':p.id==='mx'?(g.id==='mx-pcb'?'PCB mount 2u':'Plate mount 2u'):p.label};
-        });});
+        var legacyAlpsHoles={'alps-aek':{id:'alps-aek',label:'2u standard'},'alps-at101':{id:'alps-at101',label:'2u standard'}};
         ui.stabPatterns=function(){
-            var list=holeLists[ui.stabCategory];
-            return ui.stabCategory==='alps' && legacyAlpsHoles[ui.stabChoice]?[legacyAlpsHoles[ui.stabChoice]].concat(list.slice(1)):list;
+            var list=holeTypes.find(function(t){return t.id===ui.stabCategory;}).holes;
+            return ui.stabCategory==='alps' && legacyAlpsHoles[ui.stabChoice]?list.map(function(p){return p.id==='alps-default'?legacyAlpsHoles[ui.stabChoice]:p;}):list;
         };
         ui.changeStabCategory=function(){
             root.document.querySelector('.plate-stab-advanced')?.removeAttribute('open');
-            ui.stabFamily=ui.stabCategory.indexOf('mx-')===0?'mx':ui.stabCategory;
-            ui.stabAction='replace';ui.stabChoice='';ui.stabChoice=ui.stabPatterns()[0].id;ui.options.components=true;
+            ui.stabFamily=ui.stabCategory.indexOf('mx-')===0?'mx':ui.stabCategory==='costar'?'alps':ui.stabCategory;
+            ui.stabAction='replace';ui.stabChoice='';ui.stabChoice=(ui.stabPatterns().find(function(p){return p.label==='2u standard';})||ui.stabPatterns()[0]).id;ui.options.components=true;
             if(ui.stabCategory.indexOf('mx-')===0)ui.options.mount=ui.stabCategory==='mx-pcb'?'pcb':'plate';
             ui.changeStabPattern();
         };
@@ -129,30 +127,34 @@
             ['spacing','slotWidth','slotHeight','slotOffset','pcbWidth','pcbHeight','pcbOffset','pcbRadius'].forEach(function(k){delete ui.options[k];});
             ui.options.axis='auto';ui.options.stemOffset=0;ui.options.forceStabilizer=false;
             ui.options.mxPattern='cherry';
-            ui.options.fitStandardHole=['mx','alps-default','alps-aek','alps-at101'].includes(ui.stabChoice);
+            ui.options.fitStandardHole=['mx','costar','alps-default','alps-aek','alps-at101'].includes(ui.stabChoice);
+            Object.assign(ui.options,root.PlateProfiles.holeDefaults(ui.stabChoice,ui.stabCategory));
         };
         ui.changeStabAction=function(){if(ui.stabAction==='replace')ui.changeStabCategory();else ui.stabChoice=ui.stabAction;};
         function syncStabCategory(){
             ui.stabAction=['original','none'].includes(ui.stabChoice)?ui.stabChoice:'replace';
-            if(ui.stabAction!=='replace'){if(ui.detectedInfo?.category)ui.stabCategory=ui.detectedInfo.category;ui.stabFamily=ui.stabCategory.indexOf('mx-')===0?'mx':ui.stabCategory;return;}
-            var group=ui.stabChoice==='mx'?ui.stabCategories.find(function(g){return g.id==='mx-'+(ui.options.mount||'plate');}):
-                ui.stabCategories.find(function(g){return g.patterns.some(function(p){return p.id===ui.stabChoice;});});
+            if(ui.stabAction!=='replace'){if(ui.detectedInfo?.category)ui.stabCategory=ui.detectedInfo.category;ui.stabFamily=ui.stabCategory.indexOf('mx-')===0?'mx':ui.stabCategory==='costar'?'alps':ui.stabCategory;return;}
+            var group=ui.stabChoice==='mx'?holeTypes.find(function(g){return g.id==='mx-'+(ui.options.mount||'plate');}):
+                holeTypes.find(function(g){return g.holes.some(function(p){return p.id===ui.stabChoice;});});
+            if(['alps-aek','alps-at101'].includes(ui.stabChoice))group=holeTypes[0];
             if(group)ui.stabCategory=group.id;
-            ui.stabFamily=ui.stabCategory.indexOf('mx-')===0?'mx':ui.stabCategory;
+            ui.stabFamily=ui.stabCategory.indexOf('mx-')===0?'mx':ui.stabCategory==='costar'?'alps':ui.stabCategory;
         }
+        ui.stabStyle=function(){return root.PlateProfiles?.holeStyle(ui.stabChoice);};
         ui.isIntegratedPattern=function(id){return !!root.PlateProfiles?.isIntegratedPattern(id);};
-        ui.presets=root.PlateProfiles?.presets || [];
+        ui.presets=root.PlateProfiles?.addMenus?.alps || [];
+        ui.costarPresets=root.PlateProfiles?.addMenus?.costar || [];
         ui.mxPresets=root.PlateProfiles?.mxPresets || [];
-        ui.mxPlatePresets=ui.mxPresets.filter(function(p){return !p.mount || p.mount==='plate';});
-        ui.mxPcbPresets=ui.mxPresets.filter(function(p){return !p.mount || p.mount==='pcb';});
-        ui.toprePresets=root.PlateProfiles?.toprePresets || [];
+        ui.mxPlatePresets=root.PlateProfiles?.addMenus?.['mx-plate'] || [];
+        ui.mxPcbPresets=root.PlateProfiles?.addMenus?.['mx-pcb'] || [];
+        ui.toprePresets=root.PlateProfiles?.addMenus?.topre || [];
         ui.mxSpacings=[{value:'',label:'From key size'},{value:23.8,label:'2–2.75u: Cherry 23.8 mm'},
             {value:23.876,label:'2–2.75u: 0.94 inch / 23.876 mm'},{value:38.1,label:'3u: 38.1 mm'},
             {value:95.25,label:'6u: 95.25 mm'},{value:100,label:'6.25u: 100 mm'},
             {value:114.3,label:'7u: 114.3 mm'},{value:133.35,label:'8u: 133.35 mm'}];
-        ui.addPreset=function(id){guarded(function(){
+        ui.addPreset=function(id,hole){guarded(function(){
             if(!ui.model)throw Error('Open a DXF first.');
-            var preset=root.PlateProfiles.preset(id);
+            var preset=root.PlateProfiles.menuPreset(id,hole);
             // One transaction includes the key and its geometry, so Undo never
             // leaves an unprofiled key behind.
             hooks.transaction('plate-add',function(){
@@ -185,6 +187,23 @@
             var index=ui.pickedShapes.indexOf(path.contour);
             if(index<0)ui.pickedShapes.push(path.contour);else ui.pickedShapes.splice(index,1);
         };
+        ui.guessMatches=[];ui.guessIndex=0;
+        scope.$watchCollection(function(){return ui.pickedShapes;},function(){ui.guessMatches=[];ui.guessSearched=false;});
+        ui.findBestGuess=function(){guarded(function(){
+            if(!ui.pickedShapes.length)throw Error('Select an orange unmatched opening first. Shift-click to include its supports.');
+            var selected=new Set(ui.pickedShapes);
+            ui.guessMatches=root.PlateGuess.find(ui.model.document.contours.filter(function(c){return selected.has(c.id);}));
+            ui.guessIndex=0;ui.guessSearched=true;
+        });};
+        ui.applyBestGuess=function(){guarded(function(){
+            var match=ui.guessMatches[ui.guessIndex];if(!match)throw Error('Find a matching hole first.');
+            hooks.transaction('plate-best-guess',function(){
+                var key=ui.model.addFromContours(ui.pickedShapes,$serial.defaultKeyProps,match.key.width,match.key.height,match.label,{center:match.center,angle:match.angle});
+                ['width2','height2','x2','y2','stepped'].forEach(function(field){if(match.key[field]!==undefined)key[field]=match.key[field];});
+                scope.keys().push(key);hooks.renderKey(key);scope.unselectAll();scope.selectedKeys.push(key);scope.multi=angular.copy(key);
+            });
+            ui.pickedShapes=[];scope.calcKbHeight();ui.notice='Approximate match added to KLE. Imported cutouts are unchanged; review its size and switch centre. Undo removes the assignment.';
+        });};
         ui.deleteSelectedShapes=function(){guarded(function(){
             hooks.transaction('plate-delete-shapes',function(){ui.model.deleteShapes(ui.pickedShapes);});
             ui.pickedShapes=[];ui.mappingShapes=false;ui.notice='Selected shapes deleted. Undo restores them.';
