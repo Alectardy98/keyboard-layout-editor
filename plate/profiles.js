@@ -340,7 +340,8 @@
             if(d.spacing!==undefined && o.stabilizer!=='alps-55')o.spacing=d.spacing;
             o.axis=d.vertical?'vertical':'horizontal';o.direction=d.direction||'south';o.stemOffset=d.stemOffset||0;
         } else if(key.type==='topre'&&key.stabilizers.length===2&&[6.25,7].includes(key.width)){
-            var span=Math.abs(G.bounds(key.stabilizers[0].points).cx-G.bounds(key.stabilizers[1].points).cx);
+            var a=G.bounds(key.stabilizers[0].points),b=G.bounds(key.stabilizers[1].points);
+            var span=Math.hypot(a.cx-b.cx,a.cy-b.cy);
             o.stabilizer=key.width===7&&span>110?'topre-7-wide':'topre-'+key.width;
         } else if(!key.stabilizers.length&&simpleOpening(key)&&o.switch!=='original')o.stabilizer='none';
         var f=family(o.stabilizer),p=integratedPatterns[o.stabilizer];
