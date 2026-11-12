@@ -807,7 +807,8 @@
 					var blocked = plateModel.reconcile(beforeKeys, $scope.keys(), {keepStemOnResize:type!=='plate-align'});
 					$scope.keys().forEach(renderKey);
 					if($scope.selectedKeys.length) $scope.multi = angular.copy($scope.selectedKeys.last());
-					if(blocked) $scope.plate.notice = 'Anchor and unsupported source positions are locked. Unlock an anchor before moving or removing it.';
+					if(plateModel.boundaryBlocked) $scope.plate.notice = 'The key cannot extend beyond the plate outline.';
+					else if(blocked) $scope.plate.notice = 'Anchor and unsupported source positions are locked. Unlock an anchor before moving or removing it.';
 					trans.modifiedPlate = plateModel.snapshot();
 					if(plateAdapter) plateAdapter.refresh();
 				}
