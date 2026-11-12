@@ -66,8 +66,24 @@
             }
             seen.add(key._plateId);return settings[key._plateId];
         }
+        var outlines=document.contours.filter(function(c){return keys.length>=3 && keys.every(function(k){return G.contains(c.points,k.center);});});
+        function insidePlate(key){
+            var rects=[{x:key.x,y:key.y,w:key.width,h:key.height},
+                {x:key.x+(key.x2 || 0),y:key.y+(key.y2 || 0),w:key.width2 || key.width,h:key.height2 || key.height}];
+            return outlines.every(function(c){return rects.every(function(r){
+                var corners=G.rectangle(r.w,r.h,{x:r.x+r.w/2,y:r.y+r.h/2}).map(function(p){
+                    p=G.rotate(p,(key.rotation_angle || 0)*Math.PI/180,{x:key.rotation_x || 0,y:key.rotation_y || 0});
+                    return {x:frame.x+p.x*PITCH,y:frame.y-p.y*PITCH};
+                });
+                return corners.every(function(a,i){var b=corners[(i+1)%4],steps=Math.ceil(G.distance(a,b));
+                    for(var j=0;j<=steps;j++)if(!G.contains(c.points,{x:a.x+(b.x-a.x)*j/steps,y:a.y+(b.y-a.y)*j/steps}))return false;
+                    return true;
+                });
+            });});
+        }
         function reconcile(before,after,options) {
             options=options || {};
+            this.boundaryBlocked=false;var model=this;
             if(after.length>2000) throw Error('A plate may have at most 2,000 keys.');
             var old=new Map(before.map(function(k){return [k._plateId,k];})),seen=new Set(),blocked=0;
             after.forEach(function(key) {
@@ -80,6 +96,10 @@
                     });
                     if(options.keepStemOnResize!==false) {
                         key.x-=(key.width-previous.width)/2;key.y-=(key.height-previous.height)/2;
+                    }
+                    if(insidePlate(previous) && !insidePlate(key)){
+                        ['x','y','width','height','width2','height2','x2','y2','rotation_angle','rotation_x','rotation_y'].forEach(function(field){key[field]=previous[field];});
+                        model.boundaryBlocked=true;blocked++;
                     }
                     var fixed=config.anchor || (source && (!source.editable || (source.recovered && !config.confirmed))?{center:source.center,angle:source.capAngle}:null);
                     if(fixed) {

@@ -83,13 +83,14 @@
     }
     // Match actual contours rather than bounding boxes alone. Never claim a
     // mounting hole just because it happens to be near a spacebar.
-    function matches(points,pattern,center,angle) {
+    function matches(points,pattern,center,angle,tolerance) {
+        tolerance=tolerance || 0.03;
         var local=points.map(function(p){return G.rotate({x:p.x-center.x,y:p.y-center.y},-(angle || 0));});
         var a=G.bounds(local),b=G.bounds(pattern);
-        if(['minX','maxX','minY','maxY'].some(function(k){return Math.abs(a[k]-b[k])>0.03;}))return false;
+        if(['minX','maxX','minY','maxY'].some(function(k){return Math.abs(a[k]-b[k])>tolerance;}))return false;
         function onEdges(p,ring){return ring.some(function(a,i){var b=ring[(i+1)%ring.length],dx=b.x-a.x,dy=b.y-a.y;
             var t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy || 1)));
-            return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy)<0.03;});}
+            return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy)<tolerance;});}
         return local.every(function(p){return onEdges(p,pattern);}) && pattern.every(function(p){return onEdges(p,local);});
     }
     function analyze(document,options) {
@@ -298,6 +299,19 @@
             if(!row) {row={y:key.center.y,keys:[]};rows.push(row);}
             row.keys.push(key);
         });
+        // A surrounding closed contour supplies an outer cap boundary. Do not
+        // treat mounting windows or gaps between keys as available cap space.
+        var outlines=document.contours.filter(function(c){return keys.length>=3 &&
+            keys.every(function(k){return G.contains(c.points,k.center);});});
+        function capFits(key,width){
+            return outlines.every(function(c){
+                var corners=G.rectangle(width*19.05,key.height*19.05,key.center);
+                return corners.every(function(a,i){var b=corners[(i+1)%corners.length],steps=Math.ceil(G.distance(a,b));
+                    for(var j=0;j<=steps;j++)if(!G.contains(c.points,{x:a.x+(b.x-a.x)*j/steps,y:a.y+(b.y-a.y)*j/steps}))return false;
+                    return true;
+                });
+            });
+        }
         // Infer caps from neighbouring, already supported footprints. Quarter-u
         // widths fill only available space; switch centres and intentional gaps
         // are never moved. A chain of ordinary 1u keys is the initial reference.
@@ -317,7 +331,7 @@
                     if(!proposals.length)return;
                     var width=Math.round(Math.min(...proposals)*4)/4;
                     if(neighbours.some(function(n){return (width+n.width)*19.05/2>Math.abs(n.center.x-k.center.x)+0.03;}))return;
-                    if(width>k.width+0.01){k.width=width;changed=true;}
+                    if(width>k.width+0.01){if(!capFits(k,width))return;k.width=width;changed=true;}
                     if(!trusted.has(k)){trusted.add(k);changed=true;}
                 });
                 if(!changed)break;
@@ -359,9 +373,10 @@
             if(options.layer && !c.parts.some(function(p){return p.layer===options.layer;}))return;
             if(keys.some(function(k){return k.contours.includes(c)||k.stabilizers.includes(c);}))return;
             var b=G.bounds(c.points),t=G.bounds(Measured.capsMultistep),center={x:b.cx-t.cx,y:b.cy-t.cy};
-            if(!matches(c.points,Measured.capsMultistep,center,0))return;
+            if(!matches(c.points,Measured.capsMultistep,center,0,0.18))return;
+            center={x:b.maxX-7.75,y:b.cy};
             keys.push({id:'key-'+String(keys.length+1).padStart(3,'0'),center:center,holeAngle:0,capAngle:0,
-                label:'Caps Multistep',type:'alps',core:{width:15.5,height:12.8},contours:[c],stabilizers:[],editable:c.editable,width:1.75,height:1});
+                label:'Caps Multistep',type:'alps',core:{width:15.5,height:b.height},contours:[c],stabilizers:[],editable:c.editable,width:1.75,height:1});
             counts.alps++;
         });
         var types=Object.keys(counts).filter(function(type){return counts[type]>0;});

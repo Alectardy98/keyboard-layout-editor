@@ -18,13 +18,13 @@
 .plate-svg {width:100%;height:clamp(260px,48vh,560px);display:block;background:#fff;border:1px solid #e0e4eb;border-radius:4px;}
 .plate-path {fill:none;stroke:#596576;stroke-width:1.3;vector-effect:non-scaling-stroke;pointer-events:visibleStroke;}
 .plate-path.plate-switch {stroke:#70609f;fill:rgba(112,96,159,.035);cursor:pointer;pointer-events:all;}
-.plate-path.plate-anchor {stroke:#bf7d16;stroke-width:1.8;}
+.plate-path.plate-anchor {stroke:#2474d4;stroke-width:1.8;}
 .plate-path.plate-selected {stroke:#06837e;stroke-width:2.4;fill:rgba(6,131,126,.16);}
 .plate-legend {padding:10px 0;font-size:12px;gap:16px;}
 .plate-legend span:before {content:'';display:inline-block;width:14px;height:3px;margin:0 5px 3px 0;background:#596576;}
 .plate-legend span:nth-child(2):before {background:#70609f;}
 .plate-legend span:nth-child(3):before {background:#06837e;}
-.plate-legend span:nth-child(4):before {background:#bf7d16;}
+.plate-legend span:nth-child(4):before {background:#2474d4;}
 .plate-controls {min-width:0;}
 .plate-controls fieldset,.plate-alignment {border:1px solid #cbd1da;border-radius:6px;padding:8px 13px 12px;margin:0 0 14px;min-width:0;}
 .plate-controls legend,.plate-alignment legend {width:auto;border:0;margin:0 0 3px;padding:0 6px;font-size:16px;}
@@ -41,7 +41,7 @@
 .plate-warnings {padding-left:19px;color:#996015;font-size:12px;max-height:160px;overflow:auto;}
 .plate-alignment label {display:inline-block;margin:0 10px 10px 0;min-width:180px;}
 .plate-workspace .plate-kle-heading {border-top:1px solid #cbd1da;padding-top:18px;margin-top:20px;}
-.plate-anchor-key .keyborder {outline:2px solid #bf7d16;}
+.plate-anchor-key .keyborder {outline:2px solid #2474d4;}
 .plate-page .body > .row {margin-right:0;}
 @media (max-width:850px) {.plate-columns {grid-template-columns:1fr;}.plate-controls {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}.plate-controls fieldset {margin:0;}.plate-apply,.plate-controls>p {grid-column:1/-1;}}
 @media (max-width:540px) {.plate-controls {display:block;}.plate-controls fieldset {margin-bottom:12px;}.plate-heading {align-items:flex-start;}.plate-units label {flex:1;min-width:120px;}}
@@ -60,5 +60,9 @@
 .plate-shape-tools {display:flex;gap:10px;align-items:end;flex-wrap:wrap;padding:12px 0;}
 .plate-shape-tools p {flex-basis:100%;margin:0;}
 .plate-shape-tools label {max-width:180px;}
-.plate-path.plate-shape-available {stroke:#d47700;fill:rgba(212,119,0,.04);pointer-events:all;cursor:pointer;}
+.plate-path.plate-shape-available {pointer-events:all;cursor:pointer;}
+.plate-path.plate-shape-available:hover {stroke:#d47700;fill:rgba(212,119,0,.04);}
 .plate-path.plate-shape-picked {stroke:#06837e;stroke-width:3;fill:rgba(6,131,126,.22);}
+
+/* Keep anchors visibly blue even while selected. */
+.plate-path.plate-anchor.plate-selected:not(.plate-hit-area) {stroke:#2474d4;fill:rgba(36,116,212,.16);}

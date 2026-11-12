@@ -28,11 +28,8 @@
   </div>
   <div class="plate-columns" ng-if="plate.model">
     <section class="plate-drawing">
-      <h2>Plate drawing <small>Click a cutout to select; Shift-click for several</small></h2>
-      <div class="plate-buttons">
-        <button class="btn btn-default" ng-class="{active:plate.shapeMode}" ng-attr-aria-pressed="{{plate.shapeMode}}" ng-click="plate.toggleShapeMode()">Select unrecognized shapes</button>
-      </div>
-      <div class="plate-shape-tools" ng-if="plate.shapeMode">
+      <h2>Plate drawing <small>Click a cutout to select; click an unidentified shape to add a key</small></h2>
+      <div class="plate-shape-tools" ng-if="plate.pickedShapes.length">
         <p>Click the switch opening first, then additional shapes to include. Click again to deselect. The first opening defines the centre. Plate outlines and already assigned openings cannot be selected.</p>
         <label>Name <input class="form-control" ng-model="plate.shapeKey.name" maxlength="80"></label>
         <label>Width (u) <input class="form-control" type="number" min="0.5" max="24" step="0.25" ng-model="plate.shapeKey.width"></label>
@@ -41,7 +38,7 @@
         <span>{{plate.pickedShapes.length}} shapes selected</span>
       </div>
       <svg class="plate-svg" plate-view-box="plate.viewBox" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" role="img" aria-label="DXF plate preview">
-        <path ng-repeat="path in plate.paths track by path.id" ng-attr-d="{{path.d}}" class="plate-path" ng-class="{'plate-shape-available':plate.shapeMode && plate.selectableShapes.indexOf(path.contour)>=0,'plate-shape-picked':plate.pickedShapes.indexOf(path.contour)>=0,'plate-support-candidate':path.contour && path.contour===plate.highlightSupport,'plate-hit-area':path.hitOnly,'plate-switch':path.key,'plate-selected':plate.isSelected(path.key),'plate-anchor':plate.isAnchor(path.key)}" ng-click="plate.selectPath(path,$event)"></path>
+        <path ng-repeat="path in plate.paths track by path.id" ng-attr-d="{{path.d}}" class="plate-path" ng-class="{'plate-shape-available':plate.selectableShapes.indexOf(path.contour)>=0,'plate-shape-picked':plate.pickedShapes.indexOf(path.contour)>=0,'plate-support-candidate':path.contour && path.contour===plate.highlightSupport,'plate-hit-area':path.hitOnly,'plate-switch':path.key,'plate-selected':plate.isSelected(path.key),'plate-anchor':plate.isAnchor(path.key)}" ng-click="plate.selectPath(path,$event)"></path>
       </svg>
       <div class="plate-legend"><span>Fixed drawing</span><span>Switch cutouts</span><span>Selected</span><span>Anchor</span></div>
       <p ng-if="plate.recognized.ambiguous.length || plate.recognized.duplicates.length" class="text-warning">{{plate.recognized.ambiguous.length}} ambiguous contours / {{plate.recognized.duplicates.length}} duplicate openings were left unchanged.</p>

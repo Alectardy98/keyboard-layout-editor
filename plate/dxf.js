@@ -138,7 +138,15 @@
                 while(sweep<=0) sweep+=G.TAU;
                 points=G.arc(entity.center,entity.radius,start,sweep,curveTolerance);closed=type==='CIRCLE';stitch=type==='ARC';
             } else if(type==='SPLINE') {
-                points=splinePoints(entity);closed=!!entity.closed;editable=false;stitch=false;
+                points=splinePoints(entity);closed=!!entity.closed;
+                // Stitch supported planar, non-rational splines without flattening
+                // their source records. Rigid edits transform control points.
+                var control=entity.controlPoints || [],knots=entity.knotValues || [],degree=entity.degreeOfSplineCurve;
+                stitch=Number.isInteger(degree) && degree>=1 && degree<=3 && control.length>=degree+1 &&
+                    knots.length===control.length+degree+1 && knots.every(function(n,i){return Number.isFinite(n) && (!i || n>=knots[i-1]);}) &&
+                    knots[control.length]>knots[degree] && !entity.rational &&
+                    !(record && record.pairs.some(function(p){return p.code===41 && Number(p.value)!==1;}));
+                editable=editable && stitch;
             } else if(type==='ELLIPSE') {
                 var major=entity.majorAxisEndPoint,radius=Math.hypot(major.x,major.y),rotation=Math.atan2(major.y,major.x);
                 var start=entity.startAngle || 0,end=entity.endAngle===undefined?G.TAU:entity.endAngle;
@@ -283,7 +291,7 @@
             seen[record.id]=true;
             var text='';
             if(edit.motion) {
-                if(!['LINE','ARC','CIRCLE','LWPOLYLINE','POLYLINE'].includes(record.type))
+                if(!['LINE','ARC','CIRCLE','LWPOLYLINE','POLYLINE','SPLINE'].includes(record.type))
                     throw Error('This entity type must be exploded in CAD before moving it.');
                 text=transformRecord(record,edit.motion);
             }

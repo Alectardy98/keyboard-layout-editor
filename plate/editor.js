@@ -8,7 +8,7 @@
         var ui=scope.plate={workspace:workspace,model:null,error:'',notice:'',busy:false,paths:[],warnings:[],
             units:'mm',layer:'',layers:[],options:{switch:'original',stabilizer:'original',direction:'south',mount:'plate',
                 axis:'auto',switchRotation:0,extraSize:0,spacing:'',stemOffset:0},alpsFamily:'alps-default',
-            stabChoice:'original',pending:null,shapeMode:false,pickedShapes:[],shapeKey:{name:'Custom key',width:1,height:1}};
+            stabChoice:'original',pending:null,pickedShapes:[],shapeKey:{name:'Custom key',width:1,height:1}};
         function guarded(fn) {
             try {ui.error='';fn();}catch(error){ui.error=error.message || String(error);}
         }
@@ -41,7 +41,7 @@
             var keyboard={meta:$serial.defaultMetaData(),keys:model.makeKeys($serial.defaultKeyProps)};
             keyboard.meta.name=name.replace(/\.dxf$/i,'')+' — inferred layout';
             ui.model=model;ui.document=document;ui.recognized=recognized;ui.layers=[...new Set(document.primitives.map(function(p){return p.layer;}))].sort();
-            ui.pickedShapes=[];ui.shapeMode=false;
+            ui.pickedShapes=[];
             ui.layer=ui.importLayer=options?.layer || '';ui.pending=null;
             ui.units=document.units.override || (document.units.declaredFactor?'header':document.factor===25.4?'in':document.factor===10?'cm':'mm');
             var b=document.bounds,margin=5;
@@ -106,9 +106,8 @@
             });
             scope.calcKbHeight();ui.notice='Added '+preset.key.labels[0]+'. The raised area is centred on the stem; move the new key into position.';
         });};
-        ui.toggleShapeMode=function(){ui.shapeMode=!ui.shapeMode;ui.pickedShapes=[];};
         ui.selectPath=function(path,event){
-            if(!ui.shapeMode){select(path.key,event);return;}
+            if(!ui.selectableShapes.includes(path.contour)){ui.pickedShapes=[];select(path.key,event);return;}
             event.preventDefault();event.stopPropagation();
             if(!path.contour || !ui.selectableShapes.includes(path.contour))return;
             var index=ui.pickedShapes.indexOf(path.contour);
@@ -120,7 +119,7 @@
                 var key=ui.model.addFromContours(ui.pickedShapes,$serial.defaultKeyProps,Number(ui.shapeKey.width),Number(ui.shapeKey.height),ui.shapeKey.name);
                 scope.keys().push(key);hooks.renderKey(key);scope.unselectAll();scope.selectedKeys.push(key);scope.multi=angular.copy(key);
             });
-            ui.pickedShapes=[];ui.shapeMode=false;scope.calcKbHeight();
+            ui.pickedShapes=[];scope.calcKbHeight();
             ui.notice='Added key from the selected source openings. The first opening defines its centre; original cut geometry is preserved.';
         });};
         ui.includeSupport=function(candidate,include){guarded(function(){
