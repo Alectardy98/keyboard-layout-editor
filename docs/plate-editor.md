@@ -322,9 +322,9 @@ the Alps stabilizer-family selector.
 
 ### Add a key from unidentified shapes
 
-Click an unidentified switch opening in the drawing to reveal **Add key**.
+Click an unidentified switch opening in the drawing to reveal **Map to new key**.
 A normal click replaces the selection and clears selected keys. Shift-click
-additional source shapes to include or deselect them. Set the name and cap width/height, then **Add key**. The first
+additional source shapes to include or deselect them. Set the name and cap width/height, then **Map to new key**. The first
 opening's bounding-box centre defines the key reference; the chosen cap size is
 visual and does not resize the imported cuts. Review that reference for irregular
 openings before moving the new key.
@@ -349,3 +349,10 @@ including spacebars, without moving switch centres. A 0.6 mm per-side preview
 clearance avoids treating nominal KLE spacing cells as physical cap edges.
 These are layout guesses, not manufacturing dimensions; manual correction
 remains available and known bottom-row gaps are preserved.
+
+Unidentified shapes also offer **Delete** and **Map to existing**. Delete removes
+the selected source contours from the drawing/export; Undo restores them.
+Map to existing waits for a destination key clicked in either view (Cancel
+exits). Bound shapes keep their current positions when attached, then follow
+that key’s movement, rotation and deletion. They survive project saving and
+remain independent of switch/stabilizer profile replacements.
