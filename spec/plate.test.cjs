@@ -433,3 +433,18 @@ test('23 mm Alps stabilizers do not enlarge Caps or distort other row edges',()=
  assert.equal(p.r.keys.find(k=>Math.abs(k.center.x-14.285)<.01).width,1.5);
  assert.deepEqual(Buffer.from(p.m.exportFile(p.keys)),Buffer.from(bytes));
 });
+
+test('inferred quarter-unit grid preserves exact CAD origins and copies relative moves',()=>{
+ const d=D.parse(makeFixture(),'grid',{units:'mm'});
+ // Separate off-grid openings, independent of the fixture's regular key centres.
+ const bytes=D.exportBytes(d,[],[G.rectangle(14,14,{x:132.137,y:-14.291}),G.rectangle(15.5,12.8,{x:157.42,y:-14.36})].map(points=>({points})));
+ const p=plate(bytes),before=Buffer.from(p.m.exportFile(p.keys));
+ for(const k of p.keys){near(k.x*4,Math.round(k.x*4));near(k.y*4,Math.round(k.y*4));near(G.distance(p.m.physical(k).center,p.m.original[k._plateId].center),0);}
+ assert.deepEqual(before,Buffer.from(bytes));
+ const key=p.keys.find(k=>p.m.original[k._plateId].center.x>130),start=p.m.physical(key),old=structuredClone(p.keys);
+ key.x+=.25;key.y+=.25;p.m.reconcile(old,p.keys);
+ near(p.m.physical(key).center.x-start.center.x,4.7625);near(p.m.physical(key).center.y-start.center.y,-4.7625);
+ const reload=M.create(p.d,p.r);reload.restore(p.m.snapshot());near(G.distance(reload.physical(key).center,p.m.physical(key).center),0);
+ const resized=structuredClone(p.keys),center=p.m.physical(key).center;key.width+=.25;p.m.reconcile(resized,p.keys);
+ near(key.x*4,Math.round(key.x*4));near(G.distance(p.m.physical(key).center,center),0);
+});
