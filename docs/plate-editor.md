@@ -682,3 +682,5 @@ The plate workspace places units and recognition-layer controls at the top
 right, Reference keys across the top of the drawing, switch/support controls
 on its right, and stabilizer settings across the bottom. These rows wrap on
 smaller screens. The inferred KLE remains below the drawing controls.
+
+Choosing a stabilizer category or pattern starts an explicit replacement. Apply fits named patterns to their catalogue cap footprint, even when that overrides the inferred layout; the switch centre and fixed plate geometry stay put. Joined patterns also select their required switch technology. Separate supports retain the independently selected switch opening. Pattern changes clear measured parameters inherited from the previous pattern. Generic wire styles still use the current cap size; short keys require explicit force and measured spacing. Selection alone never changes geometry, and Undo restores the cap and cutouts together.
