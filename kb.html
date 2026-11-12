@@ -43,19 +43,19 @@ All rights reserved.
 <!-- plate-engine:start — the build loads this engine only in plate.html -->
 <script type="text/javascript" src="js/dxf-parser.js"></script>
 <script type="text/javascript" src="js/polygon-clipping.js"></script>
-<script type="text/javascript" src="plate/geometry.js?v=20261112-review4"></script>
-<script type="text/javascript" src="plate/dxf.js?v=20261112-review4"></script>
-<script type="text/javascript" src="plate/measured.js?v=20261112-review4"></script>
-<script type="text/javascript" src="plate/switch-families.js?v=20261112-review4"></script>
-<script type="text/javascript" src="plate/profiles.js?v=20261112-review4"></script>
-<script type="text/javascript" src="plate/overlaps.js?v=20261112-review4"></script>
-<script type="text/javascript" src="plate/recognize.js?v=20261112-review4"></script>
-<script type="text/javascript" src="plate/document.js?v=20261112-review4"></script>
+<script type="text/javascript" src="plate/geometry.js?v=20261112-review5"></script>
+<script type="text/javascript" src="plate/dxf.js?v=20261112-review5"></script>
+<script type="text/javascript" src="plate/measured.js?v=20261112-review5"></script>
+<script type="text/javascript" src="plate/switch-families.js?v=20261112-review5"></script>
+<script type="text/javascript" src="plate/profiles.js?v=20261112-review5"></script>
+<script type="text/javascript" src="plate/overlaps.js?v=20261112-review5"></script>
+<script type="text/javascript" src="plate/recognize.js?v=20261112-review5"></script>
+<script type="text/javascript" src="plate/document.js?v=20261112-review5"></script>
 <!-- plate-engine:end -->
-<script type="text/javascript" src="plate/editor.js?v=20261112-review4"></script>
-<link rel="stylesheet" href="plate/editor.css?v=20261112-review4">
+<script type="text/javascript" src="plate/editor.js?v=20261112-review5"></script>
+<link rel="stylesheet" href="plate/editor.css?v=20261112-review5">
 <script type="text/javascript" src="site-config.js"></script>
-<script type="text/javascript" src="kb.js?v=20261112-review4"></script>
+<script type="text/javascript" src="kb.js?v=20261112-review5"></script>
 </head>
 <body ng-controller="kbCtrl" ng-class="{'plate-page':plate.workspace}"
       ng-mouseup="selectRelease($event)"
@@ -144,7 +144,7 @@ Nav Bar / Header
 </nav>
 
 <div class="body" ng-cloak>
-  <div ng-if="plate.workspace" ng-include="'plate/workspace.html?v=20261112-review4'"></div>
+  <div ng-if="plate.workspace" ng-include="'plate/workspace.html?v=20261112-review5'"></div>
   <div class="alert alert-danger" role="alert" ng-if="!plate.workspace && plate.error">{{plate.error}}</div>
 
   <!--***********************************************
