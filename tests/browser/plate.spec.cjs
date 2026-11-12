@@ -255,7 +255,7 @@ test('separate MX menus and Topre presets retain complete geometry through proje
  const state=await page.evaluate(()=>{const s=angular.element(document.body).scope(),k=s.selectedKeys[0];return {width:k.width,profile:s.plate.model.settings[k._plateId].profile.options};});
  expect(state.width).toBe(7);expect(state.profile.switch).toBe('topre-7');
  const save=page.waitForEvent('download');await page.getByRole('button',{name:'Save plate project',exact:true}).click();const file=await(await save).path(),data=fs.readFileSync(file);
- expect(JSON.parse(data).recognitionVersion).toBe(6);
+ expect(JSON.parse(data).recognitionVersion).toBe(7);
  await page.reload();const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open plate project',exact:true}).click();await(await chooser).setFiles({name:'topre.plate.json',mimeType:'application/json',buffer:data});
  await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Download edited DXF'}).click();
@@ -268,4 +268,14 @@ test('unrecognized joined LINE shapes can be selected through their interior',as
  const target=page.locator('.plate-svg .plate-path').nth(index);await target.click();
  await expect(target).toHaveClass(/plate-shape-picked/);await expect(page.getByRole('button',{name:'Map to new key',exact:true})).toBeVisible();
  await page.mouse.move(0,0);await expect(target).toHaveCSS('stroke','rgb(212, 119, 0)');
+});
+test('ambiguous geometry has selectable review flags without changing source cuts',async({page})=>{
+ const G=require('../../plate/geometry');
+ const rings=[];for(let i=0;i<3;i++)rings.push(G.rectangle(10.575,14,{x:150+i*19.05,y:130}));
+ const source=D.exportBytes(D.parse(makeFixture()),[],rings.map(points=>({points})));
+ await page.goto('plate.html');const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open DXF plate',exact:true}).click();await(await chooser).setFiles({name:'review.dxf',mimeType:'application/dxf',buffer:Buffer.from(source)});
+ const summary=page.locator('.plate-review-summary');await expect(summary).toBeVisible();await summary.locator('summary').click();
+ await summary.locator('button').first().click();
+ expect(await page.evaluate(()=>{const s=angular.element(document.body).scope();return s.selectedKeys.length+s.plate.pickedShapes.length;})).toBeGreaterThan(0);
+ const pending=page.waitForEvent('download');await page.getByRole('button',{name:'Download edited DXF'}).click();expect(fs.readFileSync(await(await pending).path())).toEqual(Buffer.from(source));
 });
