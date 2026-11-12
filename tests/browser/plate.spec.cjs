@@ -7,7 +7,8 @@ async function open(page,source=makeFixture()) {
  await expect(page.locator('#keyboard .keycap')).toHaveCount(4);
 }
 async function selectStab(page,group){
- await page.getByLabel('Stabilizer category',{exact:true}).selectOption(group.startsWith('mx-')?'mx':group);
+ await page.getByLabel('Stabilizer category',{exact:true}).selectOption(group.startsWith('mx-')?'mx':group==='costar'?'alps':group);
+ if(group==='costar')await page.getByLabel('Stabilizer type',{exact:true}).selectOption({label:'Costar'});
  if(group.startsWith('mx-'))await page.getByLabel('Stabilizer type',{exact:true}).selectOption({label:group==='mx-pcb'?'PCB mount':'Plate mount'});
 }
 const scopeRead=(page,fn)=>page.evaluate(fn);
@@ -33,8 +34,8 @@ test('MX/Alps controls affect DXF only on Apply and support undo/redo without mo
  expect(R.analyze(output).counts.alps).toBe(4);expect(output.source).toContain('MOUNTS');
  await page.getByRole('button',{name:/Undo$/}).click();expect(await scopeRead(page,()=>Object.values(angular.element(document.body).scope().plate.model.settings).some(c=>c.profile))).toBe(false);
  await page.getByRole('button',{name:/Redo$/}).click();expect(await scopeRead(page,()=>Object.values(angular.element(document.body).scope().plate.model.settings).every(c=>c.profile))).toBe(true);
- await selectStab(page,'alps');await expect(page.getByLabel('Stabilizer hole')).toBeVisible();
- await page.getByLabel('Stabilizer hole',{exact:true}).selectOption({label:'Costar'});await expect(page.getByRole('button',{name:'South',exact:true})).toBeVisible();
+ await selectStab(page,'costar');await expect(page.getByLabel('Stabilizer hole')).toBeVisible();
+ await page.getByLabel('Stabilizer hole',{exact:true}).selectOption({label:'2u standard'});await expect(page.getByRole('button',{name:'South',exact:true})).toBeVisible();
 });
 test('cutout selection, anchor locking and repeated KLE resizing preserve the stem centre',async({page})=>{
  await open(page);await page.locator('.plate-switch').nth(1).click();await expect(page.getByText(/1 selected · 1 anchors/)).toBeVisible();
@@ -96,7 +97,7 @@ test('plate preset menus create complete Alps and EC11 geometry in one undo step
  await expect(page.getByRole('button',{name:'Add Key',exact:true})).toHaveCount(0);
  await expect(page.getByRole('button',{name:'Add MX Plate Mount',exact:true})).toBeEnabled();
  await page.getByRole('button',{name:'Add Alps Keys',exact:true}).click();
- await page.getByRole('link',{name:'5.5u — complete spacebar supports',exact:true}).click();
+ await page.getByRole('link',{name:'5.5u spacebar — complete supports',exact:true}).click();
  await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
  let result=await scopeRead(page,()=>{let s=angular.element(document.body).scope();return {error:s.plate.error,added:s.plate.model.plan(s.keys()).additions.length};});
  expect(result.error).toBe('');expect(result.added).toBe(8);
@@ -209,7 +210,7 @@ test('opening a DXF can discard edits, reopen the same file, or cancel safely',a
 test('MX menu supplies plate/PCB ISO presets and hides Caps Multistep in switch profiles',async({page})=>{
  await open(page);await expect(page.getByLabel('Switch profile').locator('option[value="alps-multistep"]')).toHaveCount(0);
  await page.getByRole('button',{name:'Add MX Plate Mount',exact:true}).click();
- await page.getByRole('link',{name:'ISO Enter — plate mount',exact:true}).click();
+ await page.getByRole('link',{name:'2u ISO Enter',exact:true}).click();
  await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
  const added=await page.evaluate(()=>{const s=angular.element(document.body).scope(),k=s.selectedKeys[0];return {w:k.width,h:k.height,w2:k.width2,x2:k.x2,profile:s.plate.model.settings[k._plateId].profile.options};});
  expect([added.w,added.h,added.w2,added.x2]).toEqual([1.25,2,1.5,-.25]);expect(added.profile.mount).toBe('plate');expect(added.profile.mxPattern).toBe('cherry');
@@ -249,18 +250,18 @@ test('PCB compatibility presets add complete assemblies and preserve them in pro
 
 test('separate MX menus and Topre presets retain complete geometry through project reload',async({page})=>{
  await open(page);await page.getByRole('button',{name:'Add MX Plate Mount',exact:true}).click();
- await expect(page.getByRole('link',{name:'PCB mount ANSI-ISO',exact:true})).not.toBeVisible();
- await expect(page.getByRole('link',{name:'6.25u with Left stab',exact:true})).not.toBeVisible();
+ await expect(page.getByRole('link',{name:'2.25u ANSI–ISO compatibility',exact:true})).not.toBeVisible();
+ await expect(page.getByRole('link',{name:'6.25u spacebar — left support',exact:true})).not.toBeVisible();
  await page.getByRole('button',{name:'Add MX PCB Mount',exact:true}).click();
- await expect(page.getByRole('link',{name:'6.25u with Left stab',exact:true})).toBeVisible();
- await expect(page.getByRole('link',{name:'PCB mount ANSI-ISO',exact:true})).toBeVisible();
+ await expect(page.getByRole('link',{name:'6.25u spacebar — left support',exact:true})).toBeVisible();
+ await expect(page.getByRole('link',{name:'2.25u ANSI–ISO compatibility',exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Add Topre Keys',exact:true}).click();
- await page.getByRole('link',{name:'Topre 7u',exact:true}).click();
+ await page.getByRole('link',{name:'7u spacebar',exact:true}).click();
  await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
  const state=await page.evaluate(()=>{const s=angular.element(document.body).scope(),k=s.selectedKeys[0];return {width:k.width,profile:s.plate.model.settings[k._plateId].profile.options};});
- expect(state.width).toBe(7);expect(state.profile.switch).toBe('topre-7');
+ expect(state.width).toBe(7);expect(state.profile.switch).toBe('topre');
  await expect(page.getByLabel('Switch profile',{exact:true})).toHaveValue('topre');
- await expect(page.getByLabel('Stabilizer hole',{exact:true}).locator('option:checked')).toHaveText('Topre 7u');
+ await expect(page.getByLabel('Stabilizer hole',{exact:true}).locator('option:checked')).toHaveText('7u spacebar');
  const save=page.waitForEvent('download');await page.getByRole('button',{name:'Save plate project',exact:true}).click();const file=await(await save).path(),data=fs.readFileSync(file);
  expect(JSON.parse(data).recognitionVersion).toBe(11);
  await page.reload();const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open plate project',exact:true}).click();await(await chooser).setFiles({name:'topre.plate.json',mimeType:'application/json',buffer:data});
@@ -307,7 +308,7 @@ test('two-cap compatibility assembly survives project reload and moves together 
 });
 test('PCB menu adds the large bottom modifier and both L-shaped compatibility caps',async({page})=>{
  await open(page);
- for(const [name,w,h,x2]of [['1.25u bottom row larger variant',1.25,1,0],['2u vertical horizontal',1,2,0],['2u reversed vertical horizontal',1,2,-1]]){
+ for(const [name,w,h,x2]of [['1.25u bottom row — larger variant',1.25,1,0],['2u vertical horizontal',1,2,0],['2u reversed vertical horizontal',1,2,-1]]){
   await page.getByRole('button',{name:'Add MX PCB Mount',exact:true}).click();await page.getByRole('link',{name,exact:true}).click();
   const key=await page.evaluate(()=>{const k=angular.element(document.body).scope().selectedKeys[0];return {w:k.width,h:k.height,x2:k.x2};});
   expect(key).toEqual({w,h,x2});
@@ -340,7 +341,7 @@ test('selecting recognized keys populates independent switch and support control
  await page.locator('#keyboard').getByText('Key 3',{exact:true}).click();
  await expect(page.getByLabel('Switch profile',{exact:true})).toHaveValue('mx');
  await expect(page.getByLabel('Stabilizer type',{exact:true}).locator('option:checked')).toHaveText('PCB mount');
- await expect(page.getByLabel('Stabilizer hole',{exact:true}).locator('option:checked')).toHaveText('PCB mount 2u');
+ await expect(page.getByLabel('Stabilizer hole',{exact:true}).locator('option:checked')).toHaveText('2u standard');
  expect(await scopeRead(page,()=>Object.values(angular.element(document.body).scope().plate.model.settings).some(c=>c.profile))).toBe(false);
  await page.getByRole('button',{name:'Apply to selected keys',exact:true}).click();
  expect(await scopeRead(page,()=>Object.values(angular.element(document.body).scope().plate.model.settings).some(c=>c.profile))).toBe(false);
@@ -349,13 +350,13 @@ test('selecting recognized keys populates independent switch and support control
  await page.locator('#keyboard').getByText('Key 4',{exact:true}).click();
  await expect(page.getByLabel('Switch profile',{exact:true})).toHaveValue('alps');
  await expect(page.getByLabel('Stabilizer action')).toHaveValue('none');
- await expect(page.getByLabel('Switch profile',{exact:true}).locator('option')).not.toContainText(['PCB mount ANSI-ISO']);
+ await expect(page.getByLabel('Switch profile',{exact:true}).locator('option')).not.toContainText(['2.25u ANSI–ISO compatibility']);
 });
 
 test('every stabilizer menu pattern applies, resizes when needed and exports through the UI',async({page})=>{
  test.setTimeout(120000);await open(page);
  await page.locator('#keyboard').getByText('Key 3',{exact:true}).click();
- const groups=await page.evaluate(()=>window.PlateProfiles.stabilizerCategories);
+ const groups=await page.evaluate(()=>window.PlateProfiles.holeTypes);
  for(const group of groups){
   await selectStab(page,group.id);
   const holes=await page.evaluate(()=>angular.element(document.body).scope().plate.stabPatterns());
@@ -375,7 +376,7 @@ test('manual 7u replacement keeps its centre and undo restores cap and cutouts',
  await open(page);await page.locator('#keyboard').getByText('Key 3',{exact:true}).click();
  const before=await page.evaluate(()=>{const s=angular.element(document.body).scope();return {key:JSON.parse(JSON.stringify(s.selectedKeys[0])),center:s.plate.model.physical(s.selectedKeys[0]),settings:s.plate.model.snapshot()};});
  await selectStab(page,'alps');
- await page.getByLabel('Stabilizer hole',{exact:true}).selectOption({label:'7u all stabs'});
+ await page.getByLabel('Stabilizer hole',{exact:true}).selectOption({label:'7u spacebar — all stabs'});
  await page.getByRole('button',{name:'Apply to selected keys',exact:true}).click();
  const after=await page.evaluate(()=>{const s=angular.element(document.body).scope();return {width:s.selectedKeys[0].width,center:s.plate.model.physical(s.selectedKeys[0]),error:s.plate.error};});
  expect(after.error).toBeFalsy();expect(after.width).toBe(7);expect(after.center.center.x).toBeCloseTo(before.center.center.x,6);expect(after.center.center.y).toBeCloseTo(before.center.center.y,6);
@@ -397,16 +398,32 @@ test('choosing another pattern discards inherited measurements without editing t
 test('Category Type Hole and collapsed Advanced keep orientation accessible for every family',async({page})=>{
  await open(page);await page.locator('#keyboard').getByText('Key 3',{exact:true}).click();
  await selectStab(page,'alps');
- await expect(page.getByLabel('Stabilizer type').locator('option')).toHaveText(['Alps default']);
+ await expect(page.getByLabel('Stabilizer type').locator('option')).toHaveText(['Alps default','Costar']);
  const holes=page.getByLabel('Stabilizer hole').locator('option');
- await expect(holes).toContainText(['2u']);await expect(holes).not.toContainText(['AEK / common Alps','AT101']);
+ await expect(holes).toContainText(['2u standard']);await expect(holes).not.toContainText(['AEK / common Alps','AT101']);
  await expect(page.getByLabel('Slot width (mm)')).not.toBeVisible();
  await expect(page.getByRole('button',{name:'North',exact:true})).toBeVisible();
  await page.locator('.plate-stab-advanced summary').click();await expect(page.getByLabel('Slot width (mm)')).toBeVisible();
- await page.getByLabel('Stabilizer hole').selectOption({label:'7u all stabs'});
+ await page.getByLabel('Stabilizer hole').selectOption({label:'7u spacebar — all stabs'});
  await expect(page.getByRole('button',{name:'North',exact:true})).toBeVisible();
  await selectStab(page,'mx-pcb');await expect(page.getByLabel('Stabilizer type').locator('option')).toHaveText(['PCB mount','Plate mount']);
  await expect(page.getByLabel('Housing clearance width (mm)')).not.toBeVisible();
  await selectStab(page,'topre');await expect(page.getByLabel('Stabilizer type').locator('option')).toHaveText(['Topre']);
  await expect(page.getByRole('button',{name:'North',exact:true})).toBeVisible();
+});
+
+test('best guess adds selected unmatched geometry to KLE without replacing cuts and supports undo',async({page})=>{
+ const G=require('../../plate/geometry'),points=G.rectangle(14.6,14.6,{x:150,y:0});
+ const entity='0\nLWPOLYLINE\n8\nCUT\n90\n4\n70\n1\n'+points.map(p=>'10\n'+p.x+'\n20\n'+p.y+'\n').join('');
+ const source=makeFixture().replace('0\nENDSEC\n0\nEOF',entity+'0\nENDSEC\n0\nEOF');
+ await open(page,source);
+ const cid=await page.evaluate(()=>{const s=angular.element(document.body).scope();return s.plate.document.contours.find(c=>c.points.some(p=>p.x>140)).id;});
+ await page.locator('.plate-svg path').evaluateAll((paths,id)=>paths.find(p=>angular.element(p).scope().path.contour===id).dispatchEvent(new MouseEvent('click',{bubbles:true})),cid);
+ await page.getByRole('button',{name:'Find closest fit',exact:true}).click();
+ await expect(page.getByLabel('Suggested key')).toBeVisible();
+ await page.getByRole('button',{name:'Apply best guess',exact:true}).click();
+ await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
+ const bytes=await page.evaluate(()=>{const s=angular.element(document.body).scope();return Array.from(s.plate.model.exportFile(s.keys()));});
+ expect(Buffer.from(bytes).toString()).toBe(source);
+ await page.getByRole('button',{name:/Undo$/}).click();await expect(page.locator('#keyboard .keycap')).toHaveCount(4);
 });
