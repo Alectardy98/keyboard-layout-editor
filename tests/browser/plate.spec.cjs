@@ -184,3 +184,20 @@ test('unidentified shape delete and map-to-existing actions support undo and KLE
  await expect(page.getByRole('status').filter({hasText:'Plate project restored'})).toBeVisible();
  expect(await page.evaluate(()=>angular.element(document.body).scope().plate.model.snapshot()['key-002'].bindings.length)).toBe(1);
 });
+test('opening a DXF can discard edits, reopen the same file, or cancel safely',async({page})=>{
+ await open(page);const source=makeFixture();
+ async function choose(text=source,name='synthetic.dxf'){
+  const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open DXF plate',exact:true}).click();
+  await(await chooser).setFiles({name,mimeType:'application/dxf',buffer:Buffer.from(text)});
+ }
+ async function edit(){await page.evaluate(()=>{const s=angular.element(document.body).scope();s.selectedKeys=[s.keys()[0]];s.$apply(()=>s.sizeKeys(.25,0,{preventDefault(){},stopPropagation(){}}));});}
+ await edit();await choose();const dialog=page.getByRole('alertdialog');await expect(dialog).toBeVisible();
+ await dialog.getByRole('button',{name:'Cancel',exact:true}).click();expect(await page.evaluate(()=>angular.element(document.body).scope().keys()[0].width)).toBe(1.25);
+ await choose();await dialog.getByRole('button',{name:'Discard changes and open',exact:true}).click();
+ await expect.poll(()=>page.evaluate(()=>angular.element(document.body).scope().keys()[0].width)).toBe(1);
+ expect(await page.evaluate(()=>angular.element(document.body).scope().dirty)).toBe(false);
+ await edit();await choose('not a DXF','invalid.dxf');await dialog.getByRole('button',{name:'Discard changes and open',exact:true}).click();await expect(page.getByRole('alert')).toBeVisible();
+ expect(await page.evaluate(()=>angular.element(document.body).scope().keys()[0].width)).toBe(1.25);
+ await choose();await dialog.getByRole('button',{name:'Discard changes and open',exact:true}).click();await expect.poll(()=>page.evaluate(()=>angular.element(document.body).scope().dirty)).toBe(false);
+ await choose(makeFixture({unknown:true}),'different.dxf');await expect(page.locator('.plate-units strong')).toHaveText('different.dxf');await expect(dialog).toHaveCount(0);
+});
