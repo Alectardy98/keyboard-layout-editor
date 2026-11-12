@@ -67,6 +67,9 @@
    fixed=isMaterial?P.clip.difference(fixed,cut):P.clip.union(fixed,cut);
   }
   return {loop,keys,isMaterial,source,portions,fixed,fixedCircles,fixedChannels,
+   // Selection highlights must not cover fixed mounting openings or show
+   // the inferred core boundary as an additional machining cut.
+   selectable:function(shape){return isMaterial?P.clip.intersection(shape,fixed):P.clip.difference(shape,fixed);},
    compose:function(shapes){return isMaterial?P.clip.difference(fixed,...shapes):P.clip.union(fixed,...shapes);}};
  }
  return {create,material};

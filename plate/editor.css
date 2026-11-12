@@ -47,3 +47,6 @@
 @media (max-width:540px) {.plate-controls {display:block;}.plate-controls fieldset {margin-bottom:12px;}.plate-heading {align-items:flex-start;}.plate-units label {flex:1;min-width:120px;}}
 
 .plate-preset-menu { max-height: 65vh; overflow-y: auto; }
+
+/* Recovered cores are hit areas; only the composed contour is a cut line. */
+.plate-path.plate-hit-area {stroke:none;fill-rule:evenodd;}

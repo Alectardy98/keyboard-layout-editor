@@ -30,7 +30,7 @@
     <section class="plate-drawing">
       <h2>Plate drawing <small>Click a cutout to select; Shift-click for several</small></h2>
       <svg class="plate-svg" plate-view-box="plate.viewBox" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" role="img" aria-label="DXF plate preview">
-        <path ng-repeat="path in plate.paths track by path.id" ng-attr-d="{{path.d}}" class="plate-path" ng-class="{'plate-switch':path.key,'plate-selected':plate.isSelected(path.key),'plate-anchor':plate.isAnchor(path.key)}" ng-click="plate.select(path.key,$event)"></path>
+        <path ng-repeat="path in plate.paths track by path.id" ng-attr-d="{{path.d}}" class="plate-path" ng-class="{'plate-hit-area':path.hitOnly,'plate-switch':path.key,'plate-selected':plate.isSelected(path.key),'plate-anchor':plate.isAnchor(path.key)}" ng-click="plate.select(path.key,$event)"></path>
       </svg>
       <div class="plate-legend"><span>Fixed drawing</span><span>Switch cutouts</span><span>Selected</span><span>Anchor</span></div>
       <p ng-if="plate.recognized.ambiguous.length || plate.recognized.duplicates.length" class="text-warning">{{plate.recognized.ambiguous.length}} ambiguous contours / {{plate.recognized.duplicates.length}} duplicate openings were left unchanged.</p>

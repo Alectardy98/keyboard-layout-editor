@@ -17,7 +17,7 @@
             guarded(function() {
                 var result=ui.model.plan(scope.keys());ui.warnings=result.warnings;
                 ui.paths=result.paths.map(function(path,index) {
-                    return {id:index,key:path.key,d:path.points.map(function(p,i){return (i?'L':'M')+p.x.toFixed(5)+' '+(-p.y).toFixed(5);}).join(' ')+(path.closed?' Z':'')};
+                    return {id:index,key:path.key,hitOnly:!!path.hitOnly,d:[path.points].concat(path.holes || []).map(function(ring){return ring.map(function(p,i){return (i?'L':'M')+p.x.toFixed(5)+' '+(-p.y).toFixed(5);}).join(' ')+(path.closed?' Z':'');}).join(' ')};
                 });
                 ui.recoveredCount=Object.values(ui.model.original).filter(function(k){return k.recovered;}).length;
                 ui.pendingRecovery=scope.selectedKeys.some(function(k){return ui.model.original[k._plateId]?.recovered && !ui.model.settings[k._plateId]?.confirmed;});

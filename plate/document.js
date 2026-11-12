@@ -204,8 +204,12 @@
                     if(!removeStabs)source.stabilizers.forEach(function(c){preview.push({key:source.id,closed:true,points:c.points.map(function(p){
                         if(excluded || !key)return p;var q=G.rotate(p,at.angle-source.capAngle,source.center);return {x:q.x+at.center.x-source.center.x,y:q.y+at.center.y-source.center.y};
                     })});});
-                    // Selectable key overlay; export is composed once per group.
-                    P.rings(shape).forEach(function(points){preview.push({key:source.id,points:points,closed:true});});
+                    // Filled hit areas are not cut lines. Fixed mounting openings take
+                    // priority over both the key highlight and its selection area.
+                    group.selectable(shape).forEach(function(polygon){
+                        var rings=P.rings([polygon]);
+                        preview.push({key:source.id,points:rings[0],holes:rings.slice(1),closed:true,hitOnly:true});
+                    });
                 });
                 var raw=records([group.loop]);
                 if(changed){
