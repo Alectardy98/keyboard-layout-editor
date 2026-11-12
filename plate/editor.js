@@ -8,7 +8,7 @@
         var ui=scope.plate={workspace:workspace,model:null,error:'',notice:'',busy:false,paths:[],warnings:[],
             units:'mm',layer:'',layers:[],options:{switch:'original',stabilizer:'original',direction:'south',mount:'plate',
                 axis:'auto',switchRotation:0,extraSize:0,spacing:'',stemOffset:0},alpsFamily:'alps-default',
-            stabChoice:'original',pending:null,pickedShapes:[],shapeKey:{name:'Custom key',width:1,height:1}};
+            stabChoice:'original',pending:null,mappingShapes:false,pickedShapes:[],shapeKey:{name:'Custom key',width:1,height:1}};
         function guarded(fn) {
             try {ui.error='';fn();}catch(error){ui.error=error.message || String(error);}
         }
@@ -41,7 +41,7 @@
             var keyboard={meta:$serial.defaultMetaData(),keys:model.makeKeys($serial.defaultKeyProps)};
             keyboard.meta.name=name.replace(/\.dxf$/i,'')+' — inferred layout';
             ui.model=model;ui.document=document;ui.recognized=recognized;ui.layers=[...new Set(document.primitives.map(function(p){return p.layer;}))].sort();
-            ui.pickedShapes=[];
+            ui.pickedShapes=[];ui.mappingShapes=false;
             ui.layer=ui.importLayer=options?.layer || '';ui.pending=null;
             ui.units=document.units.override || (document.units.declaredFactor?'header':document.factor===25.4?'in':document.factor===10?'cm':'mm');
             var b=document.bounds,margin=5;
@@ -107,14 +107,25 @@
             scope.calcKbHeight();ui.notice='Added '+preset.key.labels[0]+'. The raised area is centred on the stem; move the new key into position.';
         });};
         ui.selectPath=function(path,event){
+            if(ui.mappingShapes && path.key){select(path.key,event);return;}
             if(!ui.selectableShapes.includes(path.contour)){ui.pickedShapes=[];select(path.key,event);return;}
             event.preventDefault();event.stopPropagation();
             if(!path.contour || !ui.selectableShapes.includes(path.contour))return;
-            scope.unselectAll();ui.highlightSupport=null;
+            ui.mappingShapes=false;scope.unselectAll();ui.highlightSupport=null;
             if(!event.shiftKey){ui.pickedShapes=[path.contour];return;}
             var index=ui.pickedShapes.indexOf(path.contour);
             if(index<0)ui.pickedShapes.push(path.contour);else ui.pickedShapes.splice(index,1);
         };
+        ui.deleteSelectedShapes=function(){guarded(function(){
+            hooks.transaction('plate-delete-shapes',function(){ui.model.deleteShapes(ui.pickedShapes);});
+            ui.pickedShapes=[];ui.mappingShapes=false;ui.notice='Selected shapes deleted. Undo restores them.';
+        });};
+        ui.mapToExisting=function(){ui.mappingShapes=true;scope.unselectAll();ui.notice='Click the destination key in the plate drawing or KLE layout. Cancel stops mapping.';};
+        ui.cancelShapeMapping=function(){ui.mappingShapes=false;ui.notice='Shape mapping cancelled.';};
+        function bindToKey(key){guarded(function(){
+            hooks.transaction('plate-bind-shapes',function(){ui.model.bindShapes(ui.pickedShapes,key);});
+            ui.mappingShapes=false;ui.pickedShapes=[];ui.notice='Shapes mapped to the key. Moving or deleting that key now includes them.';
+        });}
         ui.addSelectedShapes=function(){guarded(function(){
             if(!ui.pickedShapes.length)throw Error('Select the switch opening first, then its additional supports.');
             hooks.transaction('plate-identify-key',function(){
@@ -247,6 +258,7 @@
             ui.selectedReadOnly=!!ui.model && scope.selectedKeys.some(function(k){return ui.model.original[k._plateId] && !ui.model.original[k._plateId].editable;});
         }
         scope.$watchCollection(function(){return scope.selectedKeys.map(function(k){return k._plateId;});},function(){
+            if(ui.mappingShapes && scope.selectedKeys.length===1)bindToKey(scope.selectedKeys[0]);
             ui.selectedCount=scope.selectedKeys.length;
             selectedInfo();
             if(ui.model && scope.selectedKeys.length) {

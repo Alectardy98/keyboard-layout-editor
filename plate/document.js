@@ -156,6 +156,21 @@
                     owners.set(cid,id);
                 });
             });
+            Object.keys(settings).forEach(function(id){
+                var bindings=settings[id].bindings || [];
+                if(!Array.isArray(bindings) || bindings.length>64)throw Error('Invalid shape bindings.');
+                bindings.forEach(function(binding){
+                    var c=contoursById.get(binding.contour);
+                    if(!c || !c.editable || owners.has(c.id) || !Number.isFinite(binding.angle) || (!original[id] && !settings[id].profile) || Object.values(original).some(function(k){return G.contains(c.points,k.center);}))throw Error('Invalid or already owned bound shape.');
+                    G.point(binding.center?.x,binding.center?.y);owners.set(c.id,id);
+                });
+            });
+            var deleted=settings['shape-deletions']?.deletedContours || [];
+            if(!Array.isArray(deleted) || deleted.length>document.contours.length)throw Error('Invalid deleted shape list.');
+            deleted.forEach(function(cid){var c=contoursById.get(cid);
+                if(!c || !c.editable || owners.has(cid) || Object.values(original).some(function(k){return G.contains(c.points,k.center);}))throw Error('Invalid deleted shape.');
+                owners.set(cid,'shape-deletions');
+            });
             return owners;
         }
         function withSupports(source){
@@ -192,6 +207,24 @@
             return document.contours.filter(function(c){return c.editable && !owners.has(c.id) &&
                 !Object.values(original).some(function(k){return G.contains(c.points,k.center);});
             }).map(function(c){return c.id;});
+        }
+        function validateShapeSelection(ids){
+            var available=selectableContours();
+            if(!Array.isArray(ids) || !ids.length || ids.length>64 || new Set(ids).size!==ids.length || !ids.every(function(id){return available.includes(id);}))throw Error('Select between one and 64 unassigned editable shapes.');
+        }
+        function deleteShapes(ids){
+            validateShapeSelection(ids);
+            var previous=settings['shape-deletions']?.deletedContours || [];
+            settings['shape-deletions']={deletedContours:previous.concat(ids)};
+        }
+        function bindShapes(ids,key){
+            validateShapeSelection(ids);
+            var config=settings[key?._plateId],source=original[key?._plateId];
+            if(!config || config.excluded || key.decal || (source && (!source.editable || (source.recovered && !config.confirmed))))throw Error('Select an editable key; confirm recovered geometry first if needed.');
+            if(!source && !config.profile)throw Error('Apply a switch profile to this key first.');
+            var previous=config.bindings || [],at=physical(key,frame);
+            if(previous.length+ids.length>64)throw Error('A key can bind at most 64 additional shapes.');
+            config.bindings=previous.concat(ids.map(function(cid){return {contour:cid,center:copy(at.center),angle:at.angle};}));
         }
         function manualSource(name,ids){
             if(!Array.isArray(ids)||!ids.length||ids.length>64||new Set(ids).size!==ids.length)throw Error('Select between one and 64 separate openings.');
@@ -310,6 +343,24 @@
             // Source outline, mounting holes, annotations and unrecognized
             // entities are rendered and exported exactly where they were.
             var used=new Set(Object.values(original).map(withSupports).flatMap(function(k){return k.contours.concat(k.stabilizers).flatMap(function(c){return c.parts.map(function(p){return p.id;});});}));
+            // Explicit bindings are independent of switch/stabilizer profiles.
+            // Their reference is the key pose at binding time, so attaching to
+            // an already moved or rotated key does not make the shape jump.
+            Object.keys(settings).forEach(function(name){
+                (settings[name].bindings || []).forEach(function(binding){
+                    var c=contoursById.get(binding.contour),key=current.get(name),at=key?physical(key,frame):null;
+                    c.parts.forEach(function(p){used.add(p.id);});
+                    var moved=at && (G.distance(at.center,binding.center)>EPS || Math.abs(at.angle-binding.angle)>EPS);
+                    records([c]).forEach(function(record){
+                        if(!key || moved){claim(record,name);edits.push({record:record,...(key?{motion:{from:binding.center,to:at.center,angle:at.angle-binding.angle}}:{})});}
+                    });
+                    if(key)preview.push({key:name,closed:true,points:c.points.map(function(p){var q=G.rotate(p,at.angle-binding.angle,binding.center);return {x:q.x+at.center.x-binding.center.x,y:q.y+at.center.y-binding.center.y};})});
+                });
+            });
+            (settings['shape-deletions']?.deletedContours || []).forEach(function(cid){var c=contoursById.get(cid);
+                c.parts.forEach(function(p){used.add(p.id);});
+                records([c]).forEach(function(record){claim(record,'shape-deletions');edits.push({record:record});});
+            });
             var contourForPart=new Map();document.contours.forEach(function(c){c.parts.forEach(function(p){contourForPart.set(p.id,c.id);});});
             document.primitives.forEach(function(p){if(!used.has(p.id)) preview.push({key:null,contour:contourForPart.get(p.id),points:p.points,closed:p.closed});});
             return {edits:edits,additions:additions,paths:preview,warnings:warnings};
@@ -321,7 +372,7 @@
             return D.exportBytes(document,result.edits,result.additions);
         }
         return {document:document,recognition:recognized,frame:frame,original:original,settings:settings,
-            selectableContours:selectableContours,addFromContours:addFromContours,nearbySupports:nearbySupports,setSupport:setSupport,makeKeys:makeKeys,reconcile:reconcile,confirm:confirm,groups:groups,setAnchors:setAnchors,exclude:exclude,apply:apply,plan:plan,exportFile:exportFile,
+            selectableContours:selectableContours,deleteShapes:deleteShapes,bindShapes:bindShapes,addFromContours:addFromContours,nearbySupports:nearbySupports,setSupport:setSupport,makeKeys:makeKeys,reconcile:reconcile,confirm:confirm,groups:groups,setAnchors:setAnchors,exclude:exclude,apply:apply,plan:plan,exportFile:exportFile,
             physical:function(key){return physical(key,frame);},position:function(key,center,angle){position(key,center,angle,frame);},
             snapshot:function(){return copy(settings);},restore:function(snapshot){
                 settings=copy(snapshot);
