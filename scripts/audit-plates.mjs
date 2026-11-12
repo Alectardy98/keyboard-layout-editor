@@ -22,12 +22,12 @@ function audit(file){
  const owned=new Set(r.keys.flatMap(k=>k.contours.concat(k.stabilizers).map(c=>c.id)));
  const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="'+view+'">'+d.contours.map(c=>'<path d="'+c.points.map((p,i)=>(i?'L':'M')+p.x.toFixed(3)+' '+(-p.y).toFixed(3)).join(' ')+' Z" fill="none" stroke="'+(owned.has(c.id)?'#6f53ab':'#d67a16')+'" stroke-width=".3"/>').join('')+
  r.keys.map(k=>'<g transform="translate('+k.center.x+' '+(-k.center.y)+') rotate('+(-k.capAngle*180/Math.PI)+')"><rect x="'+(-k.width*19.05/2+.6)+'" y="'+(-k.height*19.05/2+.6)+'" width="'+(k.width*19.05-1.2)+'" height="'+(k.height*19.05-1.2)+'" fill="#7358a01a" stroke="#7358a0" stroke-width=".15"/><text x="0" y="0" text-anchor="middle" font-family="sans-serif" font-size="3">'+xml(k.id.slice(4)+' / '+k.width)+'</text></g>').join('')+'</svg>';
- return {file,ms:Date.now()-start,keys:r.keys.map(k=>({id:k.id,type:k.type,x:k.center.x,y:k.center.y,w:k.width,h:k.height,label:k.label,editable:k.editable,stabs:k.stabilizers.length})),counts:r.counts,candidates,gaps,units:d.units,unsupported:d.unsupported,byteExact:true,svg};
+ return {file,ms:Date.now()-start,keys:r.keys.map(k=>({id:k.id,type:k.type,x:k.center.x,y:k.center.y,w:k.width,h:k.height,label:k.label,editable:k.editable,stabs:k.stabilizers.length})),counts:r.counts,review:r.review||[],candidates,gaps,units:d.units,unsupported:d.unsupported,byteExact:true,svg};
 }
 if(!isMainThread){try{parentPort.postMessage(audit(workerData));}catch(e){parentPort.postMessage({file:workerData,error:e.message});}}
 else {
  const [folder,out]=process.argv.slice(2);if(!folder||!out)throw Error('Usage: audit-plates.mjs <library-folder> <report-folder>');fs.mkdirSync(out,{recursive:true});
- const files=[];function walk(dir){for(const e of fs.readdirSync(dir,{withFileTypes:true})){const p=path.join(dir,e.name);if(e.isDirectory())walk(p);else if(/\.dxf$/i.test(e.name))files.push(p);}}walk(folder);files.sort();
+ const files=[];function walk(dir){for(const e of fs.readdirSync(dir,{withFileTypes:true})){const p=path.join(dir,e.name);if(e.isDirectory())walk(p);else if(!e.name.startsWith('._')&&/\.dxf$/i.test(e.name))files.push(p);}}walk(folder);files.sort();
  let next=0,complete=0;const results=[];
  function run(file,index){return new Promise(resolve=>{const worker=new Worker(new URL(import.meta.url),{workerData:file,resourceLimits:{maxOldGenerationSizeMb:384}});let done=false;const timer=setTimeout(()=>finish({file,error:'Audit exceeded 60 seconds'}),60000);
   function finish(r){if(done)return;done=true;clearTimeout(timer);worker.terminate();if(r.svg){fs.writeFileSync(path.join(out,index+'.svg'),r.svg);delete r.svg;r.preview=index+'.svg';}r.relative=path.relative(folder,file);results.push(r);if(++complete%25===0)console.log(complete+'/'+files.length);resolve();}
