@@ -11,7 +11,7 @@ function assembly(f,x=250,y=100,angle=0){
  return rings;
 }
 test('measured MX and Topre families recognize complete assemblies at cardinal rotations',()=>{
- for(const f of families)for(const angle of [0,Math.PI/2,Math.PI,3*Math.PI/2]){
+ for(const f of families.filter(f=>!f.legacy))for(const angle of [0,Math.PI/2,Math.PI,3*Math.PI/2]){
   const d=from(assembly(f,250,100,angle)),r=R.analyze(d),k=r.keys.find(k=>k.family===f.id&&G.distance(k.center,{x:250,y:100})<6);
   assert.ok(k,`${f.id} at ${angle}`);assert.equal(k.type,f.type);assert.equal(k.stabilizers.length,f.parts.length-1);
   const m=M.create(d,r),keys=m.makeKeys(S.defaultKeyProps);assert.deepEqual(Buffer.from(m.exportFile(keys)),Buffer.from(D.exportBytes(d)));
@@ -39,7 +39,7 @@ test('Topre seven-unit row retains both square supports and its 1.5u modifiers',
  assert.equal(D.parse(m.exportFile(keys.filter(k=>k!==key))).contours.length,d.contours.length-3);
 });
 test('reviewed MX families leave adjacent flex and mounting openings unassigned',()=>{
- const f=families.find(f=>f.id==='mx-space625-left');
+ const f=families.find(f=>f.id==='mx-space625-left-aligned');
  const d=from([...assembly(f),...at([P.polygon(G.rectangle(20,1))],250,113),...at([P.polygon(G.rectangle(3,2))],180,100)]),r=R.analyze(d),k=r.keys.find(k=>k.family===f.id);
  assert.equal(k.stabilizers.length,2);assert.ok(r.unassigned.some(c=>Math.abs(G.bounds(c.points).cy-113)<.001));
  const l=P.preset('mx-ansi-iso').key;assert.deepEqual([l.width,l.height,l.width2,l.height2,l.x2,l.y2],[1.5,1,2.25,1,-.75,1]);
@@ -50,7 +50,7 @@ test('old plate projects retain the pre-family interpretation',()=>{
  const d=from(assembly(families.find(f=>f.id==='topre-1')));
  assert.equal(R.analyze(d).keys.find(k=>Math.abs(k.center.x-250)<.001).type,'topre');
  assert.notEqual(R.analyze(d,{legacyFamilies:true}).keys.find(k=>Math.abs(k.center.x-250)<.001)?.type,'topre');
- assert.equal(d.recognitionVersion,3);assert.equal(D.parse(d.source,'old',{legacyFamilies:true}).recognitionVersion,2);
+ assert.equal(d.recognitionVersion,4);assert.equal(D.parse(d.source,'old',{legacyFamilies:true}).recognitionVersion,2);
 });
 // Four straight sides plus overlong corner arcs, as found in CAD exports.
 function overrunCornerDXF(){
@@ -86,4 +86,35 @@ test('coincident Topre side records remain attached to a recovered complete open
  const d=D.parse(source),r=R.analyze(d),m=M.create(d,r),keys=m.makeKeys(S.defaultKeyProps);assert.equal(r.keys.length,1);assert.equal(r.keys[0].type,'topre');assert.equal(r.keys[0].contours[0].parts.length,10);
  assert.equal(Buffer.from(m.exportFile(keys)).toString(),source);m.setAnchors(keys,false);const before=structuredClone(keys);keys[0].x+=1;m.reconcile(before,keys);
  const moved=D.parse(m.exportFile(keys));assert.equal(moved.primitives.length,10);near(R.analyze(moved).keys[0].center.x,19.35);
+});
+test('alternate-stem bottom row aligns without gaps or overlaps and keeps legacy profiles',()=>{
+ const bottom=families.find(f=>f.id==='mx-bottom125-aligned'),space=families.find(f=>f.id==='mx-space625-left-aligned');
+ const rings=assembly(space);
+ for(const offset of [-3.75,-5,-6.25])rings.push(...at(bottom.parts.map(P.polygon),250+offset*19.05,100));
+ rings.push(...at(P.generate({switch:'mx',stabilizer:'none'},{width:1,height:1}),250+3.75*19.05,100));
+ rings.push(...at(bottom.parts.map(P.polygon),250+5*19.05-2.38125,100));
+ const d=from(rings),r=R.analyze(d),row=r.keys.filter(k=>Math.abs(k.center.y-100)<.001).sort((a,b)=>a.center.x-b.center.x);
+ assert.deepEqual(row.map(k=>k.width),[1.25,1.25,1.25,6.25,1.25,1.25]);
+ for(let i=1;i<row.length;i++)near(row[i-1].center.x+row[i-1].width*19.05/2,row[i].center.x-row[i].width*19.05/2);
+ const m=M.create(d,r);assert.deepEqual(Buffer.from(m.exportFile(m.makeKeys(S.defaultKeyProps))),Buffer.from(D.exportBytes(d)));
+ const legacy=R.analyze(d,{legacyAlignment:true}).keys.find(k=>k.family==='mx-space625-left');near(legacy.center.x,252.38125);
+ const original=P.preset('mx-space625-left');assert.equal(original.options.switch,'mx-space625-left');
+ assert.equal(D.parse(d.source,'old',{legacyAlignment:true}).recognitionVersion,3);
+});
+test('combined 2u PCB openings recognize at split-keyboard angles and move intact',()=>{
+ const f=families.find(f=>f.id==='mx-pcb2-combined');
+ for(const degrees of [-12,12,33]){
+  const d=from(assembly(f,250,100,degrees*Math.PI/180)),r=R.analyze(d),key=r.keys.find(k=>k.family===f.id);assert.ok(key);near(key.center.x,250);near(key.center.y,100);assert.equal(key.width,2);
+  const m=M.create(d,r),keys=m.makeKeys(S.defaultKeyProps),cap=keys.find(k=>k._plateId===key.id),before=structuredClone(keys);cap.x+=.25;m.reconcile(before,keys);
+  const moved=R.analyze(D.parse(m.exportFile(keys))).keys.find(k=>k.family===f.id);near(G.distance(moved.center,m.physical(cap).center),0);
+ }
+});
+test('broken 7 by 15 stabilizer joins recover as supports, not extra switches',()=>{
+ const source=overrunCornerDXF().replace(/(10|11|20|21)\n(-?[\d.]+)\n/g,(full,code,value)=>{
+  let v=Number(value);if(code==='10'||code==='11'){if(v>0)v-=7;v+=3.5;}else{if(v>0)v+=1;v-=.5;}return `${code}\n${v}\n`;
+ });
+ const raw=D.parse(source),rings=[...at([P.polygon(families.find(f=>f.id==='mx-pcb225-option2').parts[1])],-11.938,1.5),...at(P.generate({switch:'mx',stabilizer:'none'},{width:1,height:1}),-11.938,1.5)];
+ for(const x of [-11.938-30.95625,-11.938-30.95625-19.05])rings.push(...at(P.generate({switch:'mx',stabilizer:'none'},{width:1,height:1}),x,1.5));
+ const d=D.parse(D.exportBytes(raw,[],rings.map(points=>({points})))),r=R.analyze(d),key=r.keys.find(k=>Math.abs(k.center.x+11.938)<.001);assert.ok(key);assert.ok(key.width>=2);assert.equal(key.stabilizers.length,2);assert.ok(key.stabilizers.some(c=>c.cornerRecovery));
+ const m=M.create(d,r);assert.deepEqual(Buffer.from(m.exportFile(m.makeKeys(S.defaultKeyProps))),Buffer.from(D.exportBytes(d)));
 });
