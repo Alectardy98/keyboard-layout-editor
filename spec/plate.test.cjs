@@ -422,3 +422,14 @@ test('agreed row ends allow edge modifiers above plate corner reliefs',()=>{
  assert.deepEqual(p.r.keys.filter(k=>k.center.y<10).map(k=>k.width),[1.5,1,1,1.5]);
  assert.deepEqual(Buffer.from(p.m.exportFile(p.keys)),Buffer.from(bytes));
 });
+test('23 mm Alps stabilizers do not enlarge Caps or distort other row edges',()=>{
+ const base=D.parse(makeFixture(),'base'),shapes=[G.rectangle(76.2,65,{x:38.1,y:30})];
+ [9.525,28.575,47.625,66.675].forEach(x=>shapes.push(G.rectangle(15.5,12.8,{x,y:50})));
+ [16.66875,42.8625,61.9125].forEach(x=>shapes.push(G.rectangle(15.5,12.8,{x,y:30})));
+ [-11.5,11.5].forEach(dx=>shapes.push(G.rectangle(2.6,5.1,{x:16.66875+dx,y:23.55})));
+ [14.285,38.1,61.9125].forEach(x=>shapes.push(G.rectangle(15.5,12.8,{x,y:10})));
+ const bytes=D.exportBytes(base,base.raw.entities.map(record=>({record})),shapes.map(points=>({points}))),p=plate(bytes);
+ assert.equal(p.r.keys.find(k=>Math.abs(k.center.x-16.66875)<.01).width,1.75);
+ assert.equal(p.r.keys.find(k=>Math.abs(k.center.x-14.285)<.01).width,1.5);
+ assert.deepEqual(Buffer.from(p.m.exportFile(p.keys)),Buffer.from(bytes));
+});
