@@ -336,8 +336,9 @@ plate-project saving and Undo/Redo. Creating the key alone leaves DXF output
 byte-for-byte unchanged.
 
 Anchor outlines are blue. When a closed outer contour surrounds the switches,
-cap-width inference stays inside it. Moving or resizing an existing in-bounds
-cap beyond that boundary is stopped; existing imported overhangs are preserved.
+cap-width inference stays inside it. Manual KLE sizing remains unrestricted so
+edge and stepped caps can be corrected. Resizing keeps the switch centre fixed
+and does not resize cutouts or the plate outline.
 Planar, non-rational degree 1–3 splines can join lines into closed openings;
 rigid moves preserve their original spline records. Caps Multistep recognition
 accepts the small rounded-corner variation in Satisfaction75.
