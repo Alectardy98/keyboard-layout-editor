@@ -107,6 +107,14 @@
         ui.changeStabCategory=function(){
             ui.stabAction='replace';ui.stabChoice=ui.stabPatterns()[0].id;ui.options.components=true;
             if(ui.stabCategory.indexOf('mx-')===0)ui.options.mount=ui.stabCategory==='mx-pcb'?'pcb':'plate';
+            ui.changeStabPattern();
+        };
+        ui.changeStabPattern=function(){
+            ui.patternChanged=true;ui.error='';
+            // Measured values belong to the previous pattern, not the next one.
+            ['spacing','slotWidth','slotHeight','slotOffset','pcbWidth','pcbHeight','pcbOffset','pcbRadius'].forEach(function(k){delete ui.options[k];});
+            ui.options.axis='auto';ui.options.stemOffset=0;ui.options.forceStabilizer=false;
+            ui.options.mxPattern='cherry';
         };
         ui.changeStabAction=function(){if(ui.stabAction==='replace')ui.changeStabCategory();else ui.stabChoice=ui.stabAction;};
         function syncStabCategory(){
@@ -210,7 +218,16 @@
                 if(!ui.model)throw Error('Open a DXF first.');
                 var targets=all?scope.keys().filter(function(k){return !k.decal && (!ui.model.original[k._plateId] || ui.model.original[k._plateId].editable);}):scope.selectedKeys;
                 var options=angular.copy(ui.options);options.stabilizer=ui.stabChoice;
-                hooks.transaction('plate-profile',function(){ui.model.apply(targets,options);});
+                var prepared=targets.map(function(key){return ui.patternChanged && ui.stabAction==='replace'?root.PlateProfiles.replacement(options,key):{key:angular.copy(key),options:options};});
+                if(!prepared.length)throw Error('Select at least one key in the plate preview or KLE layout.');
+                hooks.transaction('plate-profile',function(){
+                    // apply validates the entire batch before committing profiles.
+                    ui.model.apply(prepared.map(function(p){return p.key;}),prepared[0].options);
+                    targets.forEach(function(key,i){
+                        ['width','height','width2','height2','x2','y2','stepped'].forEach(function(field){key[field]=prepared[i].key[field];});
+                    });
+                });
+                ui.options=angular.copy(prepared[0].options);
                 ui.notice='Applied to '+targets.length+' key'+(targets.length===1?'':'s')+'. Switch centres, anchors and fixed drawing geometry are preserved.';
             });
         };
@@ -304,6 +321,7 @@
         }
         scope.$watchCollection(function(){return scope.selectedKeys.map(function(k){return k._plateId;});},function(){
             if(ui.mappingShapes && scope.selectedKeys.length===1)bindToKey(scope.selectedKeys[0]);
+            ui.patternChanged=false;
             ui.selectedCount=scope.selectedKeys.length;
             selectedInfo();
             if(ui.model && scope.selectedKeys.length) {

@@ -29,7 +29,7 @@
     </div>
   </div>
   <p class="plate-fixed-frame"><i class="fa fa-anchor" aria-hidden="true"></i> The original plate outline, mounting holes and coordinate frame stay fixed. Keycap resizing keeps the switch centre; stabilizer changes require Apply.</p>
-  <p class="alert alert-danger" role="alert" ng-if="plate.error">{{plate.error}}</p>
+  <p class="alert alert-danger" role="alert" ng-if="plate.error &amp;&amp; !plate.model">{{plate.error}}</p>
   <p class="alert alert-info" role="status" ng-if="plate.notice">{{plate.notice}}</p>
   <div class="alert alert-warning" ng-if="plate.recoveredCount">
     {{plate.recoveredCount}} probable keys share fixed geometry. Select a candidate and inspect its opening before confirming.
@@ -100,7 +100,7 @@
         <label>Category <select class="form-control" ng-model="plate.stabCategory" ng-change="plate.changeStabCategory()" aria-label="Stabilizer style"><option ng-repeat="g in plate.stabCategories" value="{{g.id}}">{{g.label}}</option></select></label>
         <label>Action <select class="form-control" ng-model="plate.stabAction" ng-change="plate.changeStabAction()" aria-label="Stabilizer action"><option value="original">Keep imported — unrecognized supports</option><option value="replace">Replace with selected pattern</option><option value="none">None — no stabilizers / remove supports</option></select></label>
         <p class="help-block plate-stab-note" ng-if="plate.isIntegratedPattern(plate.stabChoice)">This measured compatibility pattern includes joined opening geometry. Its cutouts stay together around the switch centre.</p>
-        <label ng-if="plate.stabAction==='replace'">Pattern <select class="form-control" ng-model="plate.stabChoice" ng-options="p.id as p.label for p in plate.stabPatterns()" aria-label="Stabilizer pattern"></select></label>
+        <label ng-if="plate.stabAction==='replace'">Pattern <select class="form-control" ng-model="plate.stabChoice" ng-change="plate.changeStabPattern()" ng-options="p.id as p.label for p in plate.stabPatterns()" aria-label="Stabilizer pattern"></select></label>
         </div>
         <div class="plate-stab-options" ng-if="plate.stabAction==='replace' &amp;&amp; !plate.isIntegratedPattern(plate.stabChoice)">
           <div ng-if="plate.stabChoice==='alps-default' || plate.stabChoice==='alps-aek' || plate.stabChoice==='alps-at101'" class="plate-pair"><label>Slot width (mm)<input type="number" class="form-control" min="1" max="10" step="0.01" ng-model="plate.options.slotWidth" placeholder="Family preset"></label><label>Slot height (mm)<input type="number" class="form-control" min="1" max="20" step="0.01" ng-model="plate.options.slotHeight" placeholder="Family preset"></label><label>Slot Y offset (mm)<input type="number" class="form-control" min="-30" max="30" step="0.01" ng-model="plate.options.slotOffset" placeholder="Family preset"></label></div>
@@ -123,6 +123,8 @@
           <p class="help-block">North/South is relative to the key. Native Alps presets start at 1.75u; MX/Costar at 2u. Unusual caps need measured spacing. PCB mount requires compatible PCB support.</p>
         </div>
       </fieldset>
+      <p class="help-block" ng-if="plate.patternChanged &amp;&amp; plate.stabAction==='replace'">Manual override: Apply fits size-specific patterns to their named keycap size, keeping the switch centre fixed. Joined patterns also replace the switch opening. Check for overlap with nearby keys and plate edges.</p>
+      <p class="alert alert-danger" role="alert" ng-if="plate.error">{{plate.error}}</p>
       <div class="plate-buttons plate-apply"><button class="btn btn-primary" ng-click="plate.apply(false)" ng-disabled="!plate.selectedCount || plate.selectedReadOnly">Apply to selected keys</button><button class="btn btn-default" ng-click="plate.apply(true)" ng-disabled="!plate.editableCount">Apply to all editable keys</button></div>
       <p class="help-block">Only Apply replaces geometry. Applying unchanged detected values preserves the original cuts. Use KLE Undo/Redo for layout, anchor and pattern changes.</p>
   </section>

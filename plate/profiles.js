@@ -313,6 +313,26 @@
         }
         return o;
     }
+    // A deliberate menu replacement may override inferred cap dimensions.
+    // Generic wire styles retain the chosen cap size; measured patterns use
+    // their catalogue footprint. The editor preserves the physical stem.
+    function replacement(input,key) {
+        var o=componentOptions(input),id=o.stabilizer,cap=null;
+        var aliases={'alps-barrel625':'alps-625-barrels','mx-wide2':'mx-compat-2','mx-wide225':'mx-compat-2.25'};
+        if(!['original','none','mx','costar','alps-default','alps-aek','alps-at101'].includes(id))cap=preset(aliases[id] || id).key;
+        var f=family(id),p=integratedPatterns[id];
+        // Joined templates contain their own switch opening. Choosing one
+        // explicitly converts that opening, rather than failing on the old type.
+        if(f || p)o.switch=f?f.type:p.type;
+        if((f && f.mount) || (p && p.mount))o.mount=(f || p).mount;
+        var result=Object.assign({},key);
+        if(cap){
+            ['width','height','width2','height2','x2','y2','stepped'].forEach(function(field){
+                result[field]=cap[field]===undefined?(field==='stepped'?false:0):cap[field];
+            });
+        }
+        return {key:result,options:o};
+    }
     function sameComponents(a,b){
         a=componentOptions(a);b=componentOptions(b);
         return [...new Set(Object.keys(a).concat(Object.keys(b)))].every(function(k){
@@ -377,6 +397,6 @@
         Families.filter(function(f){return !baseTopre(f.id)&&(f.type==='topre'?group.id==='topre':f.type==='mx'?group.id==='mx-'+(f.mount||'pcb'):group.id==='alps');})
             .forEach(function(f){group.patterns.push({id:f.id,label:f.label+(f.legacy?' (previous alignment)':'')});});
     });
-    return {isIntegratedPattern:function(id){return !!family(id)||!!integratedPatterns[id];},componentOptions:componentOptions,geometryOptions:geometryOptions,sameComponents:sameComponents,inferComponents:inferComponents,stabilizerCategories:stabilizerCategories,presets:presets,mxPresets:mxPresets,toprePresets:toprePresets,preset:preset,switches:switches,spacing:spacing,stabilizers:stabilizers,switchShape:switchShape,generate:generate,
+    return {replacement:replacement,isIntegratedPattern:function(id){return !!family(id)||!!integratedPatterns[id];},componentOptions:componentOptions,geometryOptions:geometryOptions,sameComponents:sameComponents,inferComponents:inferComponents,stabilizerCategories:stabilizerCategories,presets:presets,mxPresets:mxPresets,toprePresets:toprePresets,preset:preset,switches:switches,spacing:spacing,stabilizers:stabilizers,switchShape:switchShape,generate:generate,
         pcbCompatibility:pcbCompatibility,polygon:polygon,rings:rings,union:union,place:place,clip:clip};
 }));
