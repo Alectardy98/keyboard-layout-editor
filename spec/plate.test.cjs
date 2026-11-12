@@ -143,8 +143,8 @@ test('malformed, oversized, binary and overlapping DXF edits fail before produci
 });
 
 test('Alps preset sizes, stepped stems and complete Zenith spacebar supports',()=>{
- assert.equal(P.presets.length,23);
- for(const item of P.presets){const p=P.preset(item.id);assert.equal(p.key.width*4%1,0);assert.ok(P.generate(p.options,p.key).length);if(p.key.width>=2)assert.ok(['alps-default','alps-7-all','alps-multi275','alps-975-barrel','alps-bae','alps-zkb2','alps-barrel625','alps-canon8'].includes(p.options.stabilizer));}
+ assert.equal(P.presets.length,24);
+ for(const item of P.presets){const p=P.preset(item.id);assert.equal(p.key.width*4%1,0);assert.ok(P.generate(p.options,p.key).length);if(p.key.width>=2)assert.ok(['alps-default','alps-7-all-flex','alps-7-all','alps-multi275','alps-975-barrel','alps-bae','alps-zkb2','alps-barrel625','alps-canon8'].includes(p.options.stabilizer));}
  const left=P.preset('alps-15-left').key,right=P.preset('alps-15-right').key;
  assert.equal(left.width,1);assert.equal(left.width2,1.5);assert.equal(left.x2,-.5);assert.equal(right.x2,0);
  assert.equal(P.generate(P.preset('alps-55').options,{width:5.5,height:1}).length,8);
@@ -330,5 +330,29 @@ test('nearby supports require inclusion, persist, move with the key and can be r
  key.x+=.25;let parsed=D.parse(p.m.exportFile(p.keys),'moved');assert.ok(parsed.contours.some(c=>{let b=G.bounds(c.points);return Math.abs(b.cx-23.8125)<.001&&Math.abs(b.cy-10)<.001;}));
  p.m.setSupport(key,candidate.id,false);parsed=D.parse(p.m.exportFile(p.keys),'released');assert.ok(parsed.contours.some(c=>{let b=G.bounds(c.points);return Math.abs(b.cx-19.05)<.001&&Math.abs(b.cy-10)<.001;}));
  assert.throws(()=>p.m.setSupport(key,candidate.id,true),/before moving/);
- const bad=p.m.snapshot();bad[key._plateId].supports=[p.r.keys[0].contours[0].id];p.m.restore(bad);assert.throws(()=>p.m.plan(p.keys),/already owned/);
+ const bad=p.m.snapshot();bad[key._plateId].supports=[p.r.keys[0].contours[0].id];assert.throws(()=>p.m.restore(bad),/already owned/);
+});
+test('7u all stabs flex owns the complete supports and oval flex contour',()=>{
+ const base=plate(),preset=P.preset('alps-7-all-flex'),center={x:180,y:-100};
+ const rings=P.rings(P.place(P.generate(preset.options,preset.key),center,0));assert.equal(rings.length,16);
+ const bytes=D.exportBytes(base.d,[],rings.map(points=>({points}))),p=plate(bytes),source=p.r.keys.find(k=>k.label==='7u all stabs flex');
+ assert.ok(source);assert.equal(source.width,7);assert.equal(source.stabilizers.length,15);
+ const flex=source.stabilizers.find(c=>G.bounds(c.points).width>40&&G.bounds(c.points).width<41);assert.ok(flex);
+ const key=p.keys.find(k=>k._plateId===source.id);assert.deepEqual(Buffer.from(p.m.exportFile(p.keys)),Buffer.from(bytes));
+ key.x+=.25;const moved=R.analyze(D.parse(p.m.exportFile(p.keys),'moved')).keys.find(k=>k.label==='7u all stabs flex');assert.ok(moved);assert.equal(moved.stabilizers.length,15);near(moved.center.x,184.7625);
+ const owned=new Set(source.contours.concat(source.stabilizers).flatMap(c=>c.parts.map(p=>p.raw.id))),edits=p.m.plan(p.keys.filter(k=>k!==key)).edits;
+ assert.equal(edits.filter(e=>owned.has(e.record.id)).length,owned.size);
+});
+test('manual shape selection creates a key without changing source cuts and survives restore',()=>{
+ const base=plate(),bytes=D.exportBytes(base.d,[],[{points:G.rectangle(12,10,{x:145,y:-80})},{points:G.rectangle(2,3,{x:160,y:-80})}]),p=plate(bytes);
+ const ids=p.d.contours.filter(c=>G.bounds(c.points).cx>130).map(c=>c.id);
+ assert.equal(ids.length,2);const original=p.m.snapshot();
+ const key=p.m.addFromContours(ids,S.defaultKeyProps,1.75,1,'Manual cap');p.keys.push(key);
+ assert.equal(key.width,1.75);near(p.m.physical(key).center.x,145);assert.deepEqual(Buffer.from(p.m.exportFile(p.keys)),Buffer.from(bytes));
+ assert.throws(()=>p.m.addFromContours(ids,S.defaultKeyProps,1,1,'Duplicate'),/unassigned/);
+ const saved=p.m.snapshot(),restored=plate(bytes);restored.m.restore(saved);assert.deepEqual(Buffer.from(restored.m.exportFile(p.keys)),Buffer.from(bytes));
+ key.x+=.25;const moved=D.parse(p.m.exportFile(p.keys),'moved');assert.ok(moved.contours.some(c=>Math.abs(G.bounds(c.points).cx-164.7625)<.001));
+ const removed=p.m.plan(p.keys.filter(k=>k!==key));assert.equal(removed.edits.length,2);
+ p.m.restore(original);assert.equal(p.m.original[key._plateId],undefined);assert.deepEqual(Buffer.from(p.m.exportFile(p.keys.filter(k=>k!==key))),Buffer.from(bytes));
+ const outline=p.d.contours.find(c=>G.bounds(c.points).width>100 && G.bounds(c.points).height>50);assert.ok(outline);assert.equal(p.m.selectableContours().includes(outline.id),false);
 });
