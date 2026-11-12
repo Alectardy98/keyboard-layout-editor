@@ -132,3 +132,14 @@ test('plate KLE is centred and new keys follow its quarter-unit origin',async({p
  });});
  expect(Math.abs(result.x-Math.round(result.x))).toBeLessThan(1e-6);expect(Math.abs(result.y-Math.round(result.y))).toBeLessThan(1e-6);expect(result.unchanged).toBe(true);
 });
+test('nearby opening inclusion highlights, supports undo and persists in projects',async({page})=>{
+ const base=D.parse(makeFixture(),'base'),G=require('../../plate/geometry');
+ const source=Buffer.from(D.exportBytes(base,[],[{points:G.rectangle(2.4,3,{x:19.05,y:10})}])).toString();
+ await open(page,source);await page.locator('.plate-switch').nth(1).click();
+ const row=page.locator('.plate-support-list>div').filter({hasText:'2.40 × 3.00'});await expect(row).toBeVisible();await row.hover();await expect(page.locator('.plate-support-candidate')).toHaveCount(1);
+ await row.getByRole('button',{name:'Include',exact:true}).click();await expect(row.getByRole('button',{name:'Remove',exact:true})).toBeVisible();
+ const saved=page.waitForEvent('download');await page.getByRole('button',{name:'Save plate project',exact:true}).click();const project=JSON.parse(fs.readFileSync(await(await saved).path(),'utf8'));expect(Object.values(project.settings).some(c=>c.supports?.length===1)).toBe(true);
+ await page.getByRole('button',{name:/Undo$/}).click();
+ expect(await page.evaluate(()=>Object.values(angular.element(document.body).scope().plate.model.settings).some(c=>c.supports?.length))).toBe(false);
+ await page.locator('.plate-switch').nth(1).click();await expect(row.getByRole('button',{name:'Include',exact:true})).toBeVisible();
+});
