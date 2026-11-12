@@ -220,7 +220,7 @@ silently discarded.
 In `GA15_alps_canon.dxf`, Key 59 is **8u**, with eight wire-stabilizer slots
 (two spans, above and below) and two barrel assemblies (each a circular opening
 and two retaining holes): 14 support openings in total. Key 43 is labelled
-**cannon vertical 2u**, with a rotated Alps switch and all four stabilizer slots.
+**cannon vertical 2u** (1.25u wide × 2u tall), with a rotated Alps switch and all four stabilizer slots.
 Recognition requires each complete measured assembly, independently of filename
 or key numbering. Switch centres remain unchanged. Mounting holes and the long
 plate-relief slots stay fixed and are not part of either key. Both measured patterns
