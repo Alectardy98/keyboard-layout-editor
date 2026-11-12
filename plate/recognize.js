@@ -1,9 +1,9 @@
 // Recognition proposes switch centres from closed geometry, not filenames.
 // Ambiguous contours and unmatched drawing features remain unchanged.
 (function(root,factory) {
-    if(typeof module==='object' && module.exports) module.exports=factory(require('./geometry.js'),require('./measured.js'),require('./overlaps.js'),require('./profiles.js'));
-    else root.PlateRecognize=factory(root.PlateGeometry,root.PlateMeasured,root.PlateOverlaps,root.PlateProfiles);
-}(typeof globalThis!=='undefined'?globalThis:this,function(G,Measured,O,P) {
+    if(typeof module==='object' && module.exports) module.exports=factory(require('./geometry.js'),require('./measured.js'),require('./overlaps.js'),require('./profiles.js'),require('./switch-families.js'));
+    else root.PlateRecognize=factory(root.PlateGeometry,root.PlateMeasured,root.PlateOverlaps,root.PlateProfiles,root.PlateSwitchFamilies);
+}(typeof globalThis!=='undefined'?globalThis:this,function(G,Measured,O,P,Families) {
     'use strict';
     function unique(values,tolerance) {
         var result=[];
@@ -385,7 +385,8 @@
             row.keys.sort(function(a,b){return a.center.x-b.center.x;});
             row.keys.forEach(function(key){keys.push(key);});
         });
-        keys=keys.filter(function(k){return !k.recovered;}).concat(keys.filter(function(k){return k.recovered;}));
+        keys.forEach(function(k){k.cornerRecovery=k.contours.some(function(c){return c.cornerRecovery;});});
+        keys=keys.filter(function(k){return !k.recovered && !k.cornerRecovery;}).concat(keys.filter(function(k){return k.recovered;}),keys.filter(function(k){return k.cornerRecovery;}));
         keys.forEach(function(key,index) {key.id='key-'+String(index+1).padStart(3,'0');counts[key.type]++;});
         // Append miscellaneous controls after switches to keep historical
         // switch IDs stable when opening a saved plate project.
@@ -548,6 +549,73 @@
                 });});
             });
         });
+        if(!options.legacyFamilies){
+            // User-confirmed families are matched by their complete relative
+            // geometry, never by drawing filename or transient key number.
+            Families.forEach(function(f){
+                document.contours.forEach(function(first){
+                    if(options.layer && !first.parts.some(function(p){return p.layer===options.layer;}))return;
+                    var owner=keys.find(function(k){return k.contours.includes(first);});
+                    if(owner && (owner.family || owner.recovered || owner.contours.length!==1))return;
+                    if(keys.some(function(k){return k.stabilizers.includes(first);}))return;
+                    [0,Math.PI/2,Math.PI,3*Math.PI/2].some(function(angle){
+                        var b=G.bounds(first.points.map(function(p){return G.rotate(p,-angle);})),t=G.bounds(f.parts[0]);
+                        if(Math.abs(b.width-t.width)>.06 || Math.abs(b.height-t.height)>.06)return false;
+                        var center=G.rotate({x:b.cx-t.cx,y:b.cy-t.cy},angle);
+                        if(!matches(first.points,f.parts[0],center,angle,.06))return false;
+                        if(f.rowPitch && !document.contours.some(function(c){return c!==first && [-1,1].some(function(sign){
+                            var offset=G.rotate({x:f.rowPitch*sign,y:0},angle);
+                            return matches(c.points,f.parts[0],{x:center.x+offset.x,y:center.y+offset.y},angle,.06);
+                        });}))return false;
+                        if(f.neighbourPitch && !keys.some(function(k){var local=G.rotate({x:k.center.x-center.x,y:k.center.y-center.y},-angle);
+                            return k.width===1 && Math.abs(local.y)<.06 && Math.abs(Math.abs(local.x)-f.neighbourPitch)<.06;
+                        }))return false;
+                        var supports=f.parts.slice(1).map(function(pattern){return document.contours.find(function(c){return c!==first &&
+                            (!options.layer || c.parts.some(function(p){return p.layer===options.layer;})) &&
+                            !keys.some(function(k){return k!==owner && (k.contours.includes(c)||k.stabilizers.includes(c));}) &&
+                            matches(c.points,pattern,center,angle,.06);});});
+                        if(supports.some(function(c){return !c;}))return false;
+                        var width=f.id==='topre-1'?Math.max(1,owner?.width || 1):f.width;
+                        var key=owner || {id:'key-'+String(keys.length+1).padStart(3,'0')};
+                        Object.assign(key,{family:f.id,center:center,holeAngle:angle,capAngle:angle,type:f.type,label:f.label,
+                            contours:[first],stabilizers:supports,editable:first.editable && supports.every(function(c){return c.editable;}),
+                            width:width,height:f.height,core:{width:f.type==='topre'?14.6:14,height:14},compound:width>=2});
+                        if(f.capShape)key.capShape=Object.assign({},f.capShape);
+                        if(!owner)keys.push(key);return true;
+                    });
+                });
+            });
+            keys.filter(function(k){return Families.find(function(f){return f.id===k.family && f.mod;});}).forEach(function(k){
+                var widths=keys.filter(function(n){return n!==k && n.width<=1.75 && Math.abs(n.center.y-k.center.y)<.06;})
+                    .map(function(n){return 2*Math.abs(n.center.x-k.center.x)/19.05-n.width;})
+                    .filter(function(w){return w>=1.99 && w<5.5 && Math.abs(w*4-Math.round(w*4))<.025;});
+                if(widths.length)k.width=Math.round(Math.min(...widths)*4)/4;
+            });
+            keys.filter(function(k){return k.family==='topre-7';}).forEach(function(space){
+                // Symmetric 1.5 / 1 / 1.5 / 7 / 1.5 / 1 / 1.5 bottom row.
+                var offsets=[-6.75,-5.5,-4.25,4.25,5.5,6.75];
+                var mods=offsets.map(function(n){return keys.find(function(k){return k.family==='topre-1' &&
+                    Math.abs(k.center.x-space.center.x-n*19.05)<.06 && Math.abs(k.center.y-space.center.y)<.06;});});
+                if(mods.every(Boolean))mods.forEach(function(k,i){k.width=i===1 || i===4?1:1.5;});
+            });
+            keys.filter(function(k){return k.family==='topre-1';}).forEach(function(k){k.label='Topre '+k.width+'u';});
+            // Late discoveries establish row boundaries too. Enlarge only an
+            // end cap supported independently by a neighbour and another row.
+            keys.filter(function(k){return k.type==='mx' && k.width===1 && k.height===1 && Math.abs(k.capAngle)<.001;}).forEach(function(k){
+                [-1,1].forEach(function(side){
+                    if(keys.some(function(n){return n!==k && Math.abs(n.center.y-k.center.y)<.06 && (n.center.x-k.center.x)*side>0 && Math.abs(n.center.x-k.center.x)<3*19.05;}))return;
+                    var n=keys.filter(function(n){return n!==k && n.width===1 && Math.abs(n.center.y-k.center.y)<.06 && (n.center.x-k.center.x)*side<0;})
+                        .sort(function(a,b){return Math.abs(a.center.x-k.center.x)-Math.abs(b.center.x-k.center.x);})[0];
+                    if(!n)return;var width=2*Math.abs(n.center.x-k.center.x)/19.05-1;
+                    if(![1.25,1.5,1.75].some(function(w){return Math.abs(w-width)<.005;}))return;
+                    width=Math.round(width*4)/4;var edge=k.center.x+side*width*19.05/2;
+                    if(keys.some(function(a){return a!==k && a.width>=1.5 && a.width<3 && Math.abs(a.capAngle)<.001 &&
+                        Math.abs(a.center.y-k.center.y)>=19 && Math.abs(a.center.x+side*a.width*19.05/2-edge)<.06;}))k.width=width;
+                });
+            });
+            counts={mx:0,alps:0,universal:0,unknown:0,topre:0};
+            keys.forEach(function(k){counts[k.type]=(counts[k.type] || 0)+1;});
+        }
         var types=Object.keys(counts).filter(function(type){return counts[type]>0;});
         return {keys:keys,counts:counts,type:types.length===1?types[0]:types.length?'mixed':'unknown',
             ambiguous:ambiguous,duplicates:duplicate,unassigned:document.contours.filter(function(c) {

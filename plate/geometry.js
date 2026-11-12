@@ -164,6 +164,59 @@
         });
         return {closed:closed,open:open};
     }
-    return {TAU:TAU,point:point,distance:distance,rotate:rotate,transform:transform,multiply:multiply,bounds:bounds,
+    // Some CAD exports extend a rounded corner past the adjoining straight
+    // line. Recover only an isolated 14 x 14 MX or 14.6 x 14 Topre outline with all four straight
+    // sides and all four measured arcs; never close arbitrary open channels.
+    function recoverSwitchCorners(paths, width) {
+        if(!width){recoverSwitchCorners(paths,14);return recoverSwitchCorners(paths,14.6);}
+        var available=paths.open.filter(function(p){return p.editable && p.stitch;});
+        var lines=available.filter(function(p){return p.type==='LINE' && p.points.length===2;});
+        var used=new Set();
+        lines.forEach(function(left){
+            if(used.has(left))return;
+            var a=left.points[0],b=left.points[1];if(Math.abs(a.x-b.x)>.001)return;
+            var low=Math.min(a.y,b.y),high=Math.max(a.y,b.y),radius=(14-(high-low))/2;
+            if(radius<.1 || radius>1)return;
+            var x=a.x,right=lines.find(function(p){return p!==left && !used.has(p) && p.layer===left.layer &&
+                p.points.every(function(q){return Math.abs(q.x-x-width)<.005;}) &&
+                Math.abs(Math.min(...p.points.map(function(q){return q.y;}))-low)<.005 &&
+                Math.abs(Math.max(...p.points.map(function(q){return q.y;}))-high)<.005;});
+            if(!right)return;
+            var horizontals=[low-radius,high+radius].map(function(y){return lines.find(function(p){return !used.has(p) && p.layer===left.layer &&
+                p.points.every(function(q){return Math.abs(q.y-y)<.005;}) &&
+                Math.abs(Math.min(...p.points.map(function(q){return q.x;}))-(x+radius))<.005 &&
+                Math.abs(Math.max(...p.points.map(function(q){return q.x;}))-(x+width-radius))<.005;});});
+            if(horizontals.some(function(p){return !p;}))return;
+            var corners=[{x:x+radius,y:low,start:Math.PI},{x:x+width-radius,y:low,start:Math.PI*1.5},
+                {x:x+width-radius,y:high,start:0},{x:x+radius,y:high,start:Math.PI/2}];
+            var arcs=corners.map(function(c){return available.find(function(p){
+                if(p.type!=='ARC' || used.has(p) || p.layer!==left.layer || Math.abs(p.entity.radius-radius)>.005)return false;
+                // Require both intended endpoints on the observed curve, not
+                // merely a matching arc bounding box or guessed radius.
+                var expected=arc(c,radius,c.start,Math.PI/2),points=p.points;
+                if(!points.every(function(q){return Math.abs(distance(q,c)-radius)<.005;}))return false;
+                if(points.some(function(q){return q.x<x-.005 || q.x>x+width+.005 || q.y<low-radius-.005 || q.y>high+radius+.005;}))return false;
+                return [expected[0],expected[expected.length-1]].every(function(q){return points.some(function(v,i){
+                    if(i+1===points.length)return false;
+                    var w=points[i+1],dx=w.x-v.x,dy=w.y-v.y,t=Math.max(0,Math.min(1,((q.x-v.x)*dx+(q.y-v.y)*dy)/(dx*dx+dy*dy || 1)));
+                    return distance(q,{x:v.x+t*dx,y:v.y+t*dy})<.015;
+                });});
+            });});
+            if(arcs.some(function(p){return !p;}) || new Set(arcs).size!==4)return;
+            var parts=[left,right].concat(horizontals,arcs);
+            if(new Set(parts.map(function(p){return p.raw?.id;})).size!==8)return;
+            // Coincident straight records can otherwise make a closed corner
+            // look branched. Retain every duplicate in the editable assembly.
+            var sides=[left,right].concat(horizontals);
+            lines.forEach(function(p){if(!parts.includes(p) && !used.has(p) && p.layer===left.layer && sides.some(function(s){
+                return [s.points,s.points.slice().reverse()].some(function(points){return p.points.every(function(v,i){return distance(v,points[i])<.001;});});}))parts.push(p);});
+            var points=corners.flatMap(function(c){return arc(c,radius,c.start,Math.PI/2);});
+            paths.closed.push({points:points,parts:parts,displayParts:parts,editable:true,cornerRecovery:true});
+            parts.forEach(function(p){used.add(p);});
+        });
+        paths.open=paths.open.filter(function(p){return !used.has(p);});
+        return paths;
+    }
+    return {recoverSwitchCorners:recoverSwitchCorners,TAU:TAU,point:point,distance:distance,rotate:rotate,transform:transform,multiply:multiply,bounds:bounds,
         area:area,rectangle:rectangle,arc:arc,bulge:bulge,polyline:polyline,contains:contains,axes:axes,minimumBox:minimumBox,contours:contours};
 }));

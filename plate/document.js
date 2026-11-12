@@ -256,6 +256,7 @@
             Object.keys(original).forEach(function(name) {
                 var source=withSupports(original[name]),key=current.get(name),config=settings[name] || {},profile=config.profile;
                 if(source.recovered)return;
+                if(source.cornerRecovery && !warnings.some(function(w){return w.startsWith('Some source corner joins');}))warnings.push('Some source corner joins needed recovery. Import and movement retain the original records; replacing an opening regenerates its contour.');
                 var all=source.contours.concat(source.stabilizers),raw=records(all);
                 if(config.excluded) {
                     all.forEach(function(c){preview.push({key:null,points:c.points,closed:true});});return;
@@ -270,7 +271,12 @@
                 if(!profile) {
                     if(moved) raw.forEach(function(record){claim(record,name);edits.push({record:record,motion:motion});});
                     all.forEach(function(contour) {
-                        preview.push({key:name,points:contour.points.map(function(p){var q=G.rotate(p,motion.angle,source.center);return {x:q.x+at.center.x-source.center.x,y:q.y+at.center.y-source.center.y};}),closed:true});
+                        if(contour.displayParts){
+                            contour.displayParts.forEach(function(p){preview.push({key:name,closed:p.closed,points:p.points.map(function(v){
+                                var q=G.rotate(v,motion.angle,source.center);return {x:q.x+at.center.x-source.center.x,y:q.y+at.center.y-source.center.y};
+                            })});});
+                        }
+                        preview.push({key:name,hitOnly:!!contour.displayParts,points:contour.points.map(function(p){var q=G.rotate(p,motion.angle,source.center);return {x:q.x+at.center.x-source.center.x,y:q.y+at.center.y-source.center.y};}),closed:true});
                     });return;
                 }
                 var replace=optionsReplacesStabs(profile)?all:source.contours;
@@ -361,8 +367,18 @@
                 c.parts.forEach(function(p){used.add(p.id);});
                 records([c]).forEach(function(record){claim(record,'shape-deletions');edits.push({record:record});});
             });
+            // Joined source LINE/ARC contours need one closed hit region.
+            // Per-primitive paths leave their interiors unclickable even though
+            // the complete unrecognized opening is safely selectable.
+            var drawn=new Set();
+            document.contours.forEach(function(c){
+                if(c.parts.every(function(p){return !used.has(p.id);})){
+                    preview.push({key:null,contour:c.id,points:c.points,closed:true});
+                    c.parts.forEach(function(p){drawn.add(p.id);});
+                }
+            });
             var contourForPart=new Map();document.contours.forEach(function(c){c.parts.forEach(function(p){contourForPart.set(p.id,c.id);});});
-            document.primitives.forEach(function(p){if(!used.has(p.id)) preview.push({key:null,contour:contourForPart.get(p.id),points:p.points,closed:p.closed});});
+            document.primitives.forEach(function(p){if(!used.has(p.id) && !drawn.has(p.id)) preview.push({key:null,contour:contourForPart.get(p.id),points:p.points,closed:p.closed});});
             return {edits:edits,additions:additions,paths:preview,warnings:warnings};
         }
         function optionsReplacesStabs(profile){return profile.options.stabilizer!=='original';}

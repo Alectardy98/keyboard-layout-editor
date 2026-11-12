@@ -1,9 +1,9 @@
 // Physical dimensions in mm. Keep data separate from the editor and recognizer.
 // Drawing references and preset limitations are recorded in docs/plate-editor.md.
 (function(root,factory) {
-    if(typeof module==='object' && module.exports) module.exports=factory(require('polygon-clipping'),require('./geometry.js'),require('./measured.js'));
-    else root.PlateProfiles=factory(root.polygonClipping,root.PlateGeometry,root.PlateMeasured);
-}(typeof globalThis!=='undefined'?globalThis:this,function(clip,G,Measured) {
+    if(typeof module==='object' && module.exports) module.exports=factory(require('polygon-clipping'),require('./geometry.js'),require('./measured.js'),require('./switch-families.js'));
+    else root.PlateProfiles=factory(root.polygonClipping,root.PlateGeometry,root.PlateMeasured,root.PlateSwitchFamilies);
+}(typeof globalThis!=='undefined'?globalThis:this,function(clip,G,Measured,Families) {
     'use strict';
     // Boolean operations on coincident edges need a common numerical grid.
     // 0.00001 mm is well below the preview arc tolerance (0.005 mm); only
@@ -64,6 +64,8 @@
     }
     function stabilizers(options,key) {
         var style=options.stabilizer || 'original';
+        var family=Families.find(function(f){return f.id===style;});
+        if(family)return family.parts.slice(1).map(polygon);
         if(style==='mx-compat-2.75-split'){
             if(key.width!==2.75 || key.height!==1)throw Error('Split compatibility requires a 2.75u horizontal key.');
             return pcbCompatibility(2.75,{split:true}).slice(1);
@@ -175,6 +177,8 @@
         return union(parts);
     }
     function switchShape(options) {
+        var family=Families.find(function(f){return f.id===options.switch;});
+        if(family)return polygon(family.parts[0]);
         if(options.switch?.startsWith('mx-compat-'))return pcbCompatibility(Number(options.switch.split('-')[2]),{split:options.switch.endsWith('-split')})[0];
         if(options.switch==='mx-dual275')return polygon(Measured.mxDual275[0]);
         if(options.switch==='mx-multistep')return polygon(Measured.mxCapsMultistep);
@@ -251,7 +255,11 @@
             {id:'mx-iso-'+mount,label:'ISO Enter — '+mount+' mount',width:1.25,height:2,iso:true,mount:mount,stabs:true},
             {id:'mx-6-offset-'+mount,label:'6u offset stem — '+mount+' mount',width:6,mount:mount,stabs:true,offset:9.525});
     });
+    Families.filter(function(f){return f.type==='mx';}).forEach(function(f){mxPresets.push({id:f.id,label:f.label,width:f.width,mount:f.mount});});
+    var toprePresets=Families.filter(function(f){return f.type==='topre';}).map(function(f){return {id:f.id,label:f.label,width:f.width};});
     function preset(id) {
+        var family=Families.find(function(f){return f.id===id;});
+        if(family)return {key:Object.assign({width:family.width,height:family.height,width2:family.width,height2:family.height,labels:[family.label]},family.capShape || {}),options:{switch:id,stabilizer:family.parts.length>1?id:'none',mount:family.mount || 'pcb'}};
         if(id==='alps-625-all')id='alps-7-all';
         var mx=id.startsWith('mx-'),p=(mx?mxPresets:presets).find(function(p){return p.id===id;});
         if(id==='ec11')p={label:'EC11',width:1};
@@ -261,6 +269,6 @@
             options:mx?{switch:id.startsWith('mx-compat-')?id:id==='mx-dual275'?'mx-dual275':id==='mx-multistep'?'mx-multistep':'mx',switchRotation:p.height===2?90:0,
                 stabilizer:id==='mx-compat-2.75-split'?id:id==='mx-dual275'?'mx-dual275':p.stabs?'mx':'none',mount:p.mount || 'plate',mxPattern:'cherry',direction:'south',stemOffset:p.offset || 0}: {switch:id==='ec11'?'ec11':id==='alps-multistep'?'alps-multistep':'alps',switchRotation:p.height===2?90:0,stabilizer:p.canon || (p.barrels?'alps-barrel625':p.bae?'alps-bae':p.zkb2?'alps-zkb2':p.stabs?'alps-default':'none'),direction:'south'}};
     }
-    return {presets:presets,mxPresets:mxPresets,preset:preset,switches:switches,spacing:spacing,stabilizers:stabilizers,switchShape:switchShape,generate:generate,
+    return {presets:presets,mxPresets:mxPresets,toprePresets:toprePresets,preset:preset,switches:switches,spacing:spacing,stabilizers:stabilizers,switchShape:switchShape,generate:generate,
         pcbCompatibility:pcbCompatibility,polygon:polygon,rings:rings,union:union,place:place,clip:clip};
 }));
