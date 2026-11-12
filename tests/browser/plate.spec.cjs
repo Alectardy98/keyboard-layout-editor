@@ -255,7 +255,7 @@ test('separate MX menus and Topre presets retain complete geometry through proje
  const state=await page.evaluate(()=>{const s=angular.element(document.body).scope(),k=s.selectedKeys[0];return {width:k.width,profile:s.plate.model.settings[k._plateId].profile.options};});
  expect(state.width).toBe(7);expect(state.profile.switch).toBe('topre-7');
  const save=page.waitForEvent('download');await page.getByRole('button',{name:'Save plate project',exact:true}).click();const file=await(await save).path(),data=fs.readFileSync(file);
- expect(JSON.parse(data).recognitionVersion).toBe(9);
+ expect(JSON.parse(data).recognitionVersion).toBe(10);
  await page.reload();const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open plate project',exact:true}).click();await(await chooser).setFiles({name:'topre.plate.json',mimeType:'application/json',buffer:data});
  await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Download edited DXF'}).click();
@@ -293,4 +293,12 @@ test('two-cap compatibility assembly survives project reload and moves together 
   return {widths:pair.map(k=>k.width).sort((a,b)=>a-b),delta:pair.map((k,i)=>k.x-before[i]),error:s.plate.error};
  });});
  expect(moved.widths).toEqual([1.25,6.25]);for(const delta of moved.delta)expect(delta).toBeCloseTo(.25,6);expect(moved.error).toBe('');
+});
+test('PCB menu adds the large bottom modifier and both L-shaped compatibility caps',async({page})=>{
+ await open(page);
+ for(const [name,w,h,x2]of [['1.25u bottom row larger variant',1.25,1,0],['2u vertical horizontal',1,2,0],['2u reversed vertical horizontal',1,2,-1]]){
+  await page.getByRole('button',{name:'Add MX PCB Mount',exact:true}).click();await page.getByRole('link',{name,exact:true}).click();
+  const key=await page.evaluate(()=>{const k=angular.element(document.body).scope().selectedKeys[0];return {w:k.width,h:k.height,x2:k.x2};});
+  expect(key).toEqual({w,h,x2});
+ }
 });
