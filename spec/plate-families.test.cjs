@@ -11,7 +11,7 @@ function assembly(f,x=250,y=100,angle=0){
  return rings;
 }
 test('measured MX and Topre families recognize complete assemblies at cardinal rotations',()=>{
- for(const f of families.filter(f=>!f.legacy))for(const angle of [0,Math.PI/2,Math.PI,3*Math.PI/2]){
+ for(const f of families.filter(f=>!f.legacy&&!f.presetOnly))for(const angle of [0,Math.PI/2,Math.PI,3*Math.PI/2]){
   const d=from(assembly(f,250,100,angle)),r=R.analyze(d),k=r.keys.find(k=>k.family===f.id&&G.distance(k.center,{x:250,y:100})<6);
   assert.ok(k,`${f.id} at ${angle}`);assert.equal(k.type,f.type);assert.equal(k.stabilizers.length,f.parts.length-1);
   const m=M.create(d,r),keys=m.makeKeys(S.defaultKeyProps);assert.deepEqual(Buffer.from(m.exportFile(keys)),Buffer.from(D.exportBytes(d)));
@@ -50,7 +50,7 @@ test('old plate projects retain the pre-family interpretation',()=>{
  const d=from(assembly(families.find(f=>f.id==='topre-1')));
  assert.equal(R.analyze(d).keys.find(k=>Math.abs(k.center.x-250)<.001).type,'topre');
  assert.notEqual(R.analyze(d,{legacyFamilies:true}).keys.find(k=>Math.abs(k.center.x-250)<.001)?.type,'topre');
- assert.equal(d.recognitionVersion,4);assert.equal(D.parse(d.source,'old',{legacyFamilies:true}).recognitionVersion,2);
+ assert.equal(d.recognitionVersion,5);assert.equal(D.parse(d.source,'old',{legacyFamilies:true}).recognitionVersion,2);
 });
 // Four straight sides plus overlong corner arcs, as found in CAD exports.
 function overrunCornerDXF(){

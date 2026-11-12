@@ -5,7 +5,7 @@ const near=(a,b)=>assert.ok(Math.abs(a-b)<.001,`${a} != ${b}`);
 function fromShapes(shapes){const d=D.parse(makeFixture());return D.parse(D.exportBytes(d,[],shapes.map(points=>({points}))),'mx.dxf');}
 function at(shape,x,y,angle=0){return P.rings(P.place(shape,{x,y},angle));}
 test('all MX presets generate finite contours and retain their cap dimensions',()=>{
- assert.equal(P.mxPresets.length,40);
+ assert.equal(P.mxPresets.length,45);
  for(const item of P.mxPresets){const p=P.preset(item.id),shapes=P.generate(p.options,p.key);
   assert.ok(shapes.length);assert.equal(p.key.width*4%1,0);
   for(const ring of P.rings(shapes)){assert.ok(Math.abs(G.area(ring))>0);for(const v of ring)assert.ok(Number.isFinite(v.x)&&Number.isFinite(v.y));}
@@ -96,7 +96,7 @@ test('late PCB stabilizer discovery preserves 2.25u and 2.75u cap inference',()=
 test('joined PCB compatibility windows recognize at every cardinal rotation',()=>{
  for(const size of [2,2.25,2.75])for(const angle of [0,Math.PI/2,Math.PI,3*Math.PI/2])for(const height of [16,18,20,22]){
   const parts=at(P.pcbCompatibility(size,{height,offset:-1}),200,100,angle);
-  const d=fromShapes(parts),r=R.analyze(d),k=r.keys.find(k=>k.label===size+'u wide PCB compatibility');
+  const d=fromShapes(parts),r=R.analyze(d),k=r.keys.find(k=>k.label===size+'u PCB mount');
   assert.ok(k,`${size}/${angle}/${height}`);near(k.center.x,200);near(k.center.y,100);assert.equal(k.width,size);
   const m=M.create(d,r),keys=m.makeKeys(S.defaultKeyProps);assert.deepEqual(Buffer.from(m.exportFile(keys)),Buffer.from(D.exportBytes(d)));
  }
