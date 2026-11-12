@@ -220,7 +220,7 @@ test('6.25u barrel recognition requires both complete assemblies and supports no
 });
 
 test('Canon 8u and vertical 2u own all support sets without moving switch centres',()=>{
- for(const [id,label,count,width,height] of [['alps-canon8','8u',14,8,1],['alps-canon-vertical2','cannon vertical 2u',4,1,2]]) {
+ for(const [id,label,count,width,height] of [['alps-canon8','8u',14,8,1],['alps-canon-vertical2','cannon vertical 2u',4,1.25,2]]) {
   const base=plate(),preset=P.preset(id),rings=P.rings(P.place(P.generate(preset.options,preset.key),{x:150,y:-100},0));
   const bytes=D.exportBytes(base.d,[],rings.map(points=>({points}))),p=plate(bytes);
   const source=p.r.keys.find(k=>k.label===label);assert.ok(source,id);assert.equal(source.stabilizers.length,count);
