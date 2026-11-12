@@ -13,11 +13,11 @@
         return G.rotate({x:key.x+key.width/2,y:key.y+key.height/2},
             (key.rotation_angle || 0)*Math.PI/180,{x:key.rotation_x || 0,y:key.rotation_y || 0});
     }
-    function physical(key,frame) {
+    function framePhysical(key,frame) {
         var center=keyCenter(key);
         return {center:G.point(frame.x+center.x*PITCH,frame.y-center.y*PITCH),angle:-(key.rotation_angle || 0)*Math.PI/180};
     }
-    function position(key,center,angle,frame) {
+    function framePosition(key,center,angle,frame) {
         var point={x:(center.x-frame.x)/PITCH,y:(frame.y-center.y)/PITCH};
         key.rotation_angle=-degrees(angle);key.rotation_x=point.x;key.rotation_y=point.y;
         key.x=Math.round((point.x-key.width/2)*1e9)/1e9;key.y=Math.round((point.y-key.height/2)*1e9)/1e9;
@@ -44,6 +44,24 @@
             frame.y=top+(Math.ceil(Math.max(0,maxTop-top)/PITCH*4)/4+.5)*PITCH;
         }
         var original=Object.create(null),settings=Object.create(null),next=1;
+        // The inferred KLE grid is an estimate. Its per-key display offset
+        // never becomes an accidental physical move in the imported DXF.
+        function physical(key) {
+            var result=framePhysical(key,frame),offset=settings[key._plateId]?.gridOffset;
+            if(offset){var shift=G.rotate(offset,result.angle);result.center.x-=shift.x;result.center.y-=shift.y;}
+            return result;
+        }
+        function position(key,center,angle) {
+            var offset=settings[key._plateId]?.gridOffset || {x:0,y:0};
+            var shift=G.rotate(offset,angle);
+            framePosition(key,{x:center.x+shift.x,y:center.y+shift.y},angle,frame);
+        }
+        function snapDisplay(key) {
+            var config=settings[key._plateId],before=physical(key);
+            key.x=Math.round(key.x*4)/4;key.y=Math.round(key.y*4)/4;
+            var after=framePhysical(key,frame);
+            config.gridOffset=G.rotate({x:after.center.x-before.center.x,y:after.center.y-before.center.y},-after.angle);
+        }
         var groups=[];
         keys.filter(function(k){return k.recovered;}).forEach(function(k){
             if(groups.some(function(g){return g.loop===k.sharedLoop;}))return;
@@ -59,7 +77,7 @@
                 var key=defaultKey();key.width=key.width2=source.width;key.height=key.height2=source.height;
                 if(source.capShape)Object.assign(key,source.capShape);
                 key.labels=[source.label || (source.recovered?'Probable '+source.type:source.type==='ec11'?'EC11':'Key '+(index+1))];key._plateId=source.id;
-                position(key,source.center,source.capAngle,frame);return key;
+                position(key,source.center,source.capAngle,frame);snapDisplay(key);return key;
             });
         }
         function ensure(key,seen) {
@@ -71,7 +89,7 @@
         function reconcile(before,after,options) {
             options=options || {};
             if(after.length>2000) throw Error('A plate may have at most 2,000 keys.');
-            var old=new Map(before.map(function(k){return [k._plateId,k];})),seen=new Set(),blocked=0;
+            var old=new Map(before.map(function(k){return [k._plateId,k];})),beforePhysical=new Map(before.map(function(k){return [k._plateId,physical(k)];})),seen=new Set(),blocked=0;
             after.forEach(function(key) {
                 var config=ensure(key,seen),previous=old.get(key._plateId),source=original[key._plateId];
                 if(previous) {
@@ -80,6 +98,7 @@
                     ['width','height','width2','height2'].forEach(function(field){
                         if(key[field]!==previous[field] && Number.isFinite(key[field]))key[field]=Math.round(key[field]*4)/4;
                     });
+                    var resized=key.width!==previous.width || key.height!==previous.height;
                     if(options.keepStemOnResize!==false) {
                         key.x-=(key.width-previous.width)/2;key.y-=(key.height-previous.height)/2;
                     }
@@ -89,6 +108,7 @@
                         if(G.distance(current.center,fixed.center)>EPS || Math.abs(current.angle-fixed.angle)>EPS) blocked++;
                         position(key,fixed.center,fixed.angle,frame);
                     }
+                    if(resized || fixed)snapDisplay(key);
                 }
             });
             before.forEach(function(key) {
@@ -107,7 +127,7 @@
                     else for(var i=after.length-1;i>=0;i--)if(group.ids.includes(after[i]._plateId))after.splice(i,1);
                     return;
                 }
-                var from=previous.map(function(k){return physical(k,frame);}),to=current.map(function(k){return physical(k,frame);});
+                var from=previous.map(function(k){return beforePhysical.get(k._plateId);}),to=current.map(function(k){return physical(k,frame);});
                 var changed=to.map(function(p,i){return G.distance(p.center,from[i].center)>EPS||Math.abs(p.angle-from[i].angle)>EPS;});
                 var first=changed.indexOf(true);if(first<0)return;
                 var delta=to[first].angle-from[first].angle;
@@ -276,7 +296,7 @@
             key._plateId=name;key.width=key.width2=width;key.height=key.height2=height;key.labels=[label || 'Custom key'];
             position(key,source.center,source.capAngle,frame);original[name]=source;
             settings[name]={anchor:null,profile:null,sourceContours:ids.slice()};
-            if(guess)settings[name].sourceGuess=copy(guess);return key;
+            if(guess)settings[name].sourceGuess=copy(guess);snapDisplay(key);return key;
         }
         function plan(layout) {
             supportOwners();
@@ -462,5 +482,5 @@
         if(pairs.some(function(pair){return G.distance(move(pair.from),pair.to)>0.1;})) throw Error('The selected anchors do not agree under a rigid alignment.');
         return {angle:angle,move:move};
     }
-    return {create:create,physical:physical,keyCenter:keyCenter,position:position,alignment:alignment,PITCH:PITCH};
+    return {create:create,physical:framePhysical,keyCenter:keyCenter,position:framePosition,alignment:alignment,PITCH:PITCH};
 }));

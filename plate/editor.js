@@ -161,10 +161,10 @@
                 var key=$serial.defaultKeyProps(),last=scope.selectedKeys[scope.selectedKeys.length-1];
                 Object.assign(key,preset.key);
                 var existing=scope.keys(),origin=existing[0] || {x:.5,y:.5};
-                function snap(value,base){return base+Math.round((value-base)*4)/4;}
+                function snap(value){return Math.round(value*4)/4;}
                 var right=last?Math.max(last.x+last.width,last.x+(last.x2 || 0)+(last.width2 || last.width)):origin.x;
-                key.x=snap(right-Math.min(0,key.x2 || 0),origin.x);
-                key.y=snap((last?last.y:Math.max(origin.y,...existing.map(function(k){return Math.max(k.y+k.height,k.y+(k.y2 || 0)+(k.height2 || k.height));})))-Math.min(0,key.y2 || 0),origin.y);
+                key.x=snap(right-Math.min(0,key.x2 || 0));
+                key.y=snap((last?last.y:Math.max(origin.y,...existing.map(function(k){return Math.max(k.y+k.height,k.y+(k.y2 || 0)+(k.height2 || k.height));})))-Math.min(0,key.y2 || 0));
                 scope.keys().push(key);ui.model.reconcile([],scope.keys());
                 ui.model.apply([key],preset.options);hooks.renderKey(key);
                 scope.unselectAll();scope.selectedKeys.push(key);scope.multi=angular.copy(key);
@@ -308,6 +308,7 @@
                     if(!/^(key|new)-\d+$/.test(id))throw Error('The project has an invalid key reference.');
                     var c=data.settings[id];
                     if(!c || typeof c!=='object')throw Error('The project has invalid key settings.');
+                    if(c.gridOffset)G.point(c.gridOffset.x,c.gridOffset.y);
                     if(c.anchor){G.point(c.anchor.center?.x,c.anchor.center?.y);if(!Number.isFinite(c.anchor.angle))throw Error('Invalid anchor.');}
                     if(c.profile){if(!c.profile.size || ![c.profile.size.width,c.profile.size.height].every(function(n){return Number.isFinite(n) && n>=0.5 && n<=24;}))throw Error('The project has invalid applied key sizes.');if(c.profile.options.switch!=='original')root.PlateProfiles.switchShape(c.profile.options);root.PlateProfiles.stabilizers(c.profile.options,c.profile.size);}
                 });
