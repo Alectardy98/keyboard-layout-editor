@@ -152,8 +152,11 @@ test('selecting unidentified shapes adds a key, supports undo and reloads from a
  // The isolated unknown opening is selectable; the plate outline is not.
  const target=await page.evaluate(()=>{const s=angular.element(document.body).scope();return s.plate.document.contours.find(c=>PlateGeometry.bounds(c.points).cx>130).id;});
  const pathIndex=await page.evaluate(id=>angular.element(document.body).scope().plate.paths.findIndex(p=>p.contour===id),target);
+ await expect(page.locator('.plate-svg .plate-path').nth(pathIndex)).toHaveCSS('stroke','rgb(212, 119, 0)');
  await page.locator('.plate-svg .plate-path').nth(pathIndex).click();
  await expect(page.locator('.plate-shape-picked')).toHaveCount(1);
+ await page.mouse.move(0,0);
+ await expect(page.locator('.plate-shape-picked')).toHaveCSS('stroke','rgb(212, 119, 0)');
  await expect(page.locator('.plate-selected')).toHaveCount(0);
  expect(await page.evaluate(()=>angular.element(document.body).scope().selectedKeys.length)).toBe(0);
  await page.getByLabel('Name',{exact:true}).fill('Unrecognized key');await page.getByRole('button',{name:'Add key',exact:true}).click();await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
