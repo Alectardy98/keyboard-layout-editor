@@ -101,3 +101,23 @@ test('plate preset menus create complete Alps and EC11 geometry in one undo step
  result=await scopeRead(page,()=>{let s=angular.element(document.body).scope();return {error:s.plate.error,added:s.plate.model.plan(s.keys()).additions.length};});
  expect(result.error).toBe('');expect(result.added).toBe(1);
 });
+test('probable shared keys require selectable confirmation and support undo',async({page})=>{
+ await open(page);
+ await page.evaluate(()=>{const s=angular.element(document.body).scope(),G=PlateGeometry,P=PlateProfiles;
+  const rect=(x)=>[P.polygon(G.rectangle(14,14,{x,y:0}))];
+  const holes=P.clip.union(rect(0),rect(19.05),[P.polygon(G.rectangle(19.05,2,{x:9.525,y:0}))]);
+  const points=P.rings(holes)[0],text='0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n4\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n0\nLWPOLYLINE\n90\n'+points.length+'\n70\n1\n'+points.map(p=>'10\n'+p.x+'\n20\n'+p.y+'\n').join('')+'0\nENDSEC\n0\nEOF\n';
+  // Load through the same input flow below, rather than mutating the model.
+  window.testSharedSource=text;
+ });
+ const source=await page.evaluate(()=>window.testSharedSource);
+ const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open DXF plate',exact:true}).click();
+ await(await chooser).setFiles({name:'shared.dxf',mimeType:'application/dxf',buffer:Buffer.from(source)});
+ await expect(page.locator('#keyboard .keycap')).toHaveCount(2);
+ const confirm=page.getByRole('button',{name:'Confirm recovered geometry',exact:true});
+ await expect(confirm).toBeDisabled();await page.locator('.plate-switch').first().click();await expect(confirm).toBeEnabled();
+ await confirm.click();await expect(confirm).toBeDisabled();
+ expect(await page.evaluate(()=>{const s=angular.element(document.body).scope();return s.plate.model.settings[s.selectedKeys[0]._plateId].confirmed;})).toBe(true);
+ await page.getByRole('button',{name:/Undo$/}).click();
+ expect(await page.evaluate(()=>Object.values(angular.element(document.body).scope().plate.model.settings).some(s=>s.confirmed))).toBe(false);
+});
