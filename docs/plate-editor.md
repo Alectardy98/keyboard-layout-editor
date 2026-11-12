@@ -502,7 +502,7 @@ the opening regenerates its contour. Review the warning before manufacturing.
 Closed unrecognized outlines assembled from separate LINE/ARC entities can now
 be selected by clicking inside them, then mapped, deleted or attached to a key.
 
-New plate projects record recognition version 5. Older saved projects keep their
+New plate projects record recognition version 6. Older saved projects keep their
 previous interpretation so new detections do not silently reassign existing
 key edits. Open the original DXF afresh to use the new recognition rules.
 
@@ -527,3 +527,9 @@ also makes otherwise unrecognized closed openings available for manual mapping.
 A single-layer filter does not claim a loop that needs edges from other layers.
 Version 4 projects retain their previous assembly rules. Open the original DXF
 again to apply these new detections.
+
+Repeated modifier pairs next to a recognized wide cap can now inherit a
+quarter-unit size when both the cap boundary and the pair's centre pitch agree.
+A lone key, unequal spacing or overlap with another row does not qualify. This
+changes only inferred caps, not switch centres or DXF cuts. Version 5 projects
+retain their previous cap inference; reopen the DXF to use this rule.
