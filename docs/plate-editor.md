@@ -428,3 +428,54 @@ The **2.75u dual opening PCB mount** preset preserves both measured No1Rev2
 right-Shift openings as one key. Detection requires the complete pair at the
 correct relative positions. Moving, rotating or deleting the key handles both
 openings together; no-op export leaves their original records unchanged.
+
+## Keyhub library audit
+
+The Keyhub corpus was checked against source snapshot
+`naraku010/keyboard_layout@fca16cf5134b5bf37076bc5aad95b735f39f563c`.
+The audit covers 429 original DXFs and 455 DWGs converted separately to ASCII
+DXF with ODA File Converter (build 27.10.0.151591, ACAD2018, audit/repair off).
+Original files are never rewritten. Two catalog entries incorrectly name
+Cloudnine DWGs; the repository supplies their DXF counterparts.
+
+Recognition now supports joined PCB compatibility windows with a 14 mm switch
+band and two 7 mm clearance slots at 23.876 mm spacing. The full contour must
+match, including both pieces of a split opening. Four recipes are available in
+**Add MX Keys**: 2u, 2.25u and 2.75u wide PCB compatibility, and 2.75u split PCB
+compatibility. These are PCB clearance patterns, not plate-mount clip shapes.
+Imported fillets and clearance variations stay unchanged until explicitly
+replaced; the generated recipes are nominal square-corner versions.
+
+Taller paired PCB clearances are associated only at a known stabilizer span.
+The adjacent row pitch distinguishes 2u, 2.25u and 2.75u caps sharing a short
+wire; this does not fill arbitrary gaps or move physical switch centres.
+
+Negative-Z planar OCS entities are now interpreted correctly instead of
+skipping their arcs. This follows Autodesk's [OCS definition](https://help.autodesk.com/cloudhelp/2024/ENU/AutoCAD-DXF/files/GUID-D99F1509-E4E4-47A3-8691-92EA07DC88F5.htm)
+and [arbitrary-axis algorithm](https://help.autodesk.com/cloudhelp/2024/ENU/AutoCAD-DXF/files/GUID-E19E5B42-0CC7-4EBA-B29F-5E1D595149EE.htm):
+negative-Z OCS reverses X, while LINE coordinates remain in WCS. Rigid edits
+are transformed back to the original entity coordinates, including arc angles.
+Tilted planes remain unsupported; block geometry remains preview-only.
+Older saved projects retain their original coordinate interpretation through
+`coordinateVersion`; reopen the original DXF to use the new recognition.
+
+Automated corpus results: 871/884 files parsed and passed byte-exact no-op
+export; 13 were rejected for size/detail limits or an invalid coordinate.
+There were 1,783 net additional detected openings and 119 changed cap dimensions
+at existing centres. These are automated comparisons, not a claim that every
+inferred key or universal plate configuration is correct. Some files contain
+case panels, half plates, multiple layouts, unsupported geometry or no reliable
+switches; remaining orange openings need review. No fixed outline or mounting
+record is changed by recognition.
+
+To repeat a read-only audit, including an HTML/SVG review gallery:
+
+```sh
+node scripts/audit-plates.mjs /path/to/dxf-library /path/to/report
+```
+
+Each worker has bounded memory and a 60-second timeout. Reports list errors,
+possible gaps and unassigned openings separately. A gap is not evidence of a
+missing key. Regression coverage includes negative-Z movement/rotation,
+rotated and split PCB windows, false-positive rejection, source preservation,
+new preset export and saved-project reload.
