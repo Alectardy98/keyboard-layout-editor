@@ -20,7 +20,7 @@
     function position(key,center,angle,frame) {
         var point={x:(center.x-frame.x)/PITCH,y:(frame.y-center.y)/PITCH};
         key.rotation_angle=-degrees(angle);key.rotation_x=point.x;key.rotation_y=point.y;
-        key.x=point.x-key.width/2;key.y=point.y-key.height/2;
+        key.x=Math.round((point.x-key.width/2)*1e9)/1e9;key.y=Math.round((point.y-key.height/2)*1e9)/1e9;
     }
     function records(contours) {
         return [...new Map(contours.flatMap(function(c){return c.parts;}).filter(function(p){return p.raw;})
@@ -34,6 +34,15 @@
         // An immutable margin permits wider caps without negative KLE
         // coordinates. It does not translate or resize the actual DXF drawing.
         var frame={x:document.bounds.minX-margin,y:document.bounds.maxY+margin,pitch:PITCH};
+        // Derive the display origin from a key, not arbitrary drawing margins.
+        // Only the coordinate transform changes: physical DXF centres stay exact.
+        if(keys.length && keys.every(function(k){return Math.abs(k.capAngle)<EPS;})) {
+            var ref=keys[0],left=ref.center.x-ref.width*PITCH/2,top=ref.center.y+ref.height*PITCH/2;
+            var minLeft=Math.min(...keys.map(function(k){return k.center.x-k.width*PITCH/2+Math.min(0,k.capShape?.x2 || 0)*PITCH;}));
+            var maxTop=Math.max(...keys.map(function(k){return k.center.y+k.height*PITCH/2-Math.min(0,k.capShape?.y2 || 0)*PITCH;}));
+            frame.x=left-(Math.ceil(Math.max(0,left-minLeft)/PITCH*4)/4+.5)*PITCH;
+            frame.y=top+(Math.ceil(Math.max(0,maxTop-top)/PITCH*4)/4+.5)*PITCH;
+        }
         var original=Object.create(null),settings=Object.create(null),next=1;
         var groups=[];
         keys.filter(function(k){return k.recovered;}).forEach(function(k){

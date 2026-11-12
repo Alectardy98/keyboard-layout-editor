@@ -50,3 +50,5 @@
 
 /* Recovered cores are hit areas; only the composed contour is a cut line. */
 .plate-path.plate-hit-area {stroke:none;fill-rule:evenodd;}
+
+.plate-page #keyboard {width:max-content;max-width:100%;margin-left:auto;margin-right:auto;overflow-x:auto;}

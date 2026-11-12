@@ -247,7 +247,8 @@
         });
         // Complete DC2014 patterns: wire slots plus the barrel and its two
         // square supports. Match geometry, never the filename or key number.
-        [{pattern:Measured.space975Barrel,width:9.75,height:1,label:'9.75u',family:'alps-975-barrel'},
+        [{pattern:Measured.multi275,width:2.75,height:1,label:'2.75u multi stab',family:'alps-multi275'},
+         {pattern:Measured.space975Barrel,width:9.75,height:1,label:'9.75u',family:'alps-975-barrel'},
          {pattern:Measured.z150Supports,width:1,height:2,label:'Z150 Enter',family:'alps-z150',
           capShape:{width2:2,height2:1,x2:-1,y2:1}}].forEach(function(preset){
             keys.filter(function(k){return k.type==='alps';}).forEach(function(key){
@@ -337,6 +338,17 @@
             keys.push({id:'key-'+String(keys.length+1).padStart(3,'0'),center:center,holeAngle:0,capAngle:0,
                 type:'ec11',core:{width:15.5,height:14.101933},contours:[c],stabilizers:[],editable:c.editable,width:1,height:1});
             counts.ec11=(counts.ec11 || 0)+1;
+        });
+        // The elongated opening permits several stem positions. Use its
+        // rightmost Alps stem centre for the 1.75u cap; keep the full cutout.
+        document.contours.forEach(function(c){
+            if(options.layer && !c.parts.some(function(p){return p.layer===options.layer;}))return;
+            if(keys.some(function(k){return k.contours.includes(c)||k.stabilizers.includes(c);}))return;
+            var b=G.bounds(c.points),t=G.bounds(Measured.capsMultistep),center={x:b.cx-t.cx,y:b.cy-t.cy};
+            if(!matches(c.points,Measured.capsMultistep,center,0))return;
+            keys.push({id:'key-'+String(keys.length+1).padStart(3,'0'),center:center,holeAngle:0,capAngle:0,
+                label:'Caps Multistep',type:'alps',core:{width:15.5,height:12.8},contours:[c],stabilizers:[],editable:c.editable,width:1.75,height:1});
+            counts.alps++;
         });
         var types=Object.keys(counts).filter(function(type){return counts[type]>0;});
         return {keys:keys,counts:counts,type:types.length===1?types[0]:types.length?'mixed':'unknown',

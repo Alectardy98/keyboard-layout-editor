@@ -60,6 +60,10 @@
             if((upright?![1,1.25].includes(key.width):key.width!==8) || key.height!==(upright?2:1))throw Error('This Canon pattern requires its original key dimensions.');
             return place((upright?Measured.canonVertical2:Measured.canon8).map(polygon),{x:0,y:0},options.direction==='north'?Math.PI:0);
         }
+        if(style==='alps-multi275') {
+            if(key.width!==2.75 || key.height!==1)throw Error('The multi-stab pattern requires a 2.75u key.');
+            return place(Measured.multi275.map(polygon),{x:0,y:0},options.direction==='north'?Math.PI:0);
+        }
         if(style==='alps-975-barrel' || style==='alps-z150') {
             var z150=style==='alps-z150';
             if(key.width!==(z150?1:9.75) || key.height!==(z150?2:1))throw Error('This pattern requires its original key dimensions.');
@@ -110,6 +114,7 @@
         });
     }
     function switchShape(options) {
+        if(options.switch==='alps-multistep')return polygon(Measured.capsMultistep);
         if(options.switch==='ec11') return polygon(Measured.ec11);
         var preset=switches[options.switch];
         if(options.switch==='custom') {
@@ -141,6 +146,8 @@
     // Primary KLE rectangle is the raised area of a stepped cap: its centre
     // is the switch stem. The secondary rectangle is the full cap footprint.
     var presets=[
+        {id:'alps-multistep',label:'Caps Multistep',width:1.75},
+        {id:'alps-multi275',label:'2.75u multi stab',width:2.75,canon:'alps-multi275'},
         {id:'alps-1',label:'1u',width:1},
         {id:'alps-125',label:'1.25u',width:1.25},
         {id:'alps-15',label:'1.5u',width:1.5},
@@ -168,7 +175,7 @@
         if(!p)throw Error('Unknown key preset.');
         return {key:{width:p.width,width2:p.z150?2:p.bae?1.5:p.zkb2?1:p.full || p.width,height:p.height || 1,height2:p.z150?1:(p.zkb2 || p.bae)?2:p.height || 1,
             x2:p.z150?-1:p.bae?.75:p.zkb2?1.25:p.left?p.width-p.full:0,y2:p.z150?1:(p.zkb2 || p.bae)?-1:0,stepped:!!p.full,labels:[p.label]},
-            options:{switch:id==='ec11'?'ec11':'alps',switchRotation:p.height===2?90:0,stabilizer:p.canon || (p.barrels?'alps-barrel625':p.bae?'alps-bae':p.zkb2?'alps-zkb2':p.stabs?'alps-default':'none'),direction:'south'}};
+            options:{switch:id==='ec11'?'ec11':id==='alps-multistep'?'alps-multistep':'alps',switchRotation:p.height===2?90:0,stabilizer:p.canon || (p.barrels?'alps-barrel625':p.bae?'alps-bae':p.zkb2?'alps-zkb2':p.stabs?'alps-default':'none'),direction:'south'}};
     }
     return {presets:presets,preset:preset,switches:switches,spacing:spacing,stabilizers:stabilizers,switchShape:switchShape,generate:generate,
         polygon:polygon,rings:rings,union:union,place:place,clip:clip};

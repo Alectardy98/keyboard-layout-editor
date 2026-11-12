@@ -92,8 +92,11 @@
             hooks.transaction('plate-add',function(){
                 var key=$serial.defaultKeyProps(),last=scope.selectedKeys[scope.selectedKeys.length-1];
                 Object.assign(key,preset.key);
-                key.x=last?last.x+Math.max(last.width,last.width2 || 0)+(last.x2 || 0):0;
-                key.y=last?last.y:Math.max(0,...scope.keys().map(function(k){return k.y+k.height;}));
+                var existing=scope.keys(),origin=existing[0] || {x:.5,y:.5};
+                function snap(value,base){return base+Math.round((value-base)*4)/4;}
+                var right=last?Math.max(last.x+last.width,last.x+(last.x2 || 0)+(last.width2 || last.width)):origin.x;
+                key.x=snap(right-Math.min(0,key.x2 || 0),origin.x);
+                key.y=snap((last?last.y:Math.max(origin.y,...existing.map(function(k){return Math.max(k.y+k.height,k.y+(k.y2 || 0)+(k.height2 || k.height));})))-Math.min(0,key.y2 || 0),origin.y);
                 scope.keys().push(key);ui.model.reconcile([],scope.keys());
                 ui.model.apply([key],preset.options);hooks.renderKey(key);
                 scope.unselectAll();scope.selectedKeys.push(key);scope.multi=angular.copy(key);
