@@ -17,7 +17,7 @@
             guarded(function() {
                 var result=ui.model.plan(scope.keys());ui.warnings=result.warnings;
                 ui.paths=result.paths.map(function(path,index) {
-                    return {id:index,key:path.key,hitOnly:!!path.hitOnly,d:[path.points].concat(path.holes || []).map(function(ring){return ring.map(function(p,i){return (i?'L':'M')+p.x.toFixed(5)+' '+(-p.y).toFixed(5);}).join(' ')+(path.closed?' Z':'');}).join(' ')};
+                    return {id:index,key:path.key,contour:path.contour,hitOnly:!!path.hitOnly,d:[path.points].concat(path.holes || []).map(function(ring){return ring.map(function(p,i){return (i?'L':'M')+p.x.toFixed(5)+' '+(-p.y).toFixed(5);}).join(' ')+(path.closed?' Z':'');}).join(' ')};
                 });
                 ui.recoveredCount=Object.values(ui.model.original).filter(function(k){return k.recovered;}).length;
                 ui.pendingRecovery=scope.selectedKeys.some(function(k){return ui.model.original[k._plateId]?.recovered && !ui.model.settings[k._plateId]?.confirmed;});
@@ -102,6 +102,11 @@
                 scope.unselectAll();scope.selectedKeys.push(key);scope.multi=angular.copy(key);
             });
             scope.calcKbHeight();ui.notice='Added '+preset.key.labels[0]+'. The raised area is centred on the stem; move the new key into position.';
+        });};
+        ui.includeSupport=function(candidate,include){guarded(function(){
+            if(scope.selectedKeys.length!==1)throw Error('Select one key first.');
+            hooks.transaction('plate-support',function(){ui.model.setSupport(scope.selectedKeys[0],candidate.id,include);});
+            ui.notice=include?'Opening included. It now moves and deletes with this key.':'Opening returned to fixed drawing geometry.';
         });};
         ui.confirmRecovered=function(){guarded(function(){hooks.transaction('plate-confirm',function(){ui.model.confirm(scope.selectedKeys);});
             ui.notice='Recovered geometry confirmed for the selected keys. Fixed shared cuts remain in place.';
@@ -214,6 +219,8 @@
         ui.cancelAlignment=function(){ui.pending=null;hooks.updateSerialized();};
         function selectedInfo() {
             var key=scope.selectedKeys[0];ui.selectedInfo='';
+            ui.supportCandidates=ui.model && scope.selectedKeys.length===1?ui.model.nearbySupports(key):[];
+            ui.highlightSupport=null;
             ui.pendingRecovery=!!ui.model && scope.selectedKeys.some(function(k){return ui.model.original[k._plateId]?.recovered && !ui.model.settings[k._plateId]?.confirmed;});
             if(key && ui.model){var p=ui.model.physical(key);ui.selectedInfo='Centre '+p.center.x.toFixed(3)+', '+p.center.y.toFixed(3)+' mm';}
             ui.selectedReadOnly=!!ui.model && scope.selectedKeys.some(function(k){return ui.model.original[k._plateId] && !ui.model.original[k._plateId].editable;});

@@ -143,7 +143,52 @@
         function confirm(selected){
             selected.forEach(function(k){if(original[k._plateId]?.recovered)settings[k._plateId].confirmed=true;});
         }
+        var contoursById=new Map(document.contours.map(function(c){return [c.id,c];}));
+        function supportOwners(){
+            var owners=new Map();
+            Object.values(original).forEach(function(k){k.contours.concat(k.stabilizers).forEach(function(c){owners.set(c.id,k.id);});});
+            Object.keys(settings).forEach(function(id){
+                var extra=settings[id].supports || [];
+                if(!Array.isArray(extra) || extra.length>64)throw Error('Invalid extra stabilizer list.');
+                extra.forEach(function(cid){
+                    var c=contoursById.get(cid);
+                    if(!original[id] || !c || !c.editable || owners.has(cid))throw Error('An extra stabilizer is unsupported or already owned by a key.');
+                    owners.set(cid,id);
+                });
+            });
+            return owners;
+        }
+        function withSupports(source){
+            return Object.assign({},source,{stabilizers:source.stabilizers.concat((settings[source.id]?.supports || []).map(function(id){return contoursById.get(id);}))});
+        }
+        function nearbySupports(key){
+            var source=original[key?._plateId];if(!source || !source.editable || settings[source.id]?.excluded)return [];
+            var owners=supportOwners(),included=settings[source.id].supports || [];
+            return document.contours.filter(function(c){
+                if(included.includes(c.id))return true;
+                if(!c.editable || owners.has(c.id))return false;
+                var b=G.bounds(c.points),local=G.rotate({x:b.cx-source.center.x,y:b.cy-source.center.y},-source.capAngle);
+                return b.width<=20 && b.height<=20 && Math.min(b.width,b.height)>=.5 &&
+                    Math.abs(local.x)<=Math.max(key.width,key.width2 || 0)*PITCH/2+10 &&
+                    Math.abs(local.y)<=Math.max(key.height,key.height2 || 0)*PITCH/2+10;
+            }).map(function(c){var b=G.bounds(c.points);return {id:c.id,width:b.width,height:b.height,included:included.includes(c.id),
+                dx:b.cx-source.center.x,dy:b.cy-source.center.y};}).sort(function(a,b){return Number(b.included)-Number(a.included)||Math.hypot(a.dx,a.dy)-Math.hypot(b.dx,b.dy);});
+        }
+        function setSupport(key,cid,include){
+            var source=original[key?._plateId],config=settings[key?._plateId];
+            if(!source || !source.editable || config.excluded)throw Error('Select an editable imported key.');
+            if(include){
+                var at=physical(key,frame);
+                if(G.distance(at.center,source.center)>EPS || Math.abs(at.angle-source.capAngle)>EPS)
+                    throw Error('Include nearby supports before moving this key. Undo its move first.');
+                if(config.profile && optionsReplacesStabs(config.profile))throw Error('Choose Keep imported stabilizers and apply before including source openings.');
+                if(!nearbySupports(key).some(function(c){return c.id===cid && !c.included;}))throw Error('This opening is not an available nearby support.');
+                config.supports=(config.supports || []).concat([cid]);
+            }else config.supports=(config.supports || []).filter(function(id){return id!==cid;});
+            supportOwners();
+        }
         function plan(layout) {
+            supportOwners();
             var edits=[],additions=[],preview=[],owners=new Map(),warnings=[];
             var current=new Map(layout.filter(function(k){return !k.decal;}).map(function(k){return [k._plateId,k];}));
             function claim(record,key) {
@@ -151,7 +196,7 @@
                 owners.set(record.id,key);
             }
             Object.keys(original).forEach(function(name) {
-                var source=original[name],key=current.get(name),config=settings[name] || {},profile=config.profile;
+                var source=withSupports(original[name]),key=current.get(name),config=settings[name] || {},profile=config.profile;
                 if(source.recovered)return;
                 var all=source.contours.concat(source.stabilizers),raw=records(all);
                 if(config.excluded) {
@@ -184,7 +229,8 @@
             });
             groups.forEach(function(group){
                 var changed=false,shapes=[],supportShapes=[];
-                group.keys.forEach(function(source,index){
+                group.keys.forEach(function(originalSource,index){
+                    var source=withSupports(originalSource);
                     var key=current.get(source.id),config=settings[source.id] || {},excluded=config.excluded;
                     var at=key?physical(key,frame):{center:source.center,angle:source.capAngle};
                     var moved=G.distance(at.center,source.center)>EPS || Math.abs(at.angle-source.capAngle)>EPS;
@@ -238,8 +284,9 @@
             });
             // Source outline, mounting holes, annotations and unrecognized
             // entities are rendered and exported exactly where they were.
-            var used=new Set(Object.values(original).flatMap(function(k){return k.contours.concat(k.stabilizers).flatMap(function(c){return c.parts.map(function(p){return p.id;});});}));
-            document.primitives.forEach(function(p){if(!used.has(p.id)) preview.push({key:null,points:p.points,closed:p.closed});});
+            var used=new Set(Object.values(original).map(withSupports).flatMap(function(k){return k.contours.concat(k.stabilizers).flatMap(function(c){return c.parts.map(function(p){return p.id;});});}));
+            var contourForPart=new Map();document.contours.forEach(function(c){c.parts.forEach(function(p){contourForPart.set(p.id,c.id);});});
+            document.primitives.forEach(function(p){if(!used.has(p.id)) preview.push({key:null,contour:contourForPart.get(p.id),points:p.points,closed:p.closed});});
             return {edits:edits,additions:additions,paths:preview,warnings:warnings};
         }
         function optionsReplacesStabs(profile){return profile.options.stabilizer!=='original';}
@@ -249,7 +296,7 @@
             return D.exportBytes(document,result.edits,result.additions);
         }
         return {document:document,recognition:recognized,frame:frame,original:original,settings:settings,
-            makeKeys:makeKeys,reconcile:reconcile,confirm:confirm,groups:groups,setAnchors:setAnchors,exclude:exclude,apply:apply,plan:plan,exportFile:exportFile,
+            nearbySupports:nearbySupports,setSupport:setSupport,makeKeys:makeKeys,reconcile:reconcile,confirm:confirm,groups:groups,setAnchors:setAnchors,exclude:exclude,apply:apply,plan:plan,exportFile:exportFile,
             physical:function(key){return physical(key,frame);},position:function(key,center,angle){position(key,center,angle,frame);},
             snapshot:function(){return copy(settings);},restore:function(snapshot){
                 settings=copy(snapshot);

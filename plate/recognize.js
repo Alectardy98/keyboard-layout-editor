@@ -247,7 +247,7 @@
         });
         // Complete DC2014 patterns: wire slots plus the barrel and its two
         // square supports. Match geometry, never the filename or key number.
-        [{pattern:Measured.space625All,width:6.25,height:1,label:'6.25u all stabs',family:'alps-625-all'},
+        [{pattern:Measured.space625All,width:7,height:1,label:'7u all stabs',family:'alps-7-all'},
          {pattern:Measured.multi275,width:2.75,height:1,label:'2.75u multi stab',family:'alps-multi275'},
          {pattern:Measured.space975Barrel,width:9.75,height:1,label:'9.75u',family:'alps-975-barrel'},
          {pattern:Measured.z150Supports,width:1,height:2,label:'Z150 Enter',family:'alps-z150',
@@ -321,6 +321,18 @@
                 });
                 if(!changed)break;
             }
+        });
+        // Common winkeyless bottom row: 1.5, gap 1, 1.5, 7, 1.5, gap 1, 1.5.
+        // Require all four measured centre offsets; do not close the two gaps.
+        var bottom=rows.reduce(function(a,b){return !a || b.y<a.y?b:a;},null);
+        if(bottom)bottom.keys.filter(function(k){return k.width>=5 && k.height===1;}).forEach(function(space){
+            var modifiers=[-6.75,-4.25,4.25,6.75].map(function(offset){return bottom.keys.find(function(k){
+                return k!==space && k.height===1 && Math.abs(k.center.x-space.center.x-offset*19.05)<.04;
+            });});
+            if(modifiers.some(function(k){return !k;}))return;
+            var assembly=[modifiers[0],modifiers[1],space,modifiers[2],modifiers[3]];
+            if(bottom.keys.some(function(k){return !assembly.includes(k) && Math.abs(k.center.x-space.center.x)<7.5*19.05;}))return;
+            space.width=7;modifiers.forEach(function(k){k.width=1.5;});
         });
         keys=[];
         rows.forEach(function(row) {

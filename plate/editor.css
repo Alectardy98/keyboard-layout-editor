@@ -52,3 +52,7 @@
 .plate-path.plate-hit-area {stroke:none;fill-rule:evenodd;}
 
 .plate-page #keyboard {width:max-content;max-width:100%;margin-left:auto;margin-right:auto;overflow-x:auto;}
+
+.plate-path.plate-support-candidate {stroke:#d47700;stroke-width:3;fill:rgba(212,119,0,.2);}
+.plate-support-list {max-height:230px;overflow:auto;}
+.plate-support-list>div {display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid #eee;font-size:12px;}
