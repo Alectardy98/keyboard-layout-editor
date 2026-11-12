@@ -236,6 +236,30 @@
                 key.detectedStabilizer={family:preset.family,vertical:preset.height>preset.width};
             });
         });
+        // The same four vertical slots accept different cap widths. Use
+        // neighbouring key footprints to reject a 1.25u cap that would overlap.
+        keys.filter(function(k){return k.detectedStabilizer?.family==='alps-canon-vertical2';}).forEach(function(key){
+            var clearance=keys.filter(function(other){return other!==key &&
+                Math.abs(other.center.y-key.center.y)<(key.height+other.height)*19.05/2-.03;
+            }).map(function(other){return 2*Math.abs(other.center.x-key.center.x)/19.05-other.width;});
+            var available=Math.min(...clearance);
+            if(available>=.998 && available<1.248){key.width=1;key.label='vertical 2u';}
+        });
+        // Complete DC2014 patterns: wire slots plus the barrel and its two
+        // square supports. Match geometry, never the filename or key number.
+        [{pattern:Measured.space975Barrel,width:9.75,height:1,label:'9.75u',family:'alps-975-barrel'},
+         {pattern:Measured.z150Supports,width:1,height:2,label:'Z150 Enter',family:'alps-z150',
+          capShape:{width2:2,height2:1,x2:-1,y2:1}}].forEach(function(preset){
+            keys.filter(function(k){return k.type==='alps';}).forEach(function(key){
+                var parts=preset.pattern.map(function(pattern){return small.find(function(c){
+                    return matches(c.points,pattern,key.center,key.capAngle);
+                });});
+                if(parts.some(function(c){return !c || keys.some(function(other){return other!==key && other.stabilizers.includes(c);});}))return;
+                key.stabilizers=parts;key.width=preset.width;key.height=preset.height;key.label=preset.label;
+                if(preset.capShape)key.capShape=Object.assign({},preset.capShape);
+                key.detectedStabilizer={family:preset.family,vertical:preset.height>preset.width};
+            });
+        });
         // FC660M 6.25u: two complete barrel assemblies plus the wire slots.
         // Match the whole pattern; do not absorb isolated mounting circles.
         keys.filter(function(k){return k.type==='alps';}).forEach(function(key){
