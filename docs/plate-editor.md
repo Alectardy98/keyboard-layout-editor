@@ -285,3 +285,10 @@ projects retain their existing coordinate frame. The KLE canvas is centred, and
 newly added keys snap to quarter units relative to the first key. Small measured
 deviations in imported drawings are retained rather than rounding the holes onto
 a different grid.
+
+**6.25u all stabs** (NCR80 Plate1) includes twelve support openings: four wire
+slots, two barrel assemblies (each a circle and two side supports), and the two
+large outer rectangles. Nearby concentric mounting circles remain fixed. The
+measured pattern preserves the source's asymmetric side-support contour rather
+than replacing it with an idealized square. It is available in **Add Alps Keys**
+and the Alps stabilizer-family selector.
