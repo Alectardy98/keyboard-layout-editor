@@ -123,3 +123,12 @@ test('probable shared keys require selectable confirmation and support undo',asy
  await page.getByRole('button',{name:/Undo$/}).click();
  expect(await page.evaluate(()=>Object.values(angular.element(document.body).scope().plate.model.settings).some(s=>s.confirmed))).toBe(false);
 });
+test('plate KLE is centred and new keys follow its quarter-unit origin',async({page})=>{
+ await page.setViewportSize({width:1400,height:1000});await open(page);
+ const box=await page.locator('#keyboard').boundingBox();expect(Math.abs(box.x+box.width/2-700)).toBeLessThan(20);
+ const result=await page.evaluate(()=>{const s=angular.element(document.body).scope();return s.$apply(()=>{
+  const before=s.keys().map(k=>({id:k._plateId,p:s.plate.model.physical(k).center})),origin=s.keys()[0];s.unselectAll();s.plate.addPreset('alps-1');
+  const added=s.selectedKeys[0];return {x:(added.x-origin.x)*4,y:(added.y-origin.y)*4,unchanged:before.every(k=>{const p=s.plate.model.physical(s.keys().find(q=>q._plateId===k.id)).center;return Math.hypot(p.x-k.p.x,p.y-k.p.y)<1e-7;})};
+ });});
+ expect(Math.abs(result.x-Math.round(result.x))).toBeLessThan(1e-6);expect(Math.abs(result.y-Math.round(result.y))).toBeLessThan(1e-6);expect(result.unchanged).toBe(true);
+});
