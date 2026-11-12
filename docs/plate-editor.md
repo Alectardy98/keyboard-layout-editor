@@ -342,3 +342,10 @@ and does not resize cutouts or the plate outline.
 Planar, non-rational degree 1–3 splines can join lines into closed openings;
 rigid moves preserve their original spline records. Caps Multistep recognition
 accepts the small rounded-corner variation in Satisfaction75.
+
+Cap inference also uses aligned row ends established by 1u runs or supported
+end keys. It propagates quarter-unit widths between those edges and neighbours,
+including spacebars, without moving switch centres. A 0.6 mm per-side preview
+clearance avoids treating nominal KLE spacing cells as physical cap edges.
+These are layout guesses, not manufacturing dimensions; manual correction
+remains available and known bottom-row gaps are preserved.
