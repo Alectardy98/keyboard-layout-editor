@@ -460,7 +460,10 @@
                     key.stabilizers=pair.map(function(v){return v.c;});
                     key.detectedStabilizer={family:'mx-pcb',spacing:span,vertical:!!axis,stemOffset:-(pair[0].b.cx+pair[1].b.cx)/2,direction:pair[0].b.cy>0?'north':'south'};
                     var size=span<24?2:span<39?3:span<98?6:span<105?6.25:span<120?7:8;
-                    if(axis)key.height=size;else key.width=size;return true;
+                    // The same 23.8 mm wire fits 2u, 2.25u and 2.75u caps.
+                    // Late support discovery must not shrink a width already
+                    // established from adjacent keys and aligned row edges.
+                    if(axis)key.height=Math.max(key.height,size);else key.width=Math.max(key.width,size);return true;
                 });
             }
             // ISO has the 2u vertical pair and a neighbouring main typing row
