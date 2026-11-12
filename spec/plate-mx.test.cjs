@@ -82,3 +82,14 @@ test('dual-opening PCB Shift owns both contours, moves and deletes them together
  const remaining=keys.filter(v=>v!==key),deleted=D.parse(m.exportFile(remaining),'deleted');assert.equal(deleted.contours.length,d.contours.length-2);
  assert.throws(()=>P.stabilizers(p.options,{width:2,height:1}),/requires a 2.75u/);
 });
+test('late PCB stabilizer discovery preserves 2.25u and 2.75u cap inference',()=>{
+ for(const width of [2,2.25,2.75]){
+  const center={x:220,y:100},next=center.x+(width+1)*19.05/2;
+  const profile={switch:'mx',stabilizer:'mx',mount:'pcb',spacing:23.876,pcbHeight:16,pcbOffset:-1};
+  const parts=at(P.generate(profile,{width,height:1}),center.x,center.y);
+  for(const x of [next,next+19.05])parts.push(...at(P.generate({switch:'mx',stabilizer:'none'},{width:1,height:1}),x,center.y));
+  const d=fromShapes(parts),r=R.analyze(d),key=r.keys.find(k=>Math.abs(k.center.x-center.x)<.001&&Math.abs(k.center.y-center.y)<.001);
+  assert.equal(key.width,width);assert.equal(key.stabilizers.length,2);near(key.detectedStabilizer.spacing,23.876);
+  const m=M.create(d,r),keys=m.makeKeys(S.defaultKeyProps);assert.deepEqual(Buffer.from(m.exportFile(keys)),Buffer.from(D.exportBytes(d)));
+ }
+});
