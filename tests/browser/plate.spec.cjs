@@ -199,7 +199,7 @@ test('opening a DXF can discard edits, reopen the same file, or cancel safely',a
  await edit();await choose('not a DXF','invalid.dxf');await dialog.getByRole('button',{name:'Discard changes and open',exact:true}).click();await expect(page.getByRole('alert')).toBeVisible();
  expect(await page.evaluate(()=>angular.element(document.body).scope().keys()[0].width)).toBe(1.25);
  await choose();await dialog.getByRole('button',{name:'Discard changes and open',exact:true}).click();await expect.poll(()=>page.evaluate(()=>angular.element(document.body).scope().dirty)).toBe(false);
- await choose(makeFixture({unknown:true}),'different.dxf');await expect(page.locator('.plate-units strong')).toHaveText('different.dxf');await expect(dialog).toHaveCount(0);
+ await choose(makeFixture({unknown:true}),'different.dxf');await expect(page.locator('.plate-file-info strong')).toHaveText('different.dxf');await expect(dialog).toHaveCount(0);
 });
 
 test('MX menu supplies plate/PCB ISO presets and hides Caps Multistep in switch profiles',async({page})=>{
@@ -271,13 +271,17 @@ test('unrecognized joined LINE shapes can be selected through their interior',as
  await expect(target).toHaveClass(/plate-shape-picked/);await expect(page.getByRole('button',{name:'Map to new key',exact:true})).toBeVisible();
  await page.mouse.move(0,0);await expect(target).toHaveCSS('stroke','rgb(212, 119, 0)');
 });
-test('ambiguous geometry has selectable review flags without changing source cuts',async({page})=>{
+test('ambiguous geometry remains selectable without the global review banner',async({page})=>{
  const G=require('../../plate/geometry');
  const rings=[];for(let i=0;i<3;i++)rings.push(G.rectangle(10.575,14,{x:150+i*19.05,y:130}));
  const source=D.exportBytes(D.parse(makeFixture()),[],rings.map(points=>({points})));
  await page.goto('plate.html');const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open DXF plate',exact:true}).click();await(await chooser).setFiles({name:'review.dxf',mimeType:'application/dxf',buffer:Buffer.from(source)});
- const summary=page.locator('.plate-review-summary');await expect(summary).toBeVisible();await summary.locator('summary').click();
- await summary.locator('button').first().click();
+ await expect(page.locator('.plate-file-info')).toBeVisible();
+ await expect(page.locator('.plate-review-summary')).toHaveCount(0);
+ const item=await page.evaluate(()=>angular.element(document.body).scope().plate.recognized.review[0]);
+ const index=await page.evaluate(item=>angular.element(document.body).scope().plate.paths.findIndex(p=>item.key?p.key===item.key:p.contour===item.contour),item);
+ await page.locator('.plate-svg .plate-path').nth(index).click();
+ await expect(page.locator('.plate-reference').getByText(item.message,{exact:true})).toBeVisible();
  expect(await page.evaluate(()=>{const s=angular.element(document.body).scope();return s.selectedKeys.length+s.plate.pickedShapes.length;})).toBeGreaterThan(0);
  const pending=page.waitForEvent('download');await page.getByRole('button',{name:'Download edited DXF'}).click();expect(fs.readFileSync(await(await pending).path())).toEqual(Buffer.from(source));
 });
