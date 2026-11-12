@@ -654,3 +654,25 @@ Category or pattern changes are only applied when you press Apply. The stored
 profile IDs are unchanged, so existing project files remain compatible.
 Measured patterns retain their complete support geometry and fixed dimensions;
 standard MX and Alps patterns retain the adjustable controls.
+
+### Switches and stabilizer patterns
+
+Selecting an imported key now populates two independent classifications:
+
+- **Switch type**: MX, Alps or Topre, identified around the physical stem.
+- **Stabilizer pattern**: the associated supports and compatibility openings,
+  grouped under Alps, MX PCB Mount, MX Plate Mount or Topre.
+
+Named compound openings (ANSI–ISO, multistep, split Shift, alternate spacebar
+stems and other measured variants) live in the pattern selector, not the switch
+selector. Joined openings remain complete templates; the editor does not split
+them into guessed rectangles. Applying an incompatible switch technology to a
+joined pattern is rejected rather than silently cutting the wrong footprint.
+
+Plain MX openings do not prove a PCB/plate mounting type. Unknown openings or
+unclassified extensions keep their imported geometry. Recognized simple keys
+without supports show None. Selecting a key never writes geometry; applying
+unchanged detected values also preserves the original DXF records byte-for-byte.
+Old saved profile IDs still load, and reapplying an unchanged saved profile
+keeps its existing generated geometry. KLE cap sizes remain independent of the
+switch centre and stabilizer pattern. EC11 and custom openings remain available.
