@@ -356,3 +356,70 @@ Map to existing waits for a destination key clicked in either view (Cancel
 exits). Bound shapes keep their current positions when attached, then follow
 that key’s movement, rotation and deletion. They survive project saving and
 remain independent of switch/stabilizer profile replacements.
+
+## MX plate-mount and PCB-mount workflow
+
+**Add MX Keys** offers 28 presets: 1–1.75u unstabilized keys, stepped and
+multi-position Caps, 2/2.25/2.75/3u keys, 6/6.25/7/8u spacebars, vertical 2u,
+ISO Enter and offset-stem 6u. Stabilized presets have separate plate and PCB
+mount variants. ISO has a 1.25u × 2u primary rectangle and a 1.5u upper arm.
+Caps Multistep is an Add Key preset, not a general switch-opening option.
+
+- **Plate mount / Cherry nominal** generates housing clip ledges and wire
+  clearance. Short keys use the broad connecting opening; long keys use the
+  narrow wire channel. New presets use this template. The previous template
+  remains available for existing projects: a missing `mxPattern` retains the
+  previous geometry, so reopening a project does not silently change its cuts.
+- **PCB mount** creates clearance openings in the plate, not holes in a PCB.
+  Width, height, Y offset and corner radius can be adjusted independently.
+  Defaults remain 7 × 15 mm, Y −1.5 mm, square corners. 7 × 16 mm clearance
+  variants are also recognized. Such rectangles are not clip-in ledges.
+- North/South and horizontal/vertical axes work independently of switch rotation.
+  The spacing menu distinguishes Cherry's 23.8 mm from the 23.876 mm convention
+  used by some generators; arbitrary measured spacing remains available.
+  Offset-stem 6u presets use 95.25 mm span with 9.525 mm offset.
+- MX and Alps switch corners can be rounded; **Extra size** changes the total
+  width and height, not a per-side allowance or automatic kerf compensation.
+  **MX + Alps shared opening** unions the two switch footprints. This trades
+  retention area for compatibility; it is not a guarantee for every housing.
+- Settings only replace geometry after Apply. Presets, controls, project saves
+  and Undo use the same geometry implementation.
+
+Recognition uses complete contour matches for broad compatibility windows and
+symmetric, rectangular housing pairs at known spans. Offset 6u is a separately
+bounded exception. A nearby main typing row distinguishes ISO from a rectangular
+numpad Enter; an isolated 2u hole cannot reliably prove an ISO cap. Supports are
+owned by only one key. No1Rev2's 2u/2.25u compatibility windows and 1.75u Caps
+opening are preserved exactly on import. The 2u, 2.25u and ISO assemblies
+are labelled PCB mount, matching their rectangular housing clearances.
+New plate-mount presets instead generate the clip-in template.
+Unmatched alternate layout windows and flex/mounting features remain unchanged.
+
+### References and verification
+
+- [Cherry switch catalogue, 2010](https://telcontar.net/KBK/Cherry/docs/Cherry%20switch%20catalogue%20%282010%29.pdf),
+  printed pp. 70–71: nominal switch, stabilizer span and clip-in frame drawings.
+  The frame drawing was inspected as an image, not reconstructed from OCR.
+- [ai03's plate generator](https://github.com/ai03-2725/yet-another-keyboard-builder),
+  `StabilizerMXBasic`, `StabilizerMXSmall`, `StabilizerMXSpec`: cross-checks for
+  clearance families, offset 6u and the 23.876 mm spacing convention. Generator
+  code is not bundled or copied into this project.
+- [Swill's feature guide](https://builder-docs.swillkb.com/features/): independent
+  rotation, shared MX/Alps openings and the distinction between kerf and fit.
+- [KBD8X MKII designer downloads](https://ai03.com/projects/kbd8x-mkii/) and
+  [Keebio FoldKB plates](https://github.com/keebio/foldkb-case): downloaded for
+  local regression checks, not bundled or republished in the site.
+
+The local Calibre database was unavailable during this investigation. The
+manufacturer PDF was obtained directly from the linked archive. These are
+nominal templates and geometry tests, not physical fit certification. Check
+actual stabilizers, PCB compatibility, plate thickness and the fabricator's
+corner/kerf requirements before cutting material. Unusual wire spans require
+measurement instead of inferring compatibility from keycap width alone.
+
+Validation includes generated plate/PCB patterns, north/south orientation,
+offset and vertical cases, ISO context, invalid controls, unchanged saved
+profiles, source-byte preservation, conversions, and browser Apply/Undo/project
+saving. Local corpus checks also cover the original Alps files and No1Rev2
+variants. The FoldKB right plate contains non-editable imported geometry; it
+is preserved and previewed rather than rewritten automatically.
