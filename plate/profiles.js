@@ -60,6 +60,10 @@
             if((upright?![1,1.25].includes(key.width):key.width!==8) || key.height!==(upright?2:1))throw Error('This Canon pattern requires its original key dimensions.');
             return place((upright?Measured.canonVertical2:Measured.canon8).map(polygon),{x:0,y:0},options.direction==='north'?Math.PI:0);
         }
+        if(style==='alps-7-all-flex') {
+            if(key.width!==7 || key.height!==1)throw Error('The all-stabs flex pattern requires a 7u key.');
+            return place(Measured.space7AllFlex.map(polygon),{x:0,y:0},options.direction==='north'?Math.PI:0);
+        }
         if(style==='alps-7-all' || style==='alps-625-all') {
             if((key.width!==7 && !(style==='alps-625-all' && key.width===6.25)) || key.height!==1)throw Error('The all-stabs pattern requires a 7u key.');
             return place(Measured.space625All.map(polygon),{x:0,y:0},options.direction==='north'?Math.PI:0);
@@ -150,6 +154,7 @@
     // Primary KLE rectangle is the raised area of a stepped cap: its centre
     // is the switch stem. The secondary rectangle is the full cap footprint.
     var presets=[
+        {id:'alps-7-all-flex',label:'7u all stabs flex',width:7,canon:'alps-7-all-flex'},
         {id:'alps-7-all',label:'7u all stabs',width:7,canon:'alps-7-all'},
         {id:'alps-multistep',label:'Caps Multistep',width:1.75},
         {id:'alps-multi275',label:'2.75u multi stab',width:2.75,canon:'alps-multi275'},

@@ -187,6 +187,31 @@
             }else config.supports=(config.supports || []).filter(function(id){return id!==cid;});
             supportOwners();
         }
+        function selectableContours(){
+            var owners=supportOwners();
+            return document.contours.filter(function(c){return c.editable && !owners.has(c.id) &&
+                !Object.values(original).some(function(k){return G.contains(c.points,k.center);});
+            }).map(function(c){return c.id;});
+        }
+        function manualSource(name,ids){
+            if(!Array.isArray(ids)||!ids.length||ids.length>64||new Set(ids).size!==ids.length)throw Error('Select between one and 64 separate openings.');
+            var contours=ids.map(function(cid){var c=contoursById.get(cid);
+                if(!c || !c.editable || Object.values(original).some(function(k){return k.contours.concat(k.stabilizers).some(function(p){return p.id===cid;}) || G.contains(c.points,k.center);}))
+                    throw Error('Selected geometry is unsupported, is a plate outline, or already belongs to a key.');
+                return c;
+            }),b=G.bounds(contours[0].points);
+            return {id:name,manual:true,center:{x:b.cx,y:b.cy},capAngle:0,holeAngle:0,type:'unknown',
+                core:{width:b.width,height:b.height},contours:contours,stabilizers:[],editable:true,width:1,height:1};
+        }
+        function addFromContours(ids,defaultKey,width,height,label){
+            if(![width,height].every(function(n){return Number.isFinite(n)&&n>=.5&&n<=24&&Math.abs(n*4-Math.round(n*4))<1e-8;}))throw Error('Key sizes must be 0.5–24u in quarter-unit steps.');
+            if(typeof label!=='string'||label.length>80)throw Error('Use a key name of at most 80 characters.');
+            var available=selectableContours();if(!ids.every(function(cid){return available.includes(cid);}))throw Error('Select unassigned editable openings.');
+            var name=id(),source=manualSource(name,ids),key=defaultKey();
+            key._plateId=name;key.width=key.width2=width;key.height=key.height2=height;key.labels=[label || 'Custom key'];
+            position(key,source.center,0,frame);original[name]=source;
+            settings[name]={anchor:null,profile:null,sourceContours:ids.slice()};return key;
+        }
         function plan(layout) {
             supportOwners();
             var edits=[],additions=[],preview=[],owners=new Map(),warnings=[];
@@ -296,10 +321,16 @@
             return D.exportBytes(document,result.edits,result.additions);
         }
         return {document:document,recognition:recognized,frame:frame,original:original,settings:settings,
-            nearbySupports:nearbySupports,setSupport:setSupport,makeKeys:makeKeys,reconcile:reconcile,confirm:confirm,groups:groups,setAnchors:setAnchors,exclude:exclude,apply:apply,plan:plan,exportFile:exportFile,
+            selectableContours:selectableContours,addFromContours:addFromContours,nearbySupports:nearbySupports,setSupport:setSupport,makeKeys:makeKeys,reconcile:reconcile,confirm:confirm,groups:groups,setAnchors:setAnchors,exclude:exclude,apply:apply,plan:plan,exportFile:exportFile,
             physical:function(key){return physical(key,frame);},position:function(key,center,angle){position(key,center,angle,frame);},
             snapshot:function(){return copy(settings);},restore:function(snapshot){
                 settings=copy(snapshot);
+                Object.keys(original).forEach(function(id){if(original[id].manual)delete original[id];});
+                Object.keys(settings).forEach(function(id){if(settings[id].sourceContours){
+                    if(!/^new-\d+$/.test(id))throw Error('Invalid manually identified key.');
+                    original[id]=manualSource(id,settings[id].sourceContours);
+                }});
+                supportOwners();
                 // Older projects did not recognize every miscellaneous opening.
                 // Missing references stay fixed, rather than becoming deletions.
                 Object.keys(original).forEach(function(id){if(!settings[id])settings[id]={anchor:null,profile:null,excluded:true};});

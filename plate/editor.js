@@ -8,7 +8,7 @@
         var ui=scope.plate={workspace:workspace,model:null,error:'',notice:'',busy:false,paths:[],warnings:[],
             units:'mm',layer:'',layers:[],options:{switch:'original',stabilizer:'original',direction:'south',mount:'plate',
                 axis:'auto',switchRotation:0,extraSize:0,spacing:'',stemOffset:0},alpsFamily:'alps-default',
-            stabChoice:'original',pending:null};
+            stabChoice:'original',pending:null,shapeMode:false,pickedShapes:[],shapeKey:{name:'Custom key',width:1,height:1}};
         function guarded(fn) {
             try {ui.error='';fn();}catch(error){ui.error=error.message || String(error);}
         }
@@ -16,6 +16,8 @@
             if(!ui.model)return;
             guarded(function() {
                 var result=ui.model.plan(scope.keys());ui.warnings=result.warnings;
+                ui.selectableShapes=ui.model.selectableContours();
+                ui.pickedShapes=ui.pickedShapes.filter(function(id){return ui.selectableShapes.includes(id);});
                 ui.paths=result.paths.map(function(path,index) {
                     return {id:index,key:path.key,contour:path.contour,hitOnly:!!path.hitOnly,d:[path.points].concat(path.holes || []).map(function(ring){return ring.map(function(p,i){return (i?'L':'M')+p.x.toFixed(5)+' '+(-p.y).toFixed(5);}).join(' ')+(path.closed?' Z':'');}).join(' ')};
                 });
@@ -39,6 +41,7 @@
             var keyboard={meta:$serial.defaultMetaData(),keys:model.makeKeys($serial.defaultKeyProps)};
             keyboard.meta.name=name.replace(/\.dxf$/i,'')+' — inferred layout';
             ui.model=model;ui.document=document;ui.recognized=recognized;ui.layers=[...new Set(document.primitives.map(function(p){return p.layer;}))].sort();
+            ui.pickedShapes=[];ui.shapeMode=false;
             ui.layer=ui.importLayer=options?.layer || '';ui.pending=null;
             ui.units=document.units.override || (document.units.declaredFactor?'header':document.factor===25.4?'in':document.factor===10?'cm':'mm');
             var b=document.bounds,margin=5;
@@ -102,6 +105,23 @@
                 scope.unselectAll();scope.selectedKeys.push(key);scope.multi=angular.copy(key);
             });
             scope.calcKbHeight();ui.notice='Added '+preset.key.labels[0]+'. The raised area is centred on the stem; move the new key into position.';
+        });};
+        ui.toggleShapeMode=function(){ui.shapeMode=!ui.shapeMode;ui.pickedShapes=[];};
+        ui.selectPath=function(path,event){
+            if(!ui.shapeMode){select(path.key,event);return;}
+            event.preventDefault();event.stopPropagation();
+            if(!path.contour || !ui.selectableShapes.includes(path.contour))return;
+            var index=ui.pickedShapes.indexOf(path.contour);
+            if(index<0)ui.pickedShapes.push(path.contour);else ui.pickedShapes.splice(index,1);
+        };
+        ui.addSelectedShapes=function(){guarded(function(){
+            if(!ui.pickedShapes.length)throw Error('Select the switch opening first, then its additional supports.');
+            hooks.transaction('plate-identify-key',function(){
+                var key=ui.model.addFromContours(ui.pickedShapes,$serial.defaultKeyProps,Number(ui.shapeKey.width),Number(ui.shapeKey.height),ui.shapeKey.name);
+                scope.keys().push(key);hooks.renderKey(key);scope.unselectAll();scope.selectedKeys.push(key);scope.multi=angular.copy(key);
+            });
+            ui.pickedShapes=[];ui.shapeMode=false;scope.calcKbHeight();
+            ui.notice='Added key from the selected source openings. The first opening defines its centre; original cut geometry is preserved.';
         });};
         ui.includeSupport=function(candidate,include){guarded(function(){
             if(scope.selectedKeys.length!==1)throw Error('Select one key first.');

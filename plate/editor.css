@@ -56,3 +56,9 @@
 .plate-path.plate-support-candidate {stroke:#d47700;stroke-width:3;fill:rgba(212,119,0,.2);}
 .plate-support-list {max-height:230px;overflow:auto;}
 .plate-support-list>div {display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid #eee;font-size:12px;}
+
+.plate-shape-tools {display:flex;gap:10px;align-items:end;flex-wrap:wrap;padding:12px 0;}
+.plate-shape-tools p {flex-basis:100%;margin:0;}
+.plate-shape-tools label {max-width:180px;}
+.plate-path.plate-shape-available {stroke:#d47700;fill:rgba(212,119,0,.04);pointer-events:all;cursor:pointer;}
+.plate-path.plate-shape-picked {stroke:#06837e;stroke-width:3;fill:rgba(6,131,126,.22);}
