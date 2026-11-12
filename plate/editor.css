@@ -107,3 +107,7 @@
 .plate-open-dialog {background:#fff;border:1px solid #cbd1da;border-radius:8px;padding:24px;max-width:520px;box-shadow:0 8px 32px #0004;}
 .plate-open-dialog p {line-height:1.6;overflow-wrap:anywhere;}
 .plate-open-dialog .plate-buttons {justify-content:flex-end;}
+
+.plate-stab-hole{display:flex;gap:24px;align-items:flex-end;margin:10px 0}.plate-stab-hole>label{flex:1}.plate-stab-advanced{margin-top:14px}.plate-stab-advanced>summary{cursor:pointer;font-weight:600;padding:8px 0}.plate-stab-advanced .plate-stab-options{margin-top:10px}@media(max-width:540px){.plate-stab-hole{flex-wrap:wrap}.plate-stab-hole>label{min-width:100%}}
+
+.plate-stab-advanced>summary::before{content:"▸ ";}.plate-stab-advanced[open]>summary::before{content:"▾ ";}

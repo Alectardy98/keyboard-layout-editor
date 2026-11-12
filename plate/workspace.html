@@ -97,16 +97,20 @@
       <fieldset><legend>Stabilizers</legend>
         <div class="plate-stab-main">
         <p class="help-block plate-stab-note" ng-if="plate.detectedInfo &amp;&amp; !plate.detectedInfo.category &amp;&amp; plate.options.switch==='mx'">The switch is MX; this opening does not identify PCB or plate mounting. The category below chooses a replacement.</p>
-        <label>Category <select class="form-control" ng-model="plate.stabCategory" ng-change="plate.changeStabCategory()" aria-label="Stabilizer style"><option ng-repeat="g in plate.stabCategories" value="{{g.id}}">{{g.label}}</option></select></label>
+        <label>Category <select class="form-control" ng-model="plate.stabFamily" ng-change="plate.changeStabFamily()" aria-label="Stabilizer category"><option value="alps">Alps</option><option value="mx">MX</option><option value="topre">Topre</option></select></label>
         <label>Action <select class="form-control" ng-model="plate.stabAction" ng-change="plate.changeStabAction()" aria-label="Stabilizer action"><option value="original">Keep imported — unrecognized supports</option><option value="replace">Replace with selected pattern</option><option value="none">None — no stabilizers / remove supports</option></select></label>
         <p class="help-block plate-stab-note" ng-if="plate.isIntegratedPattern(plate.stabChoice)">This measured compatibility pattern includes joined opening geometry. Its cutouts stay together around the switch centre.</p>
-        <label ng-if="plate.stabAction==='replace'">Pattern <select class="form-control" ng-model="plate.stabChoice" ng-change="plate.changeStabPattern()" ng-options="p.id as p.label for p in plate.stabPatterns()" aria-label="Stabilizer pattern"></select></label>
+        <label>Type <select class="form-control" ng-model="plate.stabCategory" ng-change="plate.changeStabCategory()" ng-options="t.id as t.label for t in plate.stabTypes()" aria-label="Stabilizer type"></select></label>
         </div>
+        <div class="plate-stab-hole" ng-if="plate.stabAction==='replace'">
+          <label>Hole <select class="form-control" ng-model="plate.stabChoice" ng-change="plate.changeStabPattern()" ng-options="p.id as p.label for p in plate.stabPatterns()" aria-label="Stabilizer hole"></select></label>
+          <div class="plate-stab-orientation"><label class="plate-block">Orientation</label>
+            <div class="plate-buttons" role="group" aria-label="Stabilizer orientation"><button class="btn btn-default" ng-class="{active:plate.holeDirection()==='north'}" ng-attr-aria-pressed="{{plate.holeDirection()==='north'}}" ng-click="plate.flipHole('north')">North</button><button class="btn btn-default" ng-class="{active:plate.holeDirection()==='south'}" ng-attr-aria-pressed="{{plate.holeDirection()==='south'}}" ng-click="plate.flipHole('south')">South</button></div>
+          </div>
+        </div>
+        <details class="plate-stab-advanced" ng-if="plate.stabAction==='replace' &amp;&amp; !plate.isIntegratedPattern(plate.stabChoice)"><summary>Advanced</summary>
         <div class="plate-stab-options" ng-if="plate.stabAction==='replace' &amp;&amp; !plate.isIntegratedPattern(plate.stabChoice)">
           <div ng-if="plate.stabChoice==='alps-default' || plate.stabChoice==='alps-aek' || plate.stabChoice==='alps-at101'" class="plate-pair"><label>Slot width (mm)<input type="number" class="form-control" min="1" max="10" step="0.01" ng-model="plate.options.slotWidth" placeholder="Family preset"></label><label>Slot height (mm)<input type="number" class="form-control" min="1" max="20" step="0.01" ng-model="plate.options.slotHeight" placeholder="Family preset"></label><label>Slot Y offset (mm)<input type="number" class="form-control" min="-30" max="30" step="0.01" ng-model="plate.options.slotOffset" placeholder="Family preset"></label></div>
-          <div class="plate-stab-orientation"><label class="plate-block">Orientation</label>
-          <div class="plate-buttons" role="group" aria-label="Stabilizer orientation"><button class="btn btn-default" ng-class="{active:plate.options.direction==='north'}" ng-attr-aria-pressed="{{plate.options.direction==='north'}}" ng-click="plate.options.direction='north'">North</button><button class="btn btn-default" ng-class="{active:plate.options.direction==='south'}" ng-attr-aria-pressed="{{plate.options.direction==='south'}}" ng-click="plate.options.direction='south'">South</button></div></div>
-
           <div class="plate-stab-mx" ng-if="plate.stabChoice==='mx'">
             <label ng-if="plate.options.mount==='plate'">Clip-in template<select class="form-control" ng-model="plate.options.mxPattern"><option value="cherry">Cherry nominal — short/long wire clearance</option><option value="legacy">Earlier editor template (saved-project compatibility)</option></select></label>
             <div ng-if="plate.options.mount==='pcb'" class="plate-pair plate-stab-dimensions">
@@ -122,6 +126,7 @@
           <div class="plate-pair"><label>Stem offset (mm)<input type="number" class="form-control" ng-model="plate.options.stemOffset" min="-100" max="100" step="0.01"></label><label class="plate-force"><input type="checkbox" ng-model="plate.options.forceStabilizer"> Force on short key</label></div>
           <p class="help-block">North/South is relative to the key. Native Alps presets start at 1.75u; MX/Costar at 2u. Unusual caps need measured spacing. PCB mount requires compatible PCB support.</p>
         </div>
+        </details>
       </fieldset>
       <p class="help-block" ng-if="plate.patternChanged &amp;&amp; plate.stabAction==='replace'">Manual override: Apply fits size-specific patterns to their named keycap size, keeping the switch centre fixed. Joined patterns also replace the switch opening. Check for overlap with nearby keys and plate edges.</p>
       <p class="alert alert-danger" role="alert" ng-if="plate.error">{{plate.error}}</p>

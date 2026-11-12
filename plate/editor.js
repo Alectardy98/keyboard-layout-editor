@@ -102,10 +102,24 @@
             guarded(function(){var d=ui.model.document;load(D.exportBytes(d),d.name,{units:ui.units,layer:ui.layer});});
         };
         ui.stabCategories=root.PlateProfiles?.stabilizerCategories || [];
-        ui.stabCategory='alps';ui.stabAction='original';
-        ui.stabPatterns=function(){return ui.stabCategories.find(function(g){return g.id===ui.stabCategory;}).patterns;};
+        ui.stabCategory='alps';ui.stabFamily='alps';ui.stabAction='original';
+        var stabTypeLists={mx:[{id:'mx-pcb',label:'PCB mount'},{id:'mx-plate',label:'Plate mount'}],alps:[{id:'alps',label:'Alps default'}],topre:[{id:'topre',label:'Topre'}]};
+        ui.stabTypes=function(){return stabTypeLists[ui.stabFamily];};
+        ui.changeStabFamily=function(){ui.stabCategory=ui.stabTypes()[0].id;ui.changeStabCategory();};
+        ui.flipHole=function(direction){ui.options.holeOrientation=direction;ui.options.direction='south';};
+        ui.holeDirection=function(){return ui.options.holeOrientation || ui.options.direction || 'south';};
+        var holeLists={},legacyAlpsHoles={'alps-aek':{id:'alps-aek',label:'2u'},'alps-at101':{id:'alps-at101',label:'2u'}};
+        ui.stabCategories.forEach(function(g){holeLists[g.id]=g.patterns.filter(function(p){return !['alps-aek','alps-at101'].includes(p.id);}).map(function(p){
+            return {id:p.id,label:p.id==='alps-default'?'2u':p.id==='mx'?(g.id==='mx-pcb'?'PCB mount 2u':'Plate mount 2u'):p.label};
+        });});
+        ui.stabPatterns=function(){
+            var list=holeLists[ui.stabCategory];
+            return ui.stabCategory==='alps' && legacyAlpsHoles[ui.stabChoice]?[legacyAlpsHoles[ui.stabChoice]].concat(list.slice(1)):list;
+        };
         ui.changeStabCategory=function(){
-            ui.stabAction='replace';ui.stabChoice=ui.stabPatterns()[0].id;ui.options.components=true;
+            root.document.querySelector('.plate-stab-advanced')?.removeAttribute('open');
+            ui.stabFamily=ui.stabCategory.indexOf('mx-')===0?'mx':ui.stabCategory;
+            ui.stabAction='replace';ui.stabChoice='';ui.stabChoice=ui.stabPatterns()[0].id;ui.options.components=true;
             if(ui.stabCategory.indexOf('mx-')===0)ui.options.mount=ui.stabCategory==='mx-pcb'?'pcb':'plate';
             ui.changeStabPattern();
         };
@@ -115,14 +129,16 @@
             ['spacing','slotWidth','slotHeight','slotOffset','pcbWidth','pcbHeight','pcbOffset','pcbRadius'].forEach(function(k){delete ui.options[k];});
             ui.options.axis='auto';ui.options.stemOffset=0;ui.options.forceStabilizer=false;
             ui.options.mxPattern='cherry';
+            ui.options.fitStandardHole=['mx','alps-default','alps-aek','alps-at101'].includes(ui.stabChoice);
         };
         ui.changeStabAction=function(){if(ui.stabAction==='replace')ui.changeStabCategory();else ui.stabChoice=ui.stabAction;};
         function syncStabCategory(){
             ui.stabAction=['original','none'].includes(ui.stabChoice)?ui.stabChoice:'replace';
-            if(ui.stabAction!=='replace'){if(ui.detectedInfo?.category)ui.stabCategory=ui.detectedInfo.category;return;}
+            if(ui.stabAction!=='replace'){if(ui.detectedInfo?.category)ui.stabCategory=ui.detectedInfo.category;ui.stabFamily=ui.stabCategory.indexOf('mx-')===0?'mx':ui.stabCategory;return;}
             var group=ui.stabChoice==='mx'?ui.stabCategories.find(function(g){return g.id==='mx-'+(ui.options.mount||'plate');}):
                 ui.stabCategories.find(function(g){return g.patterns.some(function(p){return p.id===ui.stabChoice;});});
             if(group)ui.stabCategory=group.id;
+            ui.stabFamily=ui.stabCategory.indexOf('mx-')===0?'mx':ui.stabCategory;
         }
         ui.isIntegratedPattern=function(id){return !!root.PlateProfiles?.isIntegratedPattern(id);};
         ui.presets=root.PlateProfiles?.presets || [];

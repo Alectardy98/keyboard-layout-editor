@@ -63,6 +63,7 @@
         return polygon(points);
     }
     function stabilizers(options,key) {
+        if(options.holeOrientation==='north')return place(stabilizers(Object.assign({},options,{holeOrientation:'south',direction:'south'}),key),{x:0,y:0},Math.PI);
         if(options.components)return stabilizers(geometryOptions(options),key);
         var style=options.stabilizer || 'original';
         var family=Families.find(function(f){return f.id===style;});
@@ -179,6 +180,7 @@
         return union(parts);
     }
     function switchShape(options) {
+        if(options.holeOrientation==='north')return place([switchShape(Object.assign({},options,{holeOrientation:'south',direction:'south'}))],{x:0,y:0},Math.PI)[0];
         if(options.components)return switchShape(geometryOptions(options));
         if(options.switch==='topre')return polygon(Families.find(function(f){return f.id==='topre-1';}).parts[0]);
         var family=Families.find(function(f){return f.id===options.switch;});
@@ -320,6 +322,7 @@
         var o=componentOptions(input),id=o.stabilizer,cap=null;
         var aliases={'alps-barrel625':'alps-625-barrels','mx-wide2':'mx-compat-2','mx-wide225':'mx-compat-2.25'};
         if(!['original','none','mx','costar','alps-default','alps-aek','alps-at101'].includes(id))cap=preset(aliases[id] || id).key;
+        if(o.fitStandardHole && ['mx','alps-default','alps-aek','alps-at101'].includes(id))cap={width:2,height:1,width2:2,height2:1};
         var f=family(id),p=integratedPatterns[id];
         // Joined templates contain their own switch opening. Choosing one
         // explicitly converts that opening, rather than failing on the old type.
