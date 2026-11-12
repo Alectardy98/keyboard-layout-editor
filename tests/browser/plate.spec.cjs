@@ -116,6 +116,8 @@ test('probable shared keys require selectable confirmation and support undo',asy
  await expect(page.locator('#keyboard .keycap')).toHaveCount(2);
  const confirm=page.getByRole('button',{name:'Confirm recovered geometry',exact:true});
  await expect(confirm).toBeDisabled();await page.locator('.plate-switch').first().click();await expect(confirm).toBeEnabled();
+ await expect(page.locator('.plate-hit-area').first()).toHaveCSS('stroke','none');
+ await expect(page.locator('.plate-hit-area').first()).toHaveCSS('fill-rule','evenodd');
  await confirm.click();await expect(confirm).toBeDisabled();
  expect(await page.evaluate(()=>{const s=angular.element(document.body).scope();return s.plate.model.settings[s.selectedKeys[0]._plateId].confirmed;})).toBe(true);
  await page.getByRole('button',{name:/Undo$/}).click();
