@@ -54,6 +54,11 @@
         var vertical=options.axis==='vertical' || (options.axis!=='horizontal' && key.height>key.width);
         var size=vertical?key.height:key.width,minSize=style.startsWith('alps')?1.75:2;
         if(size<minSize && !options.forceStabilizer) return [];
+        if(style==='alps-canon8' || style==='alps-canon-vertical2') {
+            var upright=style==='alps-canon-vertical2';
+            if(key.width!==(upright?1:8) || key.height!==(upright?2:1))throw Error('This Canon pattern requires its original key dimensions.');
+            return place((upright?Measured.canonVertical2:Measured.canon8).map(polygon),{x:0,y:0},options.direction==='north'?Math.PI:0);
+        }
         if(style==='alps-barrel625') {
             if(size!==6.25)throw Error('The twin-barrel pattern requires a 6.25u key.');
             return place(Measured.space625Barrels.map(polygon),{x:0,y:0},(vertical?Math.PI/2:0)+(options.direction==='north'?Math.PI:0));
@@ -142,6 +147,8 @@
         {id:'alps-2',label:'2u — stabilizers',width:2,stabs:true},
         {id:'alps-225',label:'2.25u — stabilizers',width:2.25,stabs:true},
         {id:'alps-zkb2',label:'ZKB2 Enter',width:2.25,zkb2:true,stabs:true},
+        {id:'alps-canon8',label:'8u — Canon complete supports',width:8,canon:'alps-canon8'},
+        {id:'alps-canon-vertical2',label:'cannon vertical 2u',width:1,height:2,canon:'alps-canon-vertical2'},
         {id:'alps-625-barrels',label:'6.25u — two barrel stabilizers',width:6.25,barrels:true,stabs:true},
         {id:'alps-55',label:'5.5u — complete spacebar supports',width:5.5,stabs:true}
     ];
@@ -149,9 +156,9 @@
         var p=presets.find(function(p){return p.id===id;});
         if(id==='ec11')p={label:'EC11',width:1};
         if(!p)throw Error('Unknown key preset.');
-        return {key:{width:p.width,width2:p.zkb2?1:p.full || p.width,height:1,height2:p.zkb2?2:1,
+        return {key:{width:p.width,width2:p.zkb2?1:p.full || p.width,height:p.height || 1,height2:p.zkb2?2:p.height || 1,
             x2:p.zkb2?1.25:p.left?p.width-p.full:0,y2:p.zkb2?-1:0,stepped:!!p.full,labels:[p.label]},
-            options:{switch:id==='ec11'?'ec11':'alps',stabilizer:p.barrels?'alps-barrel625':p.zkb2?'alps-zkb2':p.stabs?'alps-default':'none',direction:'south'}};
+            options:{switch:id==='ec11'?'ec11':'alps',switchRotation:p.height===2?90:0,stabilizer:p.canon || (p.barrels?'alps-barrel625':p.zkb2?'alps-zkb2':p.stabs?'alps-default':'none'),direction:'south'}};
     }
     return {presets:presets,preset:preset,switches:switches,spacing:spacing,stabilizers:stabilizers,switchShape:switchShape,generate:generate,
         polygon:polygon,rings:rings,union:union,place:place,clip:clip};

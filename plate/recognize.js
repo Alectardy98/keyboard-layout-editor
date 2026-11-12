@@ -207,6 +207,19 @@
                 return true;
             });
         });
+        // Canon assemblies require every measured slot and barrel opening.
+        // Relief slots and plate mounting holes are deliberately not claimed.
+        [{pattern:Measured.canon8,width:8,height:1,label:'8u',family:'alps-canon8'},
+         {pattern:Measured.canonVertical2,width:1,height:2,label:'cannon vertical 2u',family:'alps-canon-vertical2'}].forEach(function(preset){
+            keys.filter(function(k){return k.type==='alps';}).forEach(function(key){
+                var parts=preset.pattern.map(function(pattern){return small.find(function(c){
+                    return matches(c.points,pattern,key.center,key.capAngle);
+                });});
+                if(parts.some(function(c){return !c || keys.some(function(other){return other!==key && other.stabilizers.includes(c);});}))return;
+                key.stabilizers=parts;key.width=preset.width;key.height=preset.height;key.label=preset.label;
+                key.detectedStabilizer={family:preset.family,vertical:preset.height>preset.width};
+            });
+        });
         // FC660M 6.25u: two complete barrel assemblies plus the wire slots.
         // Match the whole pattern; do not absorb isolated mounting circles.
         keys.filter(function(k){return k.type==='alps';}).forEach(function(key){
