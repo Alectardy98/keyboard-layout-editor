@@ -255,7 +255,7 @@ test('separate MX menus and Topre presets retain complete geometry through proje
  const state=await page.evaluate(()=>{const s=angular.element(document.body).scope(),k=s.selectedKeys[0];return {width:k.width,profile:s.plate.model.settings[k._plateId].profile.options};});
  expect(state.width).toBe(7);expect(state.profile.switch).toBe('topre-7');
  const save=page.waitForEvent('download');await page.getByRole('button',{name:'Save plate project',exact:true}).click();const file=await(await save).path(),data=fs.readFileSync(file);
- expect(JSON.parse(data).recognitionVersion).toBe(7);
+ expect(JSON.parse(data).recognitionVersion).toBe(8);
  await page.reload();const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open plate project',exact:true}).click();await(await chooser).setFiles({name:'topre.plate.json',mimeType:'application/json',buffer:data});
  await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Download edited DXF'}).click();
@@ -278,4 +278,19 @@ test('ambiguous geometry has selectable review flags without changing source cut
  await summary.locator('button').first().click();
  expect(await page.evaluate(()=>{const s=angular.element(document.body).scope();return s.selectedKeys.length+s.plate.pickedShapes.length;})).toBeGreaterThan(0);
  const pending=page.waitForEvent('download');await page.getByRole('button',{name:'Download edited DXF'}).click();expect(fs.readFileSync(await(await pending).path())).toEqual(Buffer.from(source));
+});
+test('two-cap compatibility assembly survives project reload and moves together in KLE',async({page})=>{
+ const {makePcbFixture}=require('../../spec/plate-fixture.cjs');
+ await page.goto('plate.html');const choose=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open DXF plate',exact:true}).click();await(await choose).setFiles({name:'pair.dxf',mimeType:'application/dxf',buffer:Buffer.from(makePcbFixture())});
+ await expect(page.locator('#keyboard .keycap')).toHaveCount(8);
+ const saved=page.waitForEvent('download');await page.getByRole('button',{name:'Save plate project',exact:true}).click();const bytes=fs.readFileSync(await(await saved).path());
+ await page.reload();const reload=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open plate project',exact:true}).click();await(await reload).setFiles({name:'pair.plate.json',mimeType:'application/json',buffer:bytes});
+ await expect(page.locator('#keyboard .keycap')).toHaveCount(8);
+ const moved=await page.evaluate(()=>{const s=angular.element(document.body).scope();return s.$apply(()=>{
+  const ids=s.plate.recognized.keys.filter(k=>k.assembly).map(k=>k.id),pair=s.keys().filter(k=>ids.includes(k._plateId));
+  s.plate.model.setAnchors(pair,false);s.selectedKeys=[pair[0]];const before=pair.map(k=>k.x);
+  s.moveKeys(.25,0,{preventDefault(){},stopPropagation(){}});
+  return {widths:pair.map(k=>k.width).sort((a,b)=>a-b),delta:pair.map((k,i)=>k.x-before[i]),error:s.plate.error};
+ });});
+ expect(moved.widths).toEqual([1.25,6.25]);for(const delta of moved.delta)expect(delta).toBeCloseTo(.25,6);expect(moved.error).toBe('');
 });
