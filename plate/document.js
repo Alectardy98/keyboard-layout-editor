@@ -101,7 +101,7 @@
             assemblies.forEach(function(group){
                 var previous=group.ids.map(function(id){return old.get(id);});if(previous.some(function(k){return !k;}))return;
                 var current=group.ids.map(function(id){return after.find(function(k){return k._plateId===id;});});
-                var fixed=group.ids.some(function(id){return settings[id].anchor||settings[id].excluded;});
+                var fixed=group.ids.some(function(id){return settings[id].anchor||settings[id].excluded||!original[id].editable;});
                 if(current.some(function(k){return !k;})){
                     if(fixed){previous.forEach(function(k,i){if(!current[i])after.push(copy(k));});blocked++;}
                     else for(var i=after.length-1;i>=0;i--)if(group.ids.includes(after[i]._plateId))after.splice(i,1);

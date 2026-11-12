@@ -24,6 +24,29 @@
                 if(row[0]){var w=2*Math.abs(row[0].center.x-cx)/pitch-1;[2,2.25,2.75].forEach(function(n){if(near(n,w,.015))sizes.push(n);});}}
             return new Set(sizes).size===1?sizes[0]:null;
         }
+        if(!options.legacyRoundedPcb){
+            // Rounded spline corners may fragment the straight-edge detector.
+            // Match the complete 14mm boundary before treating them as MX.
+            keys.forEach(function(k){
+                if(k.type!=='unknown'||k.recovered||k.contours.length!==1)return;
+                var c=k.contours[0],b=bounds.get(c);
+                if(near(b.width,14,.08)&&near(b.height,14,.08)&&fit(c,G.rectangle(14,14,{x:b.cx,y:b.cy}))){
+                    k.type='mx';k.center={x:b.cx,y:b.cy};k.capAngle=k.holeAngle=0;
+                }
+            });
+            // A row-leading modifier must agree with the alpha pitch and the
+            // left edge established by several other rows. Cuts remain fixed.
+            var mx=keys.filter(function(k){return k.type==='mx'&&k.width===1&&k.height===1;});
+            mx.forEach(function(k){
+                var row=mx.filter(function(n){return near(n.center.y,k.center.y,.15);}).sort(function(a,b){return a.center.x-b.center.x;});
+                if(row[0]!==k||row.length<4)return;
+                var w=2*(row[1].center.x-k.center.x)/pitch-1;
+                var size=[1.25,1.5,1.75].find(function(n){return near(n,w,.015);});if(!size)return;
+                var edge=k.center.x-size*pitch/2;
+                if(keys.filter(function(n){return n.type==='mx'&&n.height===1&&!near(n.center.y,k.center.y,.15)&&near(n.center.x-n.width*pitch/2,edge,.2);}).length<2)return;
+                k.width=size;
+            });
+        }
         // Horizontal windows share a 14mm band and two PCB slots. Fit the
         // complete union, including fillet allowance, not merely its bounds.
         doc.contours.forEach(function(c){var b=bounds.get(c);if(!free(c)||b.width<30||b.width>49||b.height<15||b.height>22)return;
@@ -118,6 +141,33 @@
             left.forEach(function(k){var z=bounds.get(k.contours[0]);Object.assign(k,{type:'mx',width:1.25,center:{x:z.cx-1.190625,y:cy},capAngle:0,holeAngle:0,label:'mx bottom row 1.25'});});
             right.forEach(function(k){var z=bounds.get(k.contours[0]);Object.assign(k,{type:'mx',width:1.25,center:{x:z.cx+1.190625,y:cy},capAngle:0,holeAngle:0,label:'mx bottom row 1.25'});});
         });
+        if(!options.legacyRoundedPcb){
+            // A previously recognized 6.25u assembly can have only one right
+            // modifier rather than a full three-key run. Its notched companion
+            // supplies the alternate 7u support; do not require it to have
+            // already passed the plain-switch detector.
+            keys.slice().filter(function(k){return k.type==='mx'&&k.width===6.25&&!k.assembly&&k.contours.length===1&&k.stabilizers.length===2;}).forEach(function(space){
+                var b=bounds.get(space.contours[0]),cx=space.center.x,cy=space.center.y;
+                if(!near(b.width,25.90625,.15)||!near(b.height,14,.15))return;
+                var sx=cx+3.75*pitch;
+                var candidates=doc.contours.filter(function(c){var q=bounds.get(c);return owned(c).length===0&&(!options.layer||c.parts.every(function(p){return p.layer===options.layer;}))&&near(q.cx,sx,.25)&&near(q.width,14,.08)&&q.height>=15&&q.height<=18&&near(q.minY,cy-7,.08);});
+                candidates=candidates.filter(function(c){var q=bounds.get(c),extra=q.height-14,rings=P.rings(P.union([rect(14,14,q.cx,cy),rect(7,extra+1,q.cx-2.38125,cy+7+(extra-1)/2)]));return rings.length===1&&fit(c,rings[0]);});
+                if(candidates.length!==1)return;
+                var neighbours=[-6.25,-5,-3.75,5].map(function(n){return keys.find(function(k){
+                    if(k===space||k.contours.length!==1||k.recovered)return false;var q=bounds.get(k.contours[0]);
+                    return near(q.width,16.38125,.15)&&near(q.height,14,.15)&&near(q.cy,cy,.08)&&near(q.cx+(n<0?-1.190625:1.190625),cx+n*pitch,.4)&&fit(k.contours[0],G.rectangle(q.width,q.height,{x:q.cx,y:q.cy}));
+                });});
+                if(neighbours.some(function(k){return !k;}))return;
+                var positions=[-6.25,-5,-3.75,5].map(function(n){return {x:cx+n*pitch,y:cy};});
+                var proposed=neighbours.map(function(k,i){return Object.assign({},k,{width:1.25,center:positions[i]});});
+                proposed.push(Object.assign({},space),{width:1.25,height:1,capAngle:0,center:{x:sx,y:cy}});
+                var remaining=keys.filter(function(k){return k!==space&&!neighbours.includes(k)&&!F.incompleteMxCandidate(k);});
+                if(proposed.some(function(k,i){return remaining.concat(proposed.slice(i+1)).some(function(n){return F.capPolygons(k).some(function(a){return F.capPolygons(n).some(function(b){return F.intersects(a,b);});});});}))return;
+                var companion=claim(candidates[0],{x:sx,y:cy},1.25,'1.25u / 7u support');
+                space.assembly=companion.assembly='pcb-space-'+space.id;space.label='PCB mount 6.25u and 7u';
+                neighbours.forEach(function(k,i){k.width=1.25;k.center=positions[i];});
+            });
+        }
         // Ordinary 7u spacebar: tall support slots at the standard wire span.
         // Wide decorative/flex windows between them are never claimed.
         keys.slice().filter(function(k){return k.type==='mx'&&k.width===1&&k.height===1&&!k.stabilizers.length&&!k.family;}).forEach(function(k){
