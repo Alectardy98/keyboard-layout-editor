@@ -71,15 +71,6 @@
       <ul class="plate-warnings" ng-if="plate.warnings.length"><li ng-repeat="warning in plate.warnings track by $index">{{warning}}</li></ul>
     </section>
     <section class="plate-controls" aria-label="Plate cutout controls">
-      <fieldset><legend>Switch opening</legend>
-        <p class="text-warning" ng-if="plate.mixedProfiles">Mixed selection. Apply uses the options shown below.</p>
-        <label>Switch type <select class="form-control" ng-model="plate.options.switch" aria-label="Switch profile"><option value="original">Keep imported — unrecognized opening</option><option value="mx">MX — 14 × 14 mm</option><option value="alps">Alps — 15.5 × 12.8 mm</option><option value="topre">Topre housing</option><option value="universal">MX + Alps shared opening</option><option value="ec11">EC11 — Zenith clearance</option><option value="custom">Custom rectangle</option></select></label>
-        <p class="help-block">Recognized keys populate the switch type and stabilizer pattern separately. Joined compatibility openings belong to the stabilizer pattern. Selection alone keeps the original geometry.</p>
-        <p class="text-warning" ng-if="plate.detectedInfo.unrecognized">Some geometry is unrecognized. Keep imported preserves those openings until you choose a replacement.</p>
-        <div class="plate-pair" ng-if="plate.options.switch==='custom'"><label>Width (mm)<input type="number" class="form-control" ng-model="plate.options.customWidth" min="5" max="30" step="0.01"></label><label>Height (mm)<input type="number" class="form-control" ng-model="plate.options.customHeight" min="5" max="30" step="0.01"></label></div>
-        <div class="plate-pair" ng-if="(plate.options.switch==='mx' || plate.options.switch==='alps' || plate.options.switch==='universal' || plate.options.switch==='custom') &amp;&amp; !plate.isIntegratedPattern(plate.stabChoice)"><label>Switch rotation <select class="form-control" ng-model="plate.options.switchRotation" ng-options="v as (v+'°') for v in [0,90,180,270]"></select></label><label>Extra size (mm)<input type="number" class="form-control" ng-model="plate.options.extraSize" min="0" max="1" step="0.01"></label></div>
-        <label ng-if="!plate.isIntegratedPattern(plate.stabChoice) &amp;&amp; (plate.options.switch==='mx' || plate.options.switch==='alps' || plate.options.switch==='custom')">Switch corner radius (mm)<input class="form-control" type="number" min="0" max="0.5" step="0.05" ng-model="plate.options.switchRadius" placeholder="0"></label>
-      </fieldset>
       <fieldset ng-if="plate.supportCandidates.length">
         <legend>Nearby support openings</legend>
         <p class="help-block">Possible stabilizers, not confirmed matches. Hover to highlight and inspect each opening before including it. Mounting holes should stay fixed.</p>
@@ -102,6 +93,19 @@
       </fieldset>
     </section>
   </div>
+  <section class="plate-stabilizers plate-switch-opening" ng-if="plate.model" aria-label="Switch opening controls">
+      <fieldset><legend>Switch opening</legend>
+        <div class="plate-switch-fields">
+        <p class="text-warning" ng-if="plate.mixedProfiles">Mixed selection. Apply uses the options shown below.</p>
+        <label>Switch type <select class="form-control" ng-model="plate.options.switch" aria-label="Switch profile"><option value="original">Keep imported — unrecognized opening</option><option value="mx">MX — 14 × 14 mm</option><option value="alps">Alps — 15.5 × 12.8 mm</option><option value="topre">Topre housing</option><option value="universal">MX + Alps shared opening</option><option value="ec11">EC11 — Zenith clearance</option><option value="custom">Custom rectangle</option></select></label>
+        <p class="help-block">Recognized keys populate the switch type and stabilizer pattern separately. Joined compatibility openings belong to the stabilizer pattern. Selection alone keeps the original geometry.</p>
+        <p class="text-warning" ng-if="plate.detectedInfo.unrecognized">Some geometry is unrecognized. Keep imported preserves those openings until you choose a replacement.</p>
+        <div class="plate-pair" ng-if="plate.options.switch==='custom'"><label>Width (mm)<input type="number" class="form-control" ng-model="plate.options.customWidth" min="5" max="30" step="0.01"></label><label>Height (mm)<input type="number" class="form-control" ng-model="plate.options.customHeight" min="5" max="30" step="0.01"></label></div>
+        <div class="plate-pair" ng-if="(plate.options.switch==='mx' || plate.options.switch==='alps' || plate.options.switch==='universal' || plate.options.switch==='custom') &amp;&amp; !plate.isIntegratedPattern(plate.stabChoice)"><label>Switch rotation <select class="form-control" ng-model="plate.options.switchRotation" ng-options="v as (v+'°') for v in [0,90,180,270]"></select></label><label>Extra size (mm)<input type="number" class="form-control" ng-model="plate.options.extraSize" min="0" max="1" step="0.01"></label></div>
+        <label ng-if="!plate.isIntegratedPattern(plate.stabChoice) &amp;&amp; (plate.options.switch==='mx' || plate.options.switch==='alps' || plate.options.switch==='custom')">Switch corner radius (mm)<input class="form-control" type="number" min="0" max="0.5" step="0.05" ng-model="plate.options.switchRadius" placeholder="0"></label>
+        </div>
+      </fieldset>
+  </section>
   <section class="plate-stabilizers" ng-if="plate.model" aria-label="Stabilizer controls">
       <fieldset><legend>Stabilizers</legend>
         <div class="plate-stab-main">
