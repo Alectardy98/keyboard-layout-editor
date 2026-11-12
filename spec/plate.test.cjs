@@ -143,8 +143,8 @@ test('malformed, oversized, binary and overlapping DXF edits fail before produci
 });
 
 test('Alps preset sizes, stepped stems and complete Zenith spacebar supports',()=>{
- assert.equal(P.presets.length,17);
- for(const item of P.presets){const p=P.preset(item.id);assert.equal(p.key.width*4%1,0);assert.ok(P.generate(p.options,p.key).length);if(p.key.width>=2)assert.ok(['alps-default','alps-bae','alps-zkb2','alps-barrel625','alps-canon8'].includes(p.options.stabilizer));}
+ assert.equal(P.presets.length,20);
+ for(const item of P.presets){const p=P.preset(item.id);assert.equal(p.key.width*4%1,0);assert.ok(P.generate(p.options,p.key).length);if(p.key.width>=2)assert.ok(['alps-default','alps-975-barrel','alps-bae','alps-zkb2','alps-barrel625','alps-canon8'].includes(p.options.stabilizer));}
  const left=P.preset('alps-15-left').key,right=P.preset('alps-15-right').key;
  assert.equal(left.width,1);assert.equal(left.width2,1.5);assert.equal(left.x2,-.5);assert.equal(right.x2,0);
  assert.equal(P.generate(P.preset('alps-55').options,{width:5.5,height:1}).length,8);
@@ -250,4 +250,30 @@ test('BAE owns the right barrel, leaves the left mounting hole fixed and matches
  const deleted=D.parse(p.m.exportFile(p.keys.filter(k=>k!==key)),'deleted');assert.ok(deleted.source.includes(raw));
  const partial=plate(D.exportBytes(base.d,[],rings.slice(0,-1).concat([mount]).map(points=>({points}))));
  assert.equal(partial.r.keys.some(k=>k.label==='BAE'),false);
+});
+test('DC2014 spacebar and Z150 Enter own their complete barrel assemblies',()=>{
+ for(const [id,label,count] of [['alps-975-barrel','9.75u',5],['alps-z150','Z150 Enter',7]]){
+  const base=plate(),preset=P.preset(id),center={x:240,y:-100};
+  const rings=P.rings(P.place(P.generate(preset.options,preset.key),center,0));
+  const bytes=D.exportBytes(base.d,[],rings.map(points=>({points}))),p=plate(bytes);
+  const source=p.r.keys.find(k=>k.label===label);assert.ok(source,label);assert.equal(source.stabilizers.length,count);
+  const key=p.keys.find(k=>k._plateId===source.id);
+  if(id==='alps-z150')assert.deepEqual([key.width,key.height,key.width2,key.height2,key.x2,key.y2],[1,2,2,1,-1,1]);
+  else assert.equal(key.width,9.75);
+  assert.deepEqual(Buffer.from(p.m.exportFile(p.keys)),Buffer.from(bytes));
+  key.x+=1;const moved=R.analyze(D.parse(p.m.exportFile(p.keys),'moved')).keys.find(k=>k.label===label);
+  near(moved.center.x,259.05);assert.equal(moved.stabilizers.length,count);
+  const owned=new Set(source.contours.concat(source.stabilizers).flatMap(c=>c.parts.map(p=>p.raw.id)));
+  const edits=p.m.plan(p.keys.filter(k=>k!==key)).edits;assert.equal(edits.filter(e=>owned.has(e.record.id)).length,owned.size);
+  const partial=plate(D.exportBytes(base.d,[],rings.slice(0,-1).map(points=>({points}))));
+  assert.equal(partial.r.keys.some(k=>k.label===label),false);
+ }
+});
+test('neighbour clearance distinguishes 1u vertical cap from 1.25u with identical slots',()=>{
+ const base=plate(),preset=P.preset('alps-vertical2');
+ const rings=P.rings(P.place(P.generate(preset.options,preset.key),{x:150,y:-100},0));
+ // A 1u neighbour exactly one pitch to the left intersects the taller cap's rows.
+ rings.push(G.rectangle(15.5,12.8,{x:130.95,y:-109.525}));
+ const p=plate(D.exportBytes(base.d,[],rings.map(points=>({points}))));
+ const key=p.r.keys.find(k=>Math.abs(k.center.x-150)<.01);assert.equal(key.width,1);assert.equal(key.height,2);assert.equal(key.label,'vertical 2u');
 });
