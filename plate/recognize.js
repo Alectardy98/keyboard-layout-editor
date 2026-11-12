@@ -187,7 +187,7 @@
             pair.key.stabilizers=pair.parts;
             pair.key.detectedStabilizer={family:pair.family,spacing:pair.span,vertical:!!pair.axis,
                 direction:pair.offsetY>0?'north':'south'};
-            var guesses=pair.family==='alps'?[[24,1.75],[28,2],[41,2.75],[83.72,6.25],[90.6,6.5]]:
+            var guesses=pair.family==='alps'?[[23,1.75],[24,1.75],[28,2],[41,2.75],[83.72,6.25],[90.6,6.5]]:
                 [[23.8,2],[38.1,3],[95.25,6],[100,6.25],[114.3,7],[133.35,8]];
             var nearest=guesses.slice().sort(function(a,b){return Math.abs(a[0]-pair.span)-Math.abs(b[0]-pair.span);})[0];
             var length=Math.abs(nearest[0]-pair.span)<0.6?nearest[1]:Math.max(2,Math.round((pair.span/19.05+1)*4)/4);
