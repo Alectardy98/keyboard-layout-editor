@@ -685,3 +685,35 @@ smaller screens. The inferred KLE remains below the drawing controls.
 Choosing a stabilizer category or pattern starts an explicit replacement. Apply fits named patterns to their catalogue cap footprint, even when that overrides the inferred layout; the switch centre and fixed plate geometry stay put. Joined patterns also select their required switch technology. Separate supports retain the independently selected switch opening. Pattern changes clear measured parameters inherited from the previous pattern. The standard Alps and MX menu holes are 2u; Advanced exposes dimensions and custom spacing. Existing saved wire styles retain their geometry until explicitly replaced. Selection alone never changes geometry, and Undo restores the cap and cutouts together.
 
 The stabilizer controls use Category / Action / Type, then Hole and North/South. Alps default consolidates the Zenith/AEK/AT101 menu entries; older saved variants keep their original dimensions. Advanced is collapsed initially and on type changes. North rotates the complete selected hole 180 degrees about the stem; South restores its base orientation, including measured joined templates. Legacy saved orientation settings retain their prior behavior until a new orientation is chosen.
+
+### Ordered hole catalogue and best guesses
+
+Alps has **Alps default** and **Costar** types. Every Hole name starts with its
+nominal keycap size; each list sorts numerically, then by description. KLE Add
+menus use the same catalogue, names and generation recipes. Their basic and
+stepped keycaps are additionally available without stabilizer cutouts. Costar
+has its own group within Add Alps Keys. Existing saved profile IDs stay valid.
+
+Named standard sizes now include Alps 1.75u, 2.25u, 2.75u, 6.25u and 6.5u;
+MX PCB/plate standards through 8u, vertical and ISO entries, and 6u offset stems;
+and Costar sizes through 8u. These expose explicit templates rather than rounding
+an unfamiliar cap to the nearest wire size. Research references:
+
+- [ai03 AEK generator](https://github.com/ai03-2725/yet-another-keyboard-builder/blob/main/src/cutouts/StabilizerAlpsAEK.js): 24/28/83.72/90.6 mm support spans and its slot dimensions.
+- [ai03 MX specification generator](https://github.com/ai03-2725/yet-another-keyboard-builder/blob/main/src/cutouts/StabilizerMXSpec.js): size families, vertical orientation and 6u offset stems. Existing editor dimensions are retained, including its 23.8 mm short-wire nominal spacing.
+- [BoardBuilder](https://github.com/CurrentResident/BoardBuilder/blob/master/BoardBuilder.py): independent Costar clips and common size spans. Its clip-height/offset tuning differs from ours, so this update retains our existing 3.3 × 14.2 mm recipe and does not introduce combined Cherry/Costar cutouts.
+
+**Apply best guess** is opt-in for selected orange, unassigned shapes (Shift-click
+adds supports). Find closest fit ranks catalogue outlines by polygon overlap,
+allowing up to 16% extent mismatch (minimum 1.5 mm) and requiring at least 72%
+overlap, or 86% for small core openings. It tests quarter-turn rotations without
+scaling the CAD. Scores measure shape similarity, not confidence that a cap or
+switch is compatible. Circular holes and very small shapes are not candidates;
+existing key ownership and protected outlines remain enforced. Ambiguous results
+remain choices for human review, and no sufficiently close match remains manual.
+
+Applying a guess creates an inferred KLE key with the proposed footprint and
+stem centre, associates only the selected source contours, and leaves their DXF
+records unchanged. Undo restores the prior assignment; plate projects retain the
+inferred centre across reloads. It never sweeps the entire plate or silently
+absorbs nearby mounting holes.
