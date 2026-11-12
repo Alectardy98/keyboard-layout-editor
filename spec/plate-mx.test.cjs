@@ -137,8 +137,8 @@ test('four stabilizer categories cover every measured support pattern and genera
   const special=P.presets.find(p=>p.id===pattern.id)||P.presets.find(p=>p.id==='alps-625-barrels'&&pattern.id==='alps-barrel625');
   const key=f?{width:f.width,height:f.height}:special?P.preset(special.id).key:{width:pattern.id.includes('275')||pattern.id.includes('2.75')?2.75:2,height:1};
   for(const direction of ['north','south']){
-   const options={switch:'original',stabilizer:pattern.id,mount:group.id==='mx-plate'?'plate':'pcb',direction,mxPattern:'cherry'};
-   const shapes=P.stabilizers(options,key);assert.ok(shapes.length,group.id+':'+pattern.id);
+   const options={components:true,switch:group.id==='alps'?'alps':group.id==='topre'?'topre':'mx',stabilizer:pattern.id,mount:group.id==='mx-plate'?'plate':'pcb',direction,mxPattern:'cherry'};
+   const shapes=P.generate(options,key);assert.ok(shapes.length,group.id+':'+pattern.id);
    assert.ok(shapes.flat(Infinity).every(Number.isFinite),pattern.id);
   }
  }
