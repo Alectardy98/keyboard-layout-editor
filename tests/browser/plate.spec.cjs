@@ -90,7 +90,7 @@ test('excluding a false detection preserves its original cutout and can be undon
 test('plate preset menus create complete Alps and EC11 geometry in one undo step',async({page})=>{
  await open(page);
  await expect(page.getByRole('button',{name:'Add Key',exact:true})).toHaveCount(0);
- await expect(page.getByRole('button',{name:'Add MX Keys',exact:true})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'Add MX Keys',exact:true})).toBeEnabled();
  await page.getByRole('button',{name:'Add Alps Keys',exact:true}).click();
  await page.getByRole('link',{name:'5.5u — complete spacebar supports',exact:true}).click();
  await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
@@ -200,4 +200,24 @@ test('opening a DXF can discard edits, reopen the same file, or cancel safely',a
  expect(await page.evaluate(()=>angular.element(document.body).scope().keys()[0].width)).toBe(1.25);
  await choose();await dialog.getByRole('button',{name:'Discard changes and open',exact:true}).click();await expect.poll(()=>page.evaluate(()=>angular.element(document.body).scope().dirty)).toBe(false);
  await choose(makeFixture({unknown:true}),'different.dxf');await expect(page.locator('.plate-units strong')).toHaveText('different.dxf');await expect(dialog).toHaveCount(0);
+});
+
+test('MX menu supplies plate/PCB ISO presets and hides Caps Multistep in switch profiles',async({page})=>{
+ await open(page);await expect(page.getByLabel('Switch profile').locator('option[value="alps-multistep"]')).toHaveCount(0);
+ await page.getByRole('button',{name:'Add MX Keys',exact:true}).click();
+ await page.getByRole('link',{name:'ISO Enter — plate mount',exact:true}).click();
+ await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
+ const added=await page.evaluate(()=>{const s=angular.element(document.body).scope(),k=s.selectedKeys[0];return {w:k.width,h:k.height,w2:k.width2,x2:k.x2,profile:s.plate.model.settings[k._plateId].profile.options};});
+ expect([added.w,added.h,added.w2,added.x2]).toEqual([1.25,2,1.5,-.25]);expect(added.profile.mount).toBe('plate');expect(added.profile.mxPattern).toBe('cherry');
+ await page.getByRole('button',{name:/Undo$/}).click();await expect(page.locator('#keyboard .keycap')).toHaveCount(4);
+});
+test('PCB clearance customization stays unapplied until Apply and survives project save',async({page})=>{
+ await open(page);await page.locator('#keyboard').getByText('Key 3',{exact:true}).click();
+ await page.getByLabel('Stabilizer style',{exact:true}).selectOption('mx');await page.getByRole('button',{name:'PCB mount',exact:true}).click();
+ await page.getByLabel('Housing clearance height (mm)').fill('16');await page.getByLabel('Corner radius (mm)',{exact:true}).fill('0.5');
+ expect(await page.evaluate(()=>Object.values(angular.element(document.body).scope().plate.model.settings).some(c=>c.profile))).toBe(false);
+ await page.getByRole('button',{name:'Apply to selected keys',exact:true}).click();
+ expect(await page.evaluate(()=>{const s=angular.element(document.body).scope();return s.plate.model.settings[s.selectedKeys[0]._plateId].profile.options.pcbHeight;})).toBe(16);
+ const pending=page.waitForEvent('download');await page.getByRole('button',{name:'Save plate project',exact:true}).click();
+ const saved=JSON.parse(fs.readFileSync(await(await pending).path(),'utf8'));expect(JSON.stringify(saved)).toContain('"pcbHeight":16');
 });
