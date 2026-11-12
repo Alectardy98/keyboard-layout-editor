@@ -118,3 +118,19 @@ test('broken 7 by 15 stabilizer joins recover as supports, not extra switches',(
  const d=D.parse(D.exportBytes(raw,[],rings.map(points=>({points})))),r=R.analyze(d),key=r.keys.find(k=>Math.abs(k.center.x+11.938)<.001);assert.ok(key);assert.ok(key.width>=2);assert.equal(key.stabilizers.length,2);assert.ok(key.stabilizers.some(c=>c.cornerRecovery));
  const m=M.create(d,r);assert.deepEqual(Buffer.from(m.exportFile(m.makeKeys(S.defaultKeyProps))),Buffer.from(D.exportBytes(d)));
 });
+test('wide bottom-row openings detect as 1.25u on both rotated halves',()=>{
+ const f=families.find(f=>f.id==='mx-bottom125-wide');
+ for(const degrees of [-12,12]){
+  const d=from(assembly(f,250,100,degrees*Math.PI/180)),r=R.analyze(d),key=r.keys.find(k=>k.family===f.id);
+  assert.ok(key);assert.equal(key.width,1.25);assert.equal(key.height,1);assert.equal(key.label,'bottom row 1.25u');near(key.center.x,250);near(key.center.y,100);
+  const m=M.create(d,r),keys=m.makeKeys(S.defaultKeyProps);assert.deepEqual(Buffer.from(m.exportFile(keys)),Buffer.from(D.exportBytes(d)));
+ }
+});
+test('end-of-row inference accepts a 1.25u neighbour when another row confirms the edge',()=>{
+ const unit=P.generate({switch:'mx',stabilizer:'none'},{width:1,height:1}),rings=[];
+ for(const x of [250,273.8125,297.625])rings.push(...at(families.find(f=>f.id==='mx-bottom125-wide').parts.map(P.polygon),x,100));
+ rings.push(...at(unit,321.4375,100));
+ const f=families.find(f=>f.id==='mx-pcb2-combined');rings.push(...assembly(f,314.29375,138.1));
+ const r=R.analyze(from(rings)),key=r.keys.find(k=>Math.abs(k.center.x-321.4375)<.001&&Math.abs(k.center.y-100)<.001);
+ assert.equal(key.width,1.25);near(key.center.x+key.width*19.05/2,314.29375+19.05);
+});
