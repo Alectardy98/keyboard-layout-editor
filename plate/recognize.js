@@ -305,29 +305,49 @@
             keys.every(function(k){return G.contains(c.points,k.center);});});
         function capFits(key,width){
             return outlines.every(function(c){
-                var corners=G.rectangle(width*19.05,key.height*19.05,key.center);
+                var corners=G.rectangle(width*19.05-1.2,key.height*19.05-1.2,key.center);
                 return corners.every(function(a,i){var b=corners[(i+1)%corners.length],steps=Math.ceil(G.distance(a,b));
                     for(var j=0;j<=steps;j++)if(!G.contains(c.points,{x:a.x+(b.x-a.x)*j/steps,y:a.y+(b.y-a.y)*j/steps}))return false;
                     return true;
                 });
             });
         }
-        // Infer caps from neighbouring, already supported footprints. Quarter-u
-        // widths fill only available space; switch centres and intentional gaps
-        // are never moved. A chain of ordinary 1u keys is the initial reference.
+        // Establish shared row edges from ordinary 1u runs or supported end
+        // caps. KLE cells include spacing: the plate need not contain the full
+        // nominal cell rectangle. The small inset above permits that clearance.
+        rows.forEach(function(row){row.keys.sort(function(a,b){return a.center.x-b.center.x;});});
+        var leftEdges=[],rightEdges=[];
         rows.forEach(function(row){
-            row.keys.sort(function(a,b){return a.center.x-b.center.x;});
+            var list=row.keys;
+            [0,list.length-1].forEach(function(i){
+                var k=list[i],n=list[i===0?1:i-1];
+                if(!k || !n || k.height!==1 || Math.abs(k.capAngle)>1e-6)return;
+                var unitRun=k.width===1 && n.width===1 && Math.abs(Math.abs(n.center.x-k.center.x)-19.05)<.03;
+                if(!unitRun && !(k.stabilizers.length && k.width<=2.75))return;
+                (i===0?leftEdges:rightEdges).push(k.center.x+(i===0?-1:1)*k.width*19.05/2);
+            });
+        });
+        var leftEdge=leftEdges.length?Math.min(...leftEdges):null,rightEdge=rightEdges.length?Math.max(...rightEdges):null;
+        rows.forEach(function(row){
             var list=row.keys,trusted=new Set(list.filter(function(k,i){
                 return k.width>1 || [list[i-1],list[i+1]].some(function(n){return n && Math.abs(Math.abs(n.center.x-k.center.x)-19.05)<0.03;});
             }));
+            function edgeWidth(k,i){
+                var edge=i===0?leftEdge:i===list.length-1?rightEdge:null;
+                if(edge===null)return null;
+                var w=2*Math.abs(k.center.x-edge)/19.05;
+                return w>=1 && w<=2.75 && Math.abs(w*4-Math.round(w*4))<.006?Math.round(w*4)/4:null;
+            }
             for(var pass=0;pass<list.length;pass++){
                 var changed=false;
                 list.forEach(function(k,i){
-                    if(k.width>2.75 || k.height!==1 || Math.abs(k.capAngle)>1e-6)return;
-                    var neighbours=[list[i-1],list[i+1]].filter(Boolean);
+                    if(k.height!==1 || Math.abs(k.capAngle)>1e-6)return;
+                    var limit=k.width>=5?12:2.75;
+                    var neighbours=[list[i-1],list[i+1]].filter(Boolean),edge=edgeWidth(k,i);
                     var proposals=neighbours.filter(function(n){return trusted.has(n);}).map(function(n){
                         return 2*Math.abs(n.center.x-k.center.x)/19.05-n.width;
-                    }).filter(function(w){return w>=k.width-0.002 && w<=2.75 && Math.abs(w*4-Math.round(w*4))<0.006;});
+                    }).filter(function(w){return w>=k.width-0.002 && w<=limit && Math.abs(w*4-Math.round(w*4))<0.006;});
+                    if(edge!==null && edge>=k.width-.002)proposals.push(edge);
                     if(!proposals.length)return;
                     var width=Math.round(Math.min(...proposals)*4)/4;
                     if(neighbours.some(function(n){return (width+n.width)*19.05/2>Math.abs(n.center.x-k.center.x)+0.03;}))return;
