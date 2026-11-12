@@ -167,15 +167,15 @@
     // Some CAD exports extend a rounded corner past the adjoining straight
     // line. Recover only an isolated 14 x 14 MX or 14.6 x 14 Topre outline with all four straight
     // sides and all four measured arcs; never close arbitrary open channels.
-    function recoverSwitchCorners(paths, width) {
-        if(!width){recoverSwitchCorners(paths,14);return recoverSwitchCorners(paths,14.6);}
+    function recoverSwitchCorners(paths, width, height, legacyAlignment) {
+        if(!width){recoverSwitchCorners(paths,14,14);recoverSwitchCorners(paths,14.6,14);return legacyAlignment?paths:recoverSwitchCorners(paths,7,15);}
         var available=paths.open.filter(function(p){return p.editable && p.stitch;});
         var lines=available.filter(function(p){return p.type==='LINE' && p.points.length===2;});
         var used=new Set();
         lines.forEach(function(left){
             if(used.has(left))return;
             var a=left.points[0],b=left.points[1];if(Math.abs(a.x-b.x)>.001)return;
-            var low=Math.min(a.y,b.y),high=Math.max(a.y,b.y),radius=(14-(high-low))/2;
+            var low=Math.min(a.y,b.y),high=Math.max(a.y,b.y),radius=(height-(high-low))/2;
             if(radius<.1 || radius>1)return;
             var x=a.x,right=lines.find(function(p){return p!==left && !used.has(p) && p.layer===left.layer &&
                 p.points.every(function(q){return Math.abs(q.x-x-width)<.005;}) &&

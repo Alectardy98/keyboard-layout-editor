@@ -255,7 +255,7 @@
             {id:'mx-iso-'+mount,label:'ISO Enter — '+mount+' mount',width:1.25,height:2,iso:true,mount:mount,stabs:true},
             {id:'mx-6-offset-'+mount,label:'6u offset stem — '+mount+' mount',width:6,mount:mount,stabs:true,offset:9.525});
     });
-    Families.filter(function(f){return f.type==='mx';}).forEach(function(f){mxPresets.push({id:f.id,label:f.label,width:f.width,mount:f.mount});});
+    Families.filter(function(f){return f.type==='mx' && !f.legacy;}).forEach(function(f){mxPresets.push({id:f.id,label:f.label,width:f.width,mount:f.mount});});
     var toprePresets=Families.filter(function(f){return f.type==='topre';}).map(function(f){return {id:f.id,label:f.label,width:f.width};});
     function preset(id) {
         var family=Families.find(function(f){return f.id===id;});

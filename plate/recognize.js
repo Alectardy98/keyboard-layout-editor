@@ -552,13 +552,13 @@
         if(!options.legacyFamilies){
             // User-confirmed families are matched by their complete relative
             // geometry, never by drawing filename or transient key number.
-            Families.forEach(function(f){
+            Families.filter(function(f){return options.legacyAlignment?!f.id.endsWith('-aligned') && f.id!=='mx-pcb2-combined':!f.legacy;}).forEach(function(f){
                 document.contours.forEach(function(first){
                     if(options.layer && !first.parts.some(function(p){return p.layer===options.layer;}))return;
                     var owner=keys.find(function(k){return k.contours.includes(first);});
                     if(owner && (owner.family || owner.recovered || owner.contours.length!==1))return;
                     if(keys.some(function(k){return k.stabilizers.includes(first);}))return;
-                    [0,Math.PI/2,Math.PI,3*Math.PI/2].some(function(angle){
+                    [0,Math.PI/2,Math.PI,3*Math.PI/2].concat(G.axes(first.points).flatMap(function(a){return [a,a+Math.PI/2,a+Math.PI,a+3*Math.PI/2];})).some(function(angle){
                         var b=G.bounds(first.points.map(function(p){return G.rotate(p,-angle);})),t=G.bounds(f.parts[0]);
                         if(Math.abs(b.width-t.width)>.06 || Math.abs(b.height-t.height)>.06)return false;
                         var center=G.rotate({x:b.cx-t.cx,y:b.cy-t.cy},angle);
@@ -584,6 +584,19 @@
                         if(!owner)keys.push(key);return true;
                     });
                 });
+            });
+            if(!options.legacyAlignment)keys.filter(function(k){return k.family==='mx-space625-left-aligned';}).forEach(function(space){
+                // Resolve the alternate stem positions against the complete
+                // 1.25 / 1.25 / 1.25 / 6.25 / 1.25 / 1.25 bottom row.
+                // Geometry is unchanged: these are inferred cap/stem positions.
+                if(Math.abs(space.capAngle)>.001)return;
+                var left=[-3.75,-5,-6.25].map(function(offset){return keys.find(function(k){return k.family==='mx-bottom125-aligned' &&
+                    Math.abs(k.center.x-space.center.x-offset*19.05)<.06 && Math.abs(k.center.y-space.center.y)<.06;});});
+                var right=keys.find(function(k){return k.type==='mx' && Math.abs(k.center.x-space.center.x-3.75*19.05)<.06 && Math.abs(k.center.y-space.center.y)<.06;});
+                var last=keys.find(function(k){return k.family==='mx-bottom125-aligned' && Math.abs(k.center.x-space.center.x-(5*19.05-2.38125))<.06 && Math.abs(k.center.y-space.center.y)<.06;});
+                if(!left.every(Boolean) || !right || !last)return;
+                right.width=last.width=1.25;right.label=last.label='mx bottom row 1.25';
+                last.center={x:space.center.x+5*19.05,y:space.center.y};
             });
             keys.filter(function(k){return Families.find(function(f){return f.id===k.family && f.mod;});}).forEach(function(k){
                 var widths=keys.filter(function(n){return n!==k && n.width<=1.75 && Math.abs(n.center.y-k.center.y)<.06;})
