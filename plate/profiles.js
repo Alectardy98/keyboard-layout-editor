@@ -70,7 +70,7 @@
             return place(Measured.space625Barrels.map(polygon),{x:0,y:0},(vertical?Math.PI/2:0)+(options.direction==='north'?Math.PI:0));
         }
         if(style==='alps-zkb2' || style==='alps-bae') {
-            if(key.width!==2.25 || key.height!==1 || vertical)throw Error('BAE/ZKB2 Enter uses a 2.25u lower section with an upper-right extension.');
+            if(key.width!==2.25 || key.height!==1 || vertical)throw Error('5140 BAE/ZKB2 Enter uses a 2.25u lower section with an upper-right extension.');
             return place((style==='alps-bae'?Measured.baeSupports:Measured.zkb2Supports).map(polygon),{x:0,y:0},options.direction==='north'?Math.PI:0);
         }
         if(style==='alps-default' && size===5.5 && !options.spacing) {
@@ -155,7 +155,7 @@
         {id:'alps-975-barrel',label:'9.75u — barrel stabilizer',width:9.75,canon:'alps-975-barrel'},
         {id:'alps-z150',label:'Z150 Enter',width:1,height:2,z150:true,canon:'alps-z150'},
         {id:'alps-vertical2',label:'vertical 2u',width:1,height:2,canon:'alps-canon-vertical2'},
-        {id:'alps-bae',label:'BAE',width:2.25,bae:true,stabs:true},
+        {id:'alps-bae',label:'5140 BAE',width:2.25,bae:true,stabs:true},
         {id:'alps-zkb2',label:'ZKB2 Enter',width:2.25,zkb2:true,stabs:true},
         {id:'alps-canon8',label:'8u — Canon complete supports',width:8,canon:'alps-canon8'},
         {id:'alps-canon-vertical2',label:'cannon vertical 2u',width:1.25,height:2,canon:'alps-canon-vertical2'},

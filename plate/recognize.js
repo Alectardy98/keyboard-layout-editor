@@ -276,7 +276,7 @@
         // Big-ass Enter variants: require both wire slots and the complete
         // upper-right barrel assembly. A nearby mounting circle is not owned.
         [{pattern:Measured.zkb2Supports,label:'ZKB2 Enter',family:'alps-zkb2',upperWidth:1},
-         {pattern:Measured.baeSupports,label:'BAE',family:'alps-bae',upperWidth:1.5}].forEach(function(preset){
+         {pattern:Measured.baeSupports,label:'5140 BAE',family:'alps-bae',upperWidth:1.5}].forEach(function(preset){
             keys.filter(function(k){return k.type==='alps';}).forEach(function(key){
                 var parts=preset.pattern.map(function(pattern){return small.find(function(c){
                     return matches(c.points,pattern,key.center,key.capAngle);
