@@ -502,7 +502,7 @@ the opening regenerates its contour. Review the warning before manufacturing.
 Closed unrecognized outlines assembled from separate LINE/ARC entities can now
 be selected by clicking inside them, then mapped, deleted or attached to a key.
 
-New plate projects record recognition version 7. Older saved projects keep their
+New plate projects record recognition version 8. Older saved projects keep their
 previous interpretation so new detections do not silently reassign existing
 key edits. Open the original DXF afresh to use the new recognition rules.
 
@@ -579,3 +579,28 @@ flagged instead of being treated as ordinary switches.
 Older saved projects retain their previous recognition rules and key IDs.
 Reopen the original DXF to use the new rules; do not reinterpret a saved project
 in place. Import/export tests verify preservation, not manufacturing suitability.
+
+
+### PCB compatibility assemblies (recognition version 8)
+
+PCB clearance openings are checked against complete switch bands, support
+slots and neighbouring rows. Rounded corners alone no longer reject a matching
+opening. ANSI–ISO compatibility caps use both rows of neighbouring keys; their
+missing corner is preserved in the inferred layout.
+
+The combined **PCB mount 6.25u and 7u** assembly displays **two caps: a 6.25u
+spacebar and an adjacent 1.25u key**. Both modifier runs must agree, and the
+proposed caps must fit without overlapping other inferred keys. Extra 7u
+support geometry does not create an overlapping 7u cap. Long relief windows
+remain independent fixed geometry.
+
+These two caps form one rigid cutout assembly: moving or rotating either moves
+both; deleting either removes both unless an anchor prevents it. Resizing keeps
+the stems in place. Anchor either member to fix the assembly. Mark both members
+as fixed together when excluding them from editing. Saved plate projects retain
+this relationship; plain KLE JSON remains a visual layout only.
+
+Version 7 and older saved plate projects keep their existing interpretation.
+Open the original DXF again to apply the new recognition rules. Unresolved
+geometry remains selectable and flagged for review, rather than being forced
+into an apparently complete layout.
