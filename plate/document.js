@@ -97,7 +97,8 @@
                     if(options.keepStemOnResize!==false) {
                         key.x-=(key.width-previous.width)/2;key.y-=(key.height-previous.height)/2;
                     }
-                    if(insidePlate(previous) && !insidePlate(key)){
+                    var geometryChanged=['x','y','width','height','width2','height2','x2','y2','rotation_angle','rotation_x','rotation_y'].some(function(field){return key[field]!==previous[field];});
+                    if(geometryChanged && insidePlate(previous) && !insidePlate(key)){
                         ['x','y','width','height','width2','height2','x2','y2','rotation_angle','rotation_x','rotation_y'].forEach(function(field){key[field]=previous[field];});
                         model.boundaryBlocked=true;blocked++;
                     }
