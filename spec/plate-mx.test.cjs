@@ -5,7 +5,7 @@ const near=(a,b)=>assert.ok(Math.abs(a-b)<.001,`${a} != ${b}`);
 function fromShapes(shapes){const d=D.parse(makeFixture());return D.parse(D.exportBytes(d,[],shapes.map(points=>({points}))),'mx.dxf');}
 function at(shape,x,y,angle=0){return P.rings(P.place(shape,{x,y},angle));}
 test('all MX presets generate finite contours and retain their cap dimensions',()=>{
- assert.equal(P.mxPresets.length,33);
+ assert.equal(P.mxPresets.length,38);
  for(const item of P.mxPresets){const p=P.preset(item.id),shapes=P.generate(p.options,p.key);
   assert.ok(shapes.length);assert.equal(p.key.width*4%1,0);
   for(const ring of P.rings(shapes)){assert.ok(Math.abs(G.area(ring))>0);for(const v of ring)assert.ok(Number.isFinite(v.x)&&Number.isFinite(v.y));}
