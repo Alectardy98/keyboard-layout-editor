@@ -221,3 +221,23 @@ test('PCB clearance customization stays unapplied until Apply and survives proje
  const pending=page.waitForEvent('download');await page.getByRole('button',{name:'Save plate project',exact:true}).click();
  const saved=JSON.parse(fs.readFileSync(await(await pending).path(),'utf8'));expect(JSON.stringify(saved)).toContain('"pcbHeight":16');
 });
+test('PCB compatibility presets add complete assemblies and preserve them in project reload',async({page})=>{
+ await open(page);
+ await page.getByRole('button',{name:'Add MX Keys',exact:true}).click();
+ await page.getByRole('link',{name:'2.75u split PCB compatibility',exact:true}).click();
+ await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
+ const value=await page.evaluate(()=>{const s=angular.element(document.body).scope(),k=s.selectedKeys[0];return {width:k.width,options:s.plate.model.settings[k._plateId].profile.options};});
+ expect(value.width).toBe(2.75);expect(value.options.stabilizer).toBe('mx-compat-2.75-split');
+ await expect(page.getByLabel('Extra size (mm)')).not.toBeVisible();
+ const pending=page.waitForEvent('download');await page.getByRole('button',{name:'Download edited DXF'}).click();
+ const r=R.analyze(D.parse(fs.readFileSync(await(await pending).path()),'compatibility.dxf'));
+ expect(r.keys.some(k=>k.label==='2.75u split PCB compatibility'&&k.stabilizers.length===1)).toBe(true);
+ const save=page.waitForEvent('download');await page.getByRole('button',{name:'Save plate project',exact:true}).click();
+ const data=fs.readFileSync(await(await save).path());expect(data.toString()).toContain('mx-compat-2.75-split');
+ await page.getByRole('button',{name:/Undo$/}).click();await expect(page.locator('#keyboard .keycap')).toHaveCount(4);
+ await page.reload();const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open plate project',exact:true}).click();
+ await(await chooser).setFiles({name:'compat.plate.json',mimeType:'application/json',buffer:data});
+ await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
+ expect(await page.evaluate(()=>angular.element(document.body).scope().plate.document.coordinateVersion)).toBe(2);
+
+});
