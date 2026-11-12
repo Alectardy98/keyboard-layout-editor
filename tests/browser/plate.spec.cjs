@@ -30,7 +30,7 @@ test('MX/Alps controls affect DXF only on Apply and support undo/redo without mo
  await page.getByRole('button',{name:/Undo$/}).click();expect(await scopeRead(page,()=>Object.values(angular.element(document.body).scope().plate.model.settings).some(c=>c.profile))).toBe(false);
  await page.getByRole('button',{name:/Redo$/}).click();expect(await scopeRead(page,()=>Object.values(angular.element(document.body).scope().plate.model.settings).every(c=>c.profile))).toBe(true);
  await page.getByLabel('Stabilizer style',{exact:true}).selectOption('alps');await expect(page.getByLabel('Stabilizer pattern')).toBeVisible();
- await page.getByLabel('Stabilizer pattern',{exact:true}).selectOption('costar');await expect(page.getByRole('button',{name:'South',exact:true})).toBeVisible();
+ await page.getByLabel('Stabilizer pattern',{exact:true}).selectOption({label:'Costar'});await expect(page.getByRole('button',{name:'South',exact:true})).toBeVisible();
 });
 test('cutout selection, anchor locking and repeated KLE resizing preserve the stem centre',async({page})=>{
  await open(page);await page.locator('.plate-switch').nth(1).click();await expect(page.getByText(/1 selected · 1 anchors/)).toBeVisible();
@@ -254,6 +254,8 @@ test('separate MX menus and Topre presets retain complete geometry through proje
  await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
  const state=await page.evaluate(()=>{const s=angular.element(document.body).scope(),k=s.selectedKeys[0];return {width:k.width,profile:s.plate.model.settings[k._plateId].profile.options};});
  expect(state.width).toBe(7);expect(state.profile.switch).toBe('topre-7');
+ await expect(page.getByLabel('Switch profile',{exact:true})).toHaveValue('topre');
+ await expect(page.getByLabel('Stabilizer pattern',{exact:true}).locator('option:checked')).toHaveText('Topre 7u');
  const save=page.waitForEvent('download');await page.getByRole('button',{name:'Save plate project',exact:true}).click();const file=await(await save).path(),data=fs.readFileSync(file);
  expect(JSON.parse(data).recognitionVersion).toBe(11);
  await page.reload();const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open plate project',exact:true}).click();await(await chooser).setFiles({name:'topre.plate.json',mimeType:'application/json',buffer:data});
@@ -312,9 +314,9 @@ test('stabilizers have four categories and every pattern can be selected without
   await category.selectOption(id);
   const patterns=page.getByLabel('Stabilizer pattern',{exact:true});
   await expect(patterns).toBeVisible();
-  const values=await patterns.locator('option').evaluateAll(nodes=>nodes.map(n=>n.value));
+  const values=await scopeRead(page,()=>angular.element(document.body).scope().plate.stabPatterns());
   expect(values.length).toBeGreaterThan(0);
-  for(const value of values){await patterns.selectOption(value);expect(await scopeRead(page,()=>angular.element(document.body).scope().plate.stabChoice)).toBe(value);}
+  for(const value of values){await patterns.selectOption({label:value.label});expect(await scopeRead(page,()=>angular.element(document.body).scope().plate.stabChoice)).toBe(value.id);await expect(patterns.locator('option:checked')).toHaveText(value.label);}
  }
  expect(await scopeRead(page,()=>Object.values(angular.element(document.body).scope().plate.model.settings).some(c=>c.profile))).toBe(false);
  await page.getByLabel('Stabilizer action').selectOption('none');
@@ -322,4 +324,21 @@ test('stabilizers have four categories and every pattern can be selected without
  await page.getByLabel('Stabilizer action').selectOption('original');
  expect(await scopeRead(page,()=>angular.element(document.body).scope().plate.stabChoice)).toBe('original');
  await expect(page.getByLabel('Stabilizer pattern',{exact:true})).toHaveCount(0);
+});
+
+test('selecting recognized keys populates independent switch and support controls without edits',async({page})=>{
+ await open(page);
+ await page.locator('#keyboard').getByText('Key 3',{exact:true}).click();
+ await expect(page.getByLabel('Switch profile',{exact:true})).toHaveValue('mx');
+ await expect(page.getByLabel('Stabilizer style',{exact:true})).toHaveValue('mx-pcb');
+ await expect(page.getByLabel('Stabilizer pattern',{exact:true}).locator('option:checked')).toHaveText('Standard housing clearance');
+ expect(await scopeRead(page,()=>Object.values(angular.element(document.body).scope().plate.model.settings).some(c=>c.profile))).toBe(false);
+ await page.getByRole('button',{name:'Apply to selected keys',exact:true}).click();
+ expect(await scopeRead(page,()=>Object.values(angular.element(document.body).scope().plate.model.settings).some(c=>c.profile))).toBe(false);
+ const pending=page.waitForEvent('download');await page.getByRole('button',{name:'Download edited DXF'}).click();
+ expect(fs.readFileSync(await(await pending).path()).equals(Buffer.from(makeFixture()))).toBe(true);
+ await page.locator('#keyboard').getByText('Key 4',{exact:true}).click();
+ await expect(page.getByLabel('Switch profile',{exact:true})).toHaveValue('alps');
+ await expect(page.getByLabel('Stabilizer action')).toHaveValue('none');
+ await expect(page.getByLabel('Switch profile',{exact:true}).locator('option')).not.toContainText(['PCB mount ANSI-ISO']);
 });
