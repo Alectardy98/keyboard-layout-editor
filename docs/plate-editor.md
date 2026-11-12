@@ -502,7 +502,7 @@ the opening regenerates its contour. Review the warning before manufacturing.
 Closed unrecognized outlines assembled from separate LINE/ARC entities can now
 be selected by clicking inside them, then mapped, deleted or attached to a key.
 
-New plate projects record recognition version 6. Older saved projects keep their
+New plate projects record recognition version 7. Older saved projects keep their
 previous interpretation so new detections do not silently reassign existing
 key edits. Open the original DXF afresh to use the new recognition rules.
 
@@ -533,3 +533,49 @@ quarter-unit size when both the cap boundary and the pair's centre pitch agree.
 A lone key, unequal spacing or overlap with another row does not qualify. This
 changes only inferred caps, not switch centres or DXF cuts. Version 5 projects
 retain their previous cap inference; reopen the DXF to use this rule.
+
+
+### Evidence and human review
+
+The importer separates three questions: the physical switch opening, which
+supports belong to it, and the cap's inferred size/shape. `plate/refine.js`
+checks complete assemblies, repeated housing geometry and neighbouring row
+spacing after initial recognition. It does not use filenames or key numbers.
+Quarter-unit cap sizes mean **0.25u**, not 0.25mm; standard pitch remains 19.05mm.
+
+A yellow import-review list links to uncertain keys/openings. It reports unknown
+switch families, incompatible cap overlap, unresolved cap widths/stem positions,
+and possible shared clearance or mounting features. These are conservative
+review candidates, not confirmed errors. The list records import findings; it
+does not certify later manual edits or clear itself when a user adjusts a cap.
+Use **Map to new key**, **Map to existing**, or **Mark as fixed geometry** after
+reviewing the actual cutout. Unassigned geometry remains in the exported DXF.
+
+Research informs the built-in geometric rules; the browser does not upload a
+plate to an online search or perform a live web search. Unresolved geometry is
+left for human review rather than being assigned a convenient-looking profile.
+
+Reference implementations and documentation reviewed:
+
+- [ai03's plate generator](https://github.com/ai03-2725/yet-another-keyboard-builder/blob/master/src/cutouts/StabilizerMXBasic.js):
+  MX wire spans and alternate 6u stem alignment. Short wires do not establish
+  whether the cap is 2u, 2.25u or 2.75u.
+- [Custom Topre guide](https://github.com/tomsmalley/custom-topre-guide#hole-sizes):
+  nominal 14.6 × 14mm single and 32.4 × 14mm wide housings, corner relief and
+  Realforce/clone differences. A square opening alone cannot prove Topre.
+- [Swill plate-builder features](https://builder-docs.swillkb.com/features/):
+  combined stabilizer compatibility and deliberately modified cutouts. A
+  compatibility window can represent several mutually exclusive layouts.
+
+Version 7 adds repeated chamfered Topre housing detection, 6.25u Topre support
+ownership corroborated by both neighbouring modifier pairs, continuous MX clip
+spacebars including 6u alternate-stem openings, and two-row ANSI–ISO inference.
+Small fully-contained duplicate LINE entities may be ignored for topology only;
+all original records remain attached and survive unedited export and movement.
+Real branches and incomplete assemblies are not closed by inventing edges.
+Repeated narrow or triangular openings on an otherwise recognized MX plate are
+flagged instead of being treated as ordinary switches.
+
+Older saved projects retain their previous recognition rules and key IDs.
+Reopen the original DXF to use the new rules; do not reinterpret a saved project
+in place. Import/export tests verify preservation, not manufacturing suitability.
