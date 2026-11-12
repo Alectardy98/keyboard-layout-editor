@@ -323,8 +323,8 @@ the Alps stabilizer-family selector.
 ### Add a key from unidentified shapes
 
 Click an unidentified switch opening in the drawing to reveal **Add key**.
-Then click any additional source shapes that belong to it; click again to
-remove a selection. Set the name and cap width/height, then **Add key**. The first
+A normal click replaces the selection and clears selected keys. Shift-click
+additional source shapes to include or deselect them. Set the name and cap width/height, then **Add key**. The first
 opening's bounding-box centre defines the key reference; the chosen cap size is
 visual and does not resize the imported cuts. Review that reference for irregular
 openings before moving the new key.
