@@ -6,6 +6,10 @@ async function open(page,source=makeFixture()) {
  await(await chooser).setFiles({name:'synthetic.dxf',mimeType:'application/dxf',buffer:Buffer.from(source)});
  await expect(page.locator('#keyboard .keycap')).toHaveCount(4);
 }
+async function selectStab(page,group){
+ await page.getByLabel('Stabilizer category',{exact:true}).selectOption(group.startsWith('mx-')?'mx':group);
+ if(group.startsWith('mx-'))await page.getByLabel('Stabilizer type',{exact:true}).selectOption({label:group==='mx-pcb'?'PCB mount':'Plate mount'});
+}
 const scopeRead=(page,fn)=>page.evaluate(fn);
 test('dedicated plate page displays DXF above its editable KLE and does not upload drawings',async({page})=>{
  const errors=[],unexpected=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(!r.url().startsWith('http://127.0.0.1:5189/')&&!r.url().startsWith('data:'))unexpected.push(r.url());});
@@ -20,7 +24,7 @@ test('dedicated plate page displays DXF above its editable KLE and does not uplo
  await page.screenshot({path:'test-results/plate-desktop.png',fullPage:true,animations:'disabled'});
 });
 test('MX/Alps controls affect DXF only on Apply and support undo/redo without moving fixed features',async({page})=>{
- await open(page);await page.getByLabel('Switch profile',{exact:true}).selectOption('alps');await page.getByLabel('Stabilizer style',{exact:true}).selectOption('mx-pcb');
+ await open(page);await page.getByLabel('Switch profile',{exact:true}).selectOption('alps');await selectStab(page,'mx-pcb');
  await page.getByRole('button',{name:'North',exact:true}).click();
  expect(await scopeRead(page,()=>Object.values(angular.element(document.body).scope().plate.model.settings).some(c=>c.profile))).toBe(false);
  await page.getByRole('button',{name:'Apply to all editable keys',exact:true}).click();
@@ -29,8 +33,8 @@ test('MX/Alps controls affect DXF only on Apply and support undo/redo without mo
  expect(R.analyze(output).counts.alps).toBe(4);expect(output.source).toContain('MOUNTS');
  await page.getByRole('button',{name:/Undo$/}).click();expect(await scopeRead(page,()=>Object.values(angular.element(document.body).scope().plate.model.settings).some(c=>c.profile))).toBe(false);
  await page.getByRole('button',{name:/Redo$/}).click();expect(await scopeRead(page,()=>Object.values(angular.element(document.body).scope().plate.model.settings).every(c=>c.profile))).toBe(true);
- await page.getByLabel('Stabilizer style',{exact:true}).selectOption('alps');await expect(page.getByLabel('Stabilizer pattern')).toBeVisible();
- await page.getByLabel('Stabilizer pattern',{exact:true}).selectOption({label:'Costar'});await expect(page.getByRole('button',{name:'South',exact:true})).toBeVisible();
+ await selectStab(page,'alps');await expect(page.getByLabel('Stabilizer hole')).toBeVisible();
+ await page.getByLabel('Stabilizer hole',{exact:true}).selectOption({label:'Costar'});await expect(page.getByRole('button',{name:'South',exact:true})).toBeVisible();
 });
 test('cutout selection, anchor locking and repeated KLE resizing preserve the stem centre',async({page})=>{
  await open(page);await page.locator('.plate-switch').nth(1).click();await expect(page.getByText(/1 selected · 1 anchors/)).toBeVisible();
@@ -213,7 +217,8 @@ test('MX menu supplies plate/PCB ISO presets and hides Caps Multistep in switch 
 });
 test('PCB clearance customization stays unapplied until Apply and survives project save',async({page})=>{
  await open(page);await page.locator('#keyboard').getByText('Key 3',{exact:true}).click();
- await page.getByLabel('Stabilizer style',{exact:true}).selectOption('mx-pcb');
+ await selectStab(page,'mx-pcb');
+ await page.locator('.plate-stab-advanced summary').click();
  await page.getByLabel('Housing clearance height (mm)').fill('16');await page.getByLabel('Corner radius (mm)',{exact:true}).fill('0.5');
  expect(await page.evaluate(()=>Object.values(angular.element(document.body).scope().plate.model.settings).some(c=>c.profile))).toBe(false);
  await page.getByRole('button',{name:'Apply to selected keys',exact:true}).click();
@@ -255,7 +260,7 @@ test('separate MX menus and Topre presets retain complete geometry through proje
  const state=await page.evaluate(()=>{const s=angular.element(document.body).scope(),k=s.selectedKeys[0];return {width:k.width,profile:s.plate.model.settings[k._plateId].profile.options};});
  expect(state.width).toBe(7);expect(state.profile.switch).toBe('topre-7');
  await expect(page.getByLabel('Switch profile',{exact:true})).toHaveValue('topre');
- await expect(page.getByLabel('Stabilizer pattern',{exact:true}).locator('option:checked')).toHaveText('Topre 7u');
+ await expect(page.getByLabel('Stabilizer hole',{exact:true}).locator('option:checked')).toHaveText('Topre 7u');
  const save=page.waitForEvent('download');await page.getByRole('button',{name:'Save plate project',exact:true}).click();const file=await(await save).path(),data=fs.readFileSync(file);
  expect(JSON.parse(data).recognitionVersion).toBe(11);
  await page.reload();const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open plate project',exact:true}).click();await(await chooser).setFiles({name:'topre.plate.json',mimeType:'application/json',buffer:data});
@@ -309,14 +314,14 @@ test('PCB menu adds the large bottom modifier and both L-shaped compatibility ca
  }
 });
 
-test('stabilizers have four categories and every pattern can be selected without changing source',async({page})=>{
+test('stabilizers have three categories and separate mount types and every pattern can be selected without changing source',async({page})=>{
  await open(page);
- const category=page.getByLabel('Stabilizer style',{exact:true});
- await expect(category.locator('option')).toHaveText(['Alps','MX PCB Mount','MX Plate Mount','Topre']);
+ const category=page.getByLabel('Stabilizer category',{exact:true});
+ await expect(category.locator('option')).toHaveText(['Alps','MX','Topre']);
  await page.getByLabel('Stabilizer action').selectOption('replace');
  for(const id of ['alps','mx-pcb','mx-plate','topre']){
-  await category.selectOption(id);
-  const patterns=page.getByLabel('Stabilizer pattern',{exact:true});
+  await selectStab(page,id);
+  const patterns=page.getByLabel('Stabilizer hole',{exact:true});
   await expect(patterns).toBeVisible();
   const values=await scopeRead(page,()=>angular.element(document.body).scope().plate.stabPatterns());
   expect(values.length).toBeGreaterThan(0);
@@ -327,15 +332,15 @@ test('stabilizers have four categories and every pattern can be selected without
  expect(await scopeRead(page,()=>angular.element(document.body).scope().plate.stabChoice)).toBe('none');
  await page.getByLabel('Stabilizer action').selectOption('original');
  expect(await scopeRead(page,()=>angular.element(document.body).scope().plate.stabChoice)).toBe('original');
- await expect(page.getByLabel('Stabilizer pattern',{exact:true})).toHaveCount(0);
+ await expect(page.getByLabel('Stabilizer hole',{exact:true})).toHaveCount(0);
 });
 
 test('selecting recognized keys populates independent switch and support controls without edits',async({page})=>{
  await open(page);
  await page.locator('#keyboard').getByText('Key 3',{exact:true}).click();
  await expect(page.getByLabel('Switch profile',{exact:true})).toHaveValue('mx');
- await expect(page.getByLabel('Stabilizer style',{exact:true})).toHaveValue('mx-pcb');
- await expect(page.getByLabel('Stabilizer pattern',{exact:true}).locator('option:checked')).toHaveText('Standard housing clearance');
+ await expect(page.getByLabel('Stabilizer type',{exact:true}).locator('option:checked')).toHaveText('PCB mount');
+ await expect(page.getByLabel('Stabilizer hole',{exact:true}).locator('option:checked')).toHaveText('PCB mount 2u');
  expect(await scopeRead(page,()=>Object.values(angular.element(document.body).scope().plate.model.settings).some(c=>c.profile))).toBe(false);
  await page.getByRole('button',{name:'Apply to selected keys',exact:true}).click();
  expect(await scopeRead(page,()=>Object.values(angular.element(document.body).scope().plate.model.settings).some(c=>c.profile))).toBe(false);
@@ -352,11 +357,12 @@ test('every stabilizer menu pattern applies, resizes when needed and exports thr
  await page.locator('#keyboard').getByText('Key 3',{exact:true}).click();
  const groups=await page.evaluate(()=>window.PlateProfiles.stabilizerCategories);
  for(const group of groups){
-  await page.getByLabel('Stabilizer style',{exact:true}).selectOption(group.id);
-  for(const pattern of group.patterns){
+  await selectStab(page,group.id);
+  const holes=await page.evaluate(()=>angular.element(document.body).scope().plate.stabPatterns());
+  for(const pattern of holes){
    // Generic wires work from a compatible cap size; named patterns must fit themselves.
    await page.evaluate(()=>{const s=angular.element(document.body).scope();s.$apply(()=>{s.selectedKeys[0].width=s.selectedKeys[0].width2=2;});});
-   await page.getByLabel('Stabilizer pattern',{exact:true}).selectOption({label:pattern.label});
+   await page.getByLabel('Stabilizer hole',{exact:true}).selectOption({label:pattern.label});
    await page.getByRole('button',{name:'Apply to selected keys',exact:true}).click();
    const state=await page.evaluate(()=>{const s=angular.element(document.body).scope(),k=s.selectedKeys[0];return {error:s.plate.error,profile:s.plate.model.settings[k._plateId].profile,bytes:s.plate.model.exportFile(s.keys()).length,width:k.width};});
    expect(state.error,group.id+'/'+pattern.id).toBeFalsy();expect(state.profile.options.stabilizer).toBe(pattern.id);expect(state.bytes).toBeGreaterThan(0);
@@ -368,8 +374,8 @@ test('every stabilizer menu pattern applies, resizes when needed and exports thr
 test('manual 7u replacement keeps its centre and undo restores cap and cutouts',async({page})=>{
  await open(page);await page.locator('#keyboard').getByText('Key 3',{exact:true}).click();
  const before=await page.evaluate(()=>{const s=angular.element(document.body).scope();return {key:JSON.parse(JSON.stringify(s.selectedKeys[0])),center:s.plate.model.physical(s.selectedKeys[0]),settings:s.plate.model.snapshot()};});
- await page.getByLabel('Stabilizer style',{exact:true}).selectOption('alps');
- await page.getByLabel('Stabilizer pattern',{exact:true}).selectOption({label:'7u all stabs'});
+ await selectStab(page,'alps');
+ await page.getByLabel('Stabilizer hole',{exact:true}).selectOption({label:'7u all stabs'});
  await page.getByRole('button',{name:'Apply to selected keys',exact:true}).click();
  const after=await page.evaluate(()=>{const s=angular.element(document.body).scope();return {width:s.selectedKeys[0].width,center:s.plate.model.physical(s.selectedKeys[0]),error:s.plate.error};});
  expect(after.error).toBeFalsy();expect(after.width).toBe(7);expect(after.center.center.x).toBeCloseTo(before.center.center.x,6);expect(after.center.center.y).toBeCloseTo(before.center.center.y,6);
@@ -382,8 +388,25 @@ test('manual 7u replacement keeps its centre and undo restores cap and cutouts',
 test('choosing another pattern discards inherited measurements without editing the plate',async({page})=>{
  await open(page);await page.locator('#keyboard').getByText('Key 3',{exact:true}).click();
  await page.evaluate(()=>{const s=angular.element(document.body).scope();s.$apply(()=>Object.assign(s.plate.options,{spacing:114.3,pcbWidth:9,slotWidth:5,axis:'vertical',forceStabilizer:true,stemOffset:12}));});
- await page.getByLabel('Stabilizer style',{exact:true}).selectOption('alps');
+ await selectStab(page,'alps');
  const state=await page.evaluate(()=>{const s=angular.element(document.body).scope();return {options:s.plate.options,settings:s.plate.model.snapshot()};});
  expect(state.options.spacing).toBeUndefined();expect(state.options.pcbWidth).toBeUndefined();expect(state.options.slotWidth).toBeUndefined();expect(state.options.axis).toBe('auto');expect(state.options.stemOffset).toBe(0);expect(state.options.forceStabilizer).toBe(false);
  expect(Object.values(state.settings).some(s=>s.profile)).toBe(false);
+});
+
+test('Category Type Hole and collapsed Advanced keep orientation accessible for every family',async({page})=>{
+ await open(page);await page.locator('#keyboard').getByText('Key 3',{exact:true}).click();
+ await selectStab(page,'alps');
+ await expect(page.getByLabel('Stabilizer type').locator('option')).toHaveText(['Alps default']);
+ const holes=page.getByLabel('Stabilizer hole').locator('option');
+ await expect(holes).toContainText(['2u']);await expect(holes).not.toContainText(['AEK / common Alps','AT101']);
+ await expect(page.getByLabel('Slot width (mm)')).not.toBeVisible();
+ await expect(page.getByRole('button',{name:'North',exact:true})).toBeVisible();
+ await page.locator('.plate-stab-advanced summary').click();await expect(page.getByLabel('Slot width (mm)')).toBeVisible();
+ await page.getByLabel('Stabilizer hole').selectOption({label:'7u all stabs'});
+ await expect(page.getByRole('button',{name:'North',exact:true})).toBeVisible();
+ await selectStab(page,'mx-pcb');await expect(page.getByLabel('Stabilizer type').locator('option')).toHaveText(['PCB mount','Plate mount']);
+ await expect(page.getByLabel('Housing clearance width (mm)')).not.toBeVisible();
+ await selectStab(page,'topre');await expect(page.getByLabel('Stabilizer type').locator('option')).toHaveText(['Topre']);
+ await expect(page.getByRole('button',{name:'North',exact:true})).toBeVisible();
 });
