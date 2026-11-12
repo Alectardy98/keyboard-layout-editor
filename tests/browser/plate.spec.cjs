@@ -66,10 +66,16 @@ test('unitless edited export is blocked until confirmation and mobile controls s
  expect(await page.locator('.plate-controls').evaluate(el=>el.getBoundingClientRect().right<=innerWidth)).toBe(true);
  await page.screenshot({path:'test-results/plate-narrow.png',fullPage:true,animations:'disabled'});
 });
-test('Open plate DXF from normal KLE opens the workspace without replacing the current layout',async({page,context})=>{
- await page.goto('./');await expect(page.locator('#keyboard .keytop').first()).toBeVisible();const original=await page.locator('#keyboard .keycap').count();
- const popup=context.waitForEvent('page'),chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open plate DXF',exact:true}).click();await(await chooser).setFiles({name:'synthetic.dxf',mimeType:'application/dxf',buffer:Buffer.from(makeFixture())});
- const child=await popup;await expect(child.locator('#keyboard .keycap')).toHaveCount(4);expect(await page.locator('#keyboard .keycap').count()).toBe(original);
+test('matching top navigation switches editors in the same tab without duplicate buttons',async({page})=>{
+ await page.goto('./');await expect(page.locator('#keyboard .keytop').first()).toBeVisible();
+ await expect(page.getByRole('button',{name:'Open plate DXF',exact:true})).toHaveCount(0);
+ const kle=page.locator('a.navbar-brand'),plate=page.locator('a.editor-nav-link');
+ expect(await kle.evaluate(e=>getComputedStyle(e).fontSize)).toBe(await plate.evaluate(e=>getComputedStyle(e).fontSize));
+ await plate.click();await expect(page).toHaveURL(/plate\.html/);
+ await expect(page.getByRole('heading',{name:'Plate editor',exact:true})).toBeVisible();
+ await expect(page.getByRole('link',{name:'Open normal KLE editor',exact:true})).toHaveCount(0);
+ await page.locator('a.navbar-brand').click();await expect(page).not.toHaveURL(/plate\.html/);
+ await expect(page.locator('#keyboard .keytop').first()).toBeVisible();
 });
 test('an incoming KLE aligns to explicit anchors without scaling the DXF or replacing fixed geometry',async({page})=>{
  await open(page);
@@ -133,9 +139,9 @@ test('plate KLE is centred and new keys follow its quarter-unit origin',async({p
  const box=await page.locator('#keyboard').boundingBox();expect(Math.abs(box.x+box.width/2-700)).toBeLessThan(20);
  const result=await page.evaluate(()=>{const s=angular.element(document.body).scope();return s.$apply(()=>{
   const before=s.keys().map(k=>({id:k._plateId,p:s.plate.model.physical(k).center})),origin=s.keys()[0];s.unselectAll();s.plate.addPreset('alps-1');
-  const added=s.selectedKeys[0];return {x:(added.x-origin.x)*4,y:(added.y-origin.y)*4,unchanged:before.every(k=>{const p=s.plate.model.physical(s.keys().find(q=>q._plateId===k.id)).center;return Math.hypot(p.x-k.p.x,p.y-k.p.y)<1e-7;})};
+  const added=s.selectedKeys[0];return {grid:s.keys().every(k=>Math.abs(k.x*4-Math.round(k.x*4))<1e-7&&Math.abs(k.y*4-Math.round(k.y*4))<1e-7),x:added.x*4,y:added.y*4,unchanged:before.every(k=>{const p=s.plate.model.physical(s.keys().find(q=>q._plateId===k.id)).center;return Math.hypot(p.x-k.p.x,p.y-k.p.y)<1e-7;})};
  });});
- expect(Math.abs(result.x-Math.round(result.x))).toBeLessThan(1e-6);expect(Math.abs(result.y-Math.round(result.y))).toBeLessThan(1e-6);expect(result.unchanged).toBe(true);
+ expect(Math.abs(result.x-Math.round(result.x))).toBeLessThan(1e-6);expect(Math.abs(result.y-Math.round(result.y))).toBeLessThan(1e-6);expect(result.unchanged).toBe(true);expect(result.grid).toBe(true);
 });
 test('nearby opening inclusion highlights, supports undo and persists in projects',async({page})=>{
  const base=D.parse(makeFixture(),'base'),G=require('../../plate/geometry');
