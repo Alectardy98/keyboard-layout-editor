@@ -140,13 +140,18 @@
                 if(profile.switch!=='original') P.switchShape(profile);
                 if(profile.stabilizer!=='original') P.stabilizers(profile,key);
                 if(!source && profile.switch==='original') throw Error('A new key needs an explicit switch profile.');
-                staged.push({key:key,profile:profile.switch==='original' && profile.stabilizer==='original'?null:
+                // Populating controls from recognition is not permission to
+                // replace the source with an approximate catalogue template.
+                var unchanged=source&&profile.components&&key.width===source.width&&key.height===source.height&&P.sameComponents(profile,P.inferComponents(source).options);
+                var existing=settings[key._plateId].profile;
+                if(existing&&profile.components&&existing.size.width===key.width&&existing.size.height===key.height&&P.sameComponents(profile,existing.options)){staged.push({key:key,profile:existing});return;}
+                staged.push({key:key,profile:unchanged||(profile.switch==='original' && profile.stabilizer==='original')?null:
                     {options:profile,size:{width:key.width,height:key.height}}});
             });
             staged.forEach(function(item){settings[item.key._plateId].profile=item.profile;});
         }
         function shape(source,profile) {
-            var options=profile.options,base;
+            var options=profile.options.components?P.geometryOptions(profile.options):profile.options,base;
             if(!source) return P.generate(options,profile.size);
             // Work in the key's original local frame. The switch centre comes
             // from its straight core edges, not the bounding box of its stabs.

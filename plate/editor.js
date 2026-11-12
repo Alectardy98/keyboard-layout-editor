@@ -101,23 +101,22 @@
             if(scope.dirty && !root.confirm('Re-read the original DXF with these units/layer? This discards plate edits in this tab.'))return;
             guarded(function(){var d=ui.model.document;load(D.exportBytes(d),d.name,{units:ui.units,layer:ui.layer});});
         };
-        ui.familyProfiles=(root.PlateSwitchFamilies || []).map(function(f){return f.legacy?Object.assign({},f,{label:f.label+' (previous alignment)'}):f;});
         ui.stabCategories=root.PlateProfiles?.stabilizerCategories || [];
         ui.stabCategory='alps';ui.stabAction='original';
         ui.stabPatterns=function(){return ui.stabCategories.find(function(g){return g.id===ui.stabCategory;}).patterns;};
         ui.changeStabCategory=function(){
-            ui.stabAction='replace';ui.stabChoice=ui.stabPatterns()[0].id;
+            ui.stabAction='replace';ui.stabChoice=ui.stabPatterns()[0].id;ui.options.components=true;
             if(ui.stabCategory.indexOf('mx-')===0)ui.options.mount=ui.stabCategory==='mx-pcb'?'pcb':'plate';
         };
         ui.changeStabAction=function(){if(ui.stabAction==='replace')ui.changeStabCategory();else ui.stabChoice=ui.stabAction;};
         function syncStabCategory(){
             ui.stabAction=['original','none'].includes(ui.stabChoice)?ui.stabChoice:'replace';
-            if(ui.stabAction!=='replace')return;
+            if(ui.stabAction!=='replace'){if(ui.detectedInfo?.category)ui.stabCategory=ui.detectedInfo.category;return;}
             var group=ui.stabChoice==='mx'?ui.stabCategories.find(function(g){return g.id==='mx-'+(ui.options.mount||'plate');}):
                 ui.stabCategories.find(function(g){return g.patterns.some(function(p){return p.id===ui.stabChoice;});});
             if(group)ui.stabCategory=group.id;
         }
-        ui.isMeasuredFamily=function(id){return ui.familyProfiles.some(function(f){return f.id===id;});};
+        ui.isIntegratedPattern=function(id){return !!root.PlateProfiles?.isIntegratedPattern(id);};
         ui.presets=root.PlateProfiles?.presets || [];
         ui.mxPresets=root.PlateProfiles?.mxPresets || [];
         ui.mxPlatePresets=ui.mxPresets.filter(function(p){return !p.mount || p.mount==='plate';});
@@ -308,17 +307,15 @@
             ui.selectedCount=scope.selectedKeys.length;
             selectedInfo();
             if(ui.model && scope.selectedKeys.length) {
-                var profiles=scope.selectedKeys.map(function(key){return ui.model.settings[key._plateId]?.profile?.options || null;});
-                ui.mixedProfiles=profiles.some(function(p){return JSON.stringify(p)!==JSON.stringify(profiles[0]);});
-                if(profiles[0]) {
-                    ui.options=angular.extend({axis:'auto',spacing:'',mxPattern:'legacy'},angular.copy(profiles[0]));
-                    var style=ui.options.stabilizer || 'original';
-                    ui.stabChoice=style;
-                } else {
-                    ui.options={switch:'original',stabilizer:'original',direction:'south',mount:'plate',mxPattern:'cherry',axis:'auto',switchRotation:0,extraSize:0,spacing:'',stemOffset:0};
-                    ui.stabChoice='original';
-                }
-            } else ui.mixedProfiles=false;
+                var profiles=scope.selectedKeys.map(function(key){
+                    var applied=ui.model.settings[key._plateId]?.profile?.options;
+                    return applied?root.PlateProfiles.componentOptions(applied):ui.model.original[key._plateId]?root.PlateProfiles.inferComponents(ui.model.original[key._plateId]).options:root.PlateProfiles.componentOptions({switch:'original',stabilizer:'original'});
+                });
+                ui.mixedProfiles=profiles.some(function(p){return !root.PlateProfiles.sameComponents(p,profiles[0]);});
+                ui.options=angular.copy(profiles[0]);ui.stabChoice=ui.options.stabilizer;
+                var source=ui.model.original[scope.selectedKeys[0]._plateId];
+                ui.detectedInfo=source?root.PlateProfiles.inferComponents(source):null;
+            } else {ui.mixedProfiles=false;ui.detectedInfo=null;}
             syncStabCategory();
         });
         if(workspace) {

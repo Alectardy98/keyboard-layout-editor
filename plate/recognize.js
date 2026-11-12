@@ -409,15 +409,15 @@
             if(!matches(c.points,Measured.capsMultistep,center,0,0.18))return;
             center={x:b.maxX-7.75,y:b.cy};
             keys.push({id:'key-'+String(keys.length+1).padStart(3,'0'),center:center,holeAngle:0,capAngle:0,
-                label:'Caps Multistep',type:'alps',core:{width:15.5,height:b.height},contours:[c],stabilizers:[],editable:c.editable,width:1.75,height:1});
+                pattern:'alps-multistep',label:'Caps Multistep',type:'alps',core:{width:15.5,height:b.height},contours:[c],stabilizers:[],editable:c.editable,width:1.75,height:1});
             counts.alps++;
         });
         // Broad MX compatibility windows lose the 14 mm vertical core edges.
         // Match the complete contour, not a large rectangle's bounding box.
         // Append new discoveries so existing saved-project IDs stay unchanged.
-        [{pattern:Measured.mxWide2,width:2,label:'2u PCB mount'},
-         {pattern:Measured.mxWide225,width:2.25,label:'2.25u PCB mount'},
-         {pattern:Measured.mxCapsMultistep,width:1.75,label:'Caps Multistep',caps:true}].forEach(function(preset){
+        [{pattern:Measured.mxWide2,id:'mx-wide2',width:2,label:'2u PCB mount'},
+         {pattern:Measured.mxWide225,id:'mx-wide225',width:2.25,label:'2.25u PCB mount'},
+         {pattern:Measured.mxCapsMultistep,id:'mx-multistep',width:1.75,label:'Caps Multistep',caps:true}].forEach(function(preset){
             document.contours.forEach(function(c){
                 if(!inLayer(c))return;
                 if(keys.some(function(k){return k.contours.includes(c)||k.stabilizers.includes(c);}))return;
@@ -430,7 +430,7 @@
                     if(preset.caps && !keys.some(function(k){var n=G.rotate({x:k.center.x-center.x,y:k.center.y-center.y},-angle);
                         return k.width===1 && Math.abs(n.y)<.1 && Math.abs(n.x-1.375*19.05)<.1;}))return false;
                     keys.push({id:'key-'+String(keys.length+1).padStart(3,'0'),center:center,holeAngle:angle,capAngle:angle,
-                        label:preset.label,type:'mx',core:{width:14,height:14},contours:[c],stabilizers:[],editable:c.editable,
+                        pattern:preset.id,label:preset.label,type:'mx',core:{width:14,height:14},contours:[c],stabilizers:[],editable:c.editable,
                         width:preset.width,height:1,compound:!preset.caps});counts.mx++;return true;
                 });
             });
@@ -509,7 +509,7 @@
                 var second=document.contours.find(function(c){return c!==first && available(c) && matches(c.points,Measured.mxDual275[1],center,angle);});
                 if(!second)return false;
                 keys.push({id:'key-'+String(keys.length+1).padStart(3,'0'),center:center,holeAngle:angle,capAngle:angle,
-                    label:'2.75u dual opening PCB mount',type:'mx',core:{width:14,height:14},contours:[first],stabilizers:[second],
+                    pattern:'mx-dual275',label:'2.75u dual opening PCB mount',type:'mx',core:{width:14,height:14},contours:[first],stabilizers:[second],
                     editable:first.editable && second.editable,width:2.75,height:1,compound:true});counts.mx++;return true;
             });
         });
@@ -544,7 +544,7 @@
                     });
                     if(v.split && !second)return false;
                     keys.push({id:'key-'+String(keys.length+1).padStart(3,'0'),center:center,holeAngle:angle,capAngle:angle,
-                        label:v.size+'u '+(v.split?'split PCB compatibility':options.legacyAssembly?'wide PCB compatibility':'PCB mount'),type:'mx',core:{width:14,height:14},
+                        pattern:'mx-compat-'+v.size+(v.split?'-split':''),label:v.size+'u '+(v.split?'split PCB compatibility':options.legacyAssembly?'wide PCB compatibility':'PCB mount'),type:'mx',core:{width:14,height:14},
                         contours:[first],stabilizers:second?[second]:[],editable:true,width:v.size,height:1,compound:true,
                         detectedStabilizer:{family:'mx-pcb',spacing:23.876,vertical:false}});counts.mx++;return true;
                 });});

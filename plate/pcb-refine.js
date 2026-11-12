@@ -67,7 +67,7 @@
             var supported=candidates.filter(function(v){return v.size;});
             var unique=supported.filter(function(v,i){return !supported.slice(0,i).some(function(q){return near(q.cx,v.cx)&&near(q.cy,v.cy)&&q.size===v.size;});});
             if(unique.length!==1)return;var v=unique[0],k=claim(c,{x:v.cx,y:v.cy},v.size,v.size+'u PCB mount');
-            k.detectedStabilizer={family:'mx-pcb',spacing:23.876,vertical:false};
+            k.detectedStabilizer={family:'mx-pcb',spacing:23.876,vertical:false};k.pattern='mx-compat-'+v.size;
         });
         // Split right Shift: both openings must fit the same two-slot model.
         doc.contours.forEach(function(c){var b=bounds.get(c);if(!free(c)||!near(b.width,23.525,.15)||b.height<15||b.height>20)return;
@@ -75,7 +75,7 @@
                 return [7,7.4,7.8,8,8.2,8.5,9].some(function(sw){var rings=P.rings(P.union([rect(23.525,14,cx-4.7625,cy),rect(14,14,cx+16.66875,cy),rect(cx-11.938+sw/2-b.minX,b.height,(cx-11.938+sw/2+b.minX)/2,b.cy),rect(sw,b.height,cx+11.938,b.cy)]));
                     if(rings.length!==2)return false;var first=rings.find(function(r){return fit(c,r);});if(!first)return false;
                     var other=rings.find(function(r){return r!==first;}),second=doc.contours.find(function(q){return q!==c&&free(q)&&fit(q,other);});
-                    if(!second)return false;claim(c,{x:cx,y:cy},2.75,'2.75u split PCB mount',[second]);return true;});
+                    if(!second)return false;claim(c,{x:cx,y:cy},2.75,'2.75u split PCB mount',[second]).pattern='mx-compat-2.75-split';return true;});
             });
         });
         // ANSI/ISO compatibility: the upper 14mm core, lower 14mm band,
@@ -88,14 +88,14 @@
             if(![-6,0,6].every(function(x){return [-6,0,6].every(function(y){return G.contains(pts,{x:x,y:y});});}))return;
             if(![-24,-17,-10,-3,6].every(function(x){return [-25,-19.05,-13].every(function(y){return G.contains(pts,{x:x,y:y});});}))return;
             if(G.contains(pts,{x:-12,y:0})||G.contains(pts,{x:-20,y:0}))return;
-            var k=claim(c,center,1.5,'PCB mount ANSI-ISO');k.capShape={width2:2.25,height2:1,x2:-.75,y2:1};
+            var k=claim(c,center,1.5,'PCB mount ANSI-ISO');k.capShape={width2:2.25,height2:1,x2:-.75,y2:1};k.pattern='mx-ansi-iso';
         });
         // Multistep Caps uses an extended horizontal switch window. Its
         // neighbouring alpha key establishes the unstepped cap's stem.
         doc.contours.forEach(function(c){var b=bounds.get(c);if(!free(c)||b.width<18.7||b.width>19.3||!near(b.height,14,.1))return;
             var right=keys.filter(function(k){return k.type==='mx'&&k.width===1&&near(k.center.y,b.cy)&&near(k.center.x,b.maxX-7+26.19375,.2);});
             if(right.length!==1||!fit(c,G.rectangle(b.width,14,{x:b.cx,y:b.cy})))return;
-            claim(c,{x:right[0].center.x-26.19375,y:right[0].center.y},1.75,'Caps Multistep');
+            claim(c,{x:right[0].center.x-26.19375,y:right[0].center.y},1.75,'Caps Multistep').pattern='mx-multistep';
         });
         // Repeated alternate-stem bottom-row openings. Neighbouring centres
         // choose the 1.25u cap position; the imported opening never moves.
@@ -117,7 +117,7 @@
                 var helpers=doc.contours.filter(function(q){var z=bounds.get(q);if(!free(q)||!near(z.width,16.38125,.15)||z.height<15||z.height>18||!near(z.minX+7,sx,.15)||!near(z.minY+7,cy,.15))return false;
                     var extra=z.height-14,rings=P.rings(P.union([rect(z.width,14,z.cx,cy),rect(7,extra+1,sx-2.38125,cy+7+(extra-1)/2)]));return rings.length===1&&fit(q,rings[0]);});
                 if(helpers.length!==1)return;
-                claim(c,{x:b.cx,y:cy},1.25,'1.25u bottom row larger variant');
+                claim(c,{x:b.cx,y:cy},1.25,'1.25u bottom row larger variant').pattern='mx-bottom125-large';
                 claim(helpers[0],{x:sx,y:cy},1.25,'1.25u with 7u mount');
             });
         }
