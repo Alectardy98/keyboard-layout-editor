@@ -178,6 +178,18 @@
             k.width=7;k.label='7u PCB mount';k.stabilizers=supports;k.detectedStabilizer={family:'mx-pcb',spacing:114.3,vertical:false};
             neighbours.forEach(function(n){n.width=1.5;});
         });
+        if(!options.legacyRoundedPcb){
+            // A plain switch between two 1u neighbours can carry a wider cap.
+            // Require both sides to imply the same quarter-unit size; one gap
+            // alone could simply be an intentional separation between groups.
+            keys.filter(function(k){return k.type==='mx'&&k.width===1&&k.height===1&&!k.capShape&&!k.recovered&&!k.family&&Math.abs(k.capAngle)<.002;}).forEach(function(k){
+                var row=keys.filter(function(n){return n!==k&&n.type==='mx'&&n.height===1&&Math.abs(n.capAngle)<.002&&near(n.center.y,k.center.y,.15);});
+                var sides=[-1,1].map(function(side){return row.filter(function(n){return (n.center.x-k.center.x)*side>0;}).sort(function(a,b){return Math.abs(a.center.x-k.center.x)-Math.abs(b.center.x-k.center.x);})[0];});
+                if(sides.some(function(n){return !n||n.width!==1||n.capShape;}))return;
+                var size=[1.25,1.5,1.75].find(function(w){return sides.every(function(n){return near(2*Math.abs(n.center.x-k.center.x)/pitch-1,w,.015);});});
+                if(size)k.width=size;
+            });
+        }
     }
     return {run:run};
 }));
