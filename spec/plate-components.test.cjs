@@ -40,3 +40,30 @@ test('rotated Topre support pairs retain the wide-span classification',()=>{
   assert.equal(P.inferComponents(key).options.stabilizer,'topre-7-wide');
  }
 });
+
+test('every menu pattern replaces imported geometry at each key rotation and exports',()=>{
+ let count=0;
+ for(const group of P.stabilizerCategories)for(const pattern of group.patterns)for(const rotation of [0,90,27])for(const type of ['mx','alps','topre']){
+  const d=D.parse(makeFixture(),'replace',{units:'mm'}),m=M.create(d,R.analyze(d)),keys=m.makeKeys(S.defaultKeyProps),key=keys[1];
+  if(['mx','costar','alps-default','alps-aek','alps-at101'].includes(pattern.id))key.width=key.width2=2;
+  key.rotation_angle=rotation;const start=m.physical(key),before=structuredClone(keys);
+  // A small imported cap must not prevent a deliberate size-specific replacement.
+  const pending=P.replacement({components:true,switch:type,stabilizer:pattern.id,mount:group.id==='mx-pcb'?'pcb':'plate'},key);
+  if(['mx','costar','alps-default','alps-aek','alps-at101'].includes(pattern.id))pending.key.width=pending.key.width2=2;
+  m.apply([pending.key],pending.options);
+  for(const field of ['width','height','width2','height2','x2','y2','stepped'])key[field]=pending.key[field];
+  m.reconcile(before,keys);
+  const end=m.physical(key);assert.ok(Math.hypot(end.center.x-start.center.x,end.center.y-start.center.y)<1e-6,pattern.id);
+  const plan=m.plan(keys);assert.ok(plan.paths.some(p=>p.key===key._plateId),pattern.id);
+  const exported=m.exportFile(keys);assert.ok(exported.length>0,pattern.id);
+  const profile=m.settings[key._plateId].profile;assert.equal(profile.options.stabilizer,pattern.id);
+  const again=m.exportFile(keys);assert.deepEqual(again,exported);count++;
+ }
+ assert.equal(count,P.stabilizerCategories.reduce((n,g)=>n+g.patterns.length,0)*9);
+});
+
+test('7u manual override changes the cap footprint but not the independent switch technology',()=>{
+ const p=P.replacement({components:true,switch:'topre',stabilizer:'alps-7-all'},{width:2.25,height:1,width2:2.25,height2:1,x2:0,y2:0});
+ assert.equal(p.key.width,7);assert.equal(p.key.width2,7);assert.equal(p.options.switch,'topre');
+ assert.ok(P.generate(p.options,p.key).length);
+});
