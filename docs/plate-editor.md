@@ -543,11 +543,12 @@ checks complete assemblies, repeated housing geometry and neighbouring row
 spacing after initial recognition. It does not use filenames or key numbers.
 Quarter-unit cap sizes mean **0.25u**, not 0.25mm; standard pitch remains 19.05mm.
 
-A yellow import-review list links to uncertain keys/openings. It reports unknown
-switch families, incompatible cap overlap, unresolved cap widths/stem positions,
-and possible shared clearance or mounting features. These are conservative
-review candidates, not confirmed errors. The list records import findings; it
-does not certify later manual edits or clear itself when a user adjusts a cap.
+Selecting a flagged key or unassigned opening shows its import-review notes in
+the Reference keys bar. These report unknown switch families, incompatible cap
+overlap, unresolved cap widths/stem positions, and possible shared clearance
+or mounting features. The global human-review count banner is not shown.
+These are conservative review candidates, not confirmed errors; import findings
+do not certify later manual edits or clear themselves when a cap is adjusted.
 Use **Map to new key**, **Map to existing**, or **Mark as fixed geometry** after
 reviewing the actual cutout. Unassigned geometry remains in the exported DXF.
 
@@ -676,3 +677,8 @@ unchanged detected values also preserves the original DXF records byte-for-byte.
 Old saved profile IDs still load, and reapplying an unchanged saved profile
 keeps its existing generated geometry. KLE cap sizes remain independent of the
 switch centre and stabilizer pattern. EC11 and custom openings remain available.
+
+The plate workspace places units and recognition-layer controls at the top
+right, Reference keys across the top of the drawing, switch/support controls
+on its right, and stabilizer settings across the bottom. These rows wrap on
+smaller screens. The inferred KLE remains below the drawing controls.
