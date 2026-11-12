@@ -346,3 +346,44 @@ test('selecting recognized keys populates independent switch and support control
  await expect(page.getByLabel('Stabilizer action')).toHaveValue('none');
  await expect(page.getByLabel('Switch profile',{exact:true}).locator('option')).not.toContainText(['PCB mount ANSI-ISO']);
 });
+
+test('every stabilizer menu pattern applies, resizes when needed and exports through the UI',async({page})=>{
+ test.setTimeout(120000);await open(page);
+ await page.locator('#keyboard').getByText('Key 3',{exact:true}).click();
+ const groups=await page.evaluate(()=>window.PlateProfiles.stabilizerCategories);
+ for(const group of groups){
+  await page.getByLabel('Stabilizer style',{exact:true}).selectOption(group.id);
+  for(const pattern of group.patterns){
+   // Generic wires work from a compatible cap size; named patterns must fit themselves.
+   await page.evaluate(()=>{const s=angular.element(document.body).scope();s.$apply(()=>{s.selectedKeys[0].width=s.selectedKeys[0].width2=2;});});
+   await page.getByLabel('Stabilizer pattern',{exact:true}).selectOption({label:pattern.label});
+   await page.getByRole('button',{name:'Apply to selected keys',exact:true}).click();
+   const state=await page.evaluate(()=>{const s=angular.element(document.body).scope(),k=s.selectedKeys[0];return {error:s.plate.error,profile:s.plate.model.settings[k._plateId].profile,bytes:s.plate.model.exportFile(s.keys()).length,width:k.width};});
+   expect(state.error,group.id+'/'+pattern.id).toBeFalsy();expect(state.profile.options.stabilizer).toBe(pattern.id);expect(state.bytes).toBeGreaterThan(0);
+   if(pattern.id==='alps-7-all')expect(state.width).toBe(7);
+  }
+ }
+});
+
+test('manual 7u replacement keeps its centre and undo restores cap and cutouts',async({page})=>{
+ await open(page);await page.locator('#keyboard').getByText('Key 3',{exact:true}).click();
+ const before=await page.evaluate(()=>{const s=angular.element(document.body).scope();return {key:JSON.parse(JSON.stringify(s.selectedKeys[0])),center:s.plate.model.physical(s.selectedKeys[0]),settings:s.plate.model.snapshot()};});
+ await page.getByLabel('Stabilizer style',{exact:true}).selectOption('alps');
+ await page.getByLabel('Stabilizer pattern',{exact:true}).selectOption({label:'7u all stabs'});
+ await page.getByRole('button',{name:'Apply to selected keys',exact:true}).click();
+ const after=await page.evaluate(()=>{const s=angular.element(document.body).scope();return {width:s.selectedKeys[0].width,center:s.plate.model.physical(s.selectedKeys[0]),error:s.plate.error};});
+ expect(after.error).toBeFalsy();expect(after.width).toBe(7);expect(after.center.center.x).toBeCloseTo(before.center.center.x,6);expect(after.center.center.y).toBeCloseTo(before.center.center.y,6);
+ await page.evaluate(()=>{const s=angular.element(document.body).scope();s.$apply(()=>s.undo());});
+ const restored=await page.evaluate(()=>{const s=angular.element(document.body).scope();return {width:s.keys().find(k=>k._plateId==='key-003')?.width,settings:s.plate.model.snapshot()};});
+ expect(restored.settings).toEqual(before.settings);
+ expect(await page.evaluate(id=>angular.element(document.body).scope().keys().find(k=>k._plateId===id).width,before.key._plateId)).toBe(before.key.width);
+});
+
+test('choosing another pattern discards inherited measurements without editing the plate',async({page})=>{
+ await open(page);await page.locator('#keyboard').getByText('Key 3',{exact:true}).click();
+ await page.evaluate(()=>{const s=angular.element(document.body).scope();s.$apply(()=>Object.assign(s.plate.options,{spacing:114.3,pcbWidth:9,slotWidth:5,axis:'vertical',forceStabilizer:true,stemOffset:12}));});
+ await page.getByLabel('Stabilizer style',{exact:true}).selectOption('alps');
+ const state=await page.evaluate(()=>{const s=angular.element(document.body).scope();return {options:s.plate.options,settings:s.plate.model.snapshot()};});
+ expect(state.options.spacing).toBeUndefined();expect(state.options.pcbWidth).toBeUndefined();expect(state.options.slotWidth).toBeUndefined();expect(state.options.axis).toBe('auto');expect(state.options.stemOffset).toBe(0);expect(state.options.forceStabilizer).toBe(false);
+ expect(Object.values(state.settings).some(s=>s.profile)).toBe(false);
+});
