@@ -1,7 +1,8 @@
 # DXF plate editor
 
-Open **Plate editor** in the menu, or **Open plate DXF** beside the normal JSON
-buttons. A separate workspace shows the DXF above an editable KLE layout.
+Use **Plate Editor** in the top navigation to open the DXF workspace.
+Click **Keyboard Layout Editor** beside it to return to normal KLE in the same
+tab. The plate workspace shows the DXF above an editable KLE layout.
 Drawing files are processed in the browser; opening, previewing and converting
 them does not upload them to a server.
 
@@ -278,13 +279,14 @@ its rightmost Alps stem position as the reference centre. **2.75u multi stab**
 includes both pairs of wire slots. Adjacent circular mounting holes are not part
 of either key. Both patterns are available in **Add Alps Keys**.
 
-New DXF imports use a padded, key-based KLE origin, so unrelated plate margins
-no longer introduce arbitrary offsets into every X/Y field. This is a coordinate
-transform only; actual drawing positions and gaps remain unchanged. Saved plate
-projects retain their existing coordinate frame. The KLE canvas is centred, and
-newly added keys snap to quarter units relative to the first key. Small measured
-deviations in imported drawings are retained rather than rounding the holes onto
-a different grid.
+New DXF imports use a padded, anchor-based KLE origin. Inferred and newly added
+keys use X/Y coordinates in 0.25u steps. These are display estimates, with a
+separate per-key offset preserving each original DXF switch centre exactly.
+Moving a key by 0.25u copies a relative 4.7625 mm movement to its existing
+cutouts; it never snaps the physical drawing to the inferred grid. Anchors,
+plate edges and unrelated openings remain fixed. Resizing preserves the switch
+centre. Saved projects retain these offsets, including through Undo/Redo, and
+older projects keep their original coordinate mapping. The KLE canvas is centred.
 
 **7u all stabs** (NCR80 Plate1) includes twelve support openings: four wire
 slots, two barrel assemblies (each a circle and two side supports), and the two
