@@ -229,7 +229,7 @@
         if(!options.legacyAssembly)G.joinCrossLayerContours(paths);
         if(!options.legacyFamilies)G.recoverSwitchCorners(paths,0,0,options.legacyAlignment);
         primitives.forEach(function(p){allPoints=allPoints.concat(p.points);});
-        return {recognitionVersion:options.legacyFamilies?2:options.legacyAlignment?3:options.legacyAssembly?4:options.legacyRuns?5:options.legacyRefine?6:options.legacyPcb?7:options.legacyRoundedPcb?8:9,coordinateVersion:options.legacyExtrusion?1:2,source:source,encoding:encoding,name:name || 'plate.dxf',raw:raw,parsed:parsed,primitives:primitives,
+        return {recognitionVersion:options.legacyFamilies?2:options.legacyAlignment?3:options.legacyAssembly?4:options.legacyRuns?5:options.legacyRefine?6:options.legacyPcb?7:options.legacyRoundedPcb?8:options.legacyWidePcb?9:10,coordinateVersion:options.legacyExtrusion?1:2,source:source,encoding:encoding,name:name || 'plate.dxf',raw:raw,parsed:parsed,primitives:primitives,
             contours:paths.closed,open:paths.open,bounds:G.bounds(allPoints),factor:factor,
             units:{code:code,factor:factor,declaredFactor:unitFactors[code] || null,
                 override:['mm','in','cm'].includes(options.units)?options.units:null,

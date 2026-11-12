@@ -105,6 +105,22 @@
             if(!choices[0].score||choices[0].score===choices[1].score)return;
             Object.assign(k,{type:'mx',center:{x:choices[0].cx,y:b.cy},width:1.25,capAngle:0,holeAngle:0,label:'mx bottom row 1.25'});
         });
+        if(!options.legacyWidePcb){
+            // Three-position switch windows are wider than the usual two-
+            // position bottom-row slot. Two following modifier windows and
+            // the preceding notched support establish the intended 1.25u run.
+            doc.contours.forEach(function(c){var b=bounds.get(c);
+                if(!free(c)||!near(b.width,18.7625,.15)||!near(b.height,14,.15)||!fit(c,G.rectangle(b.width,14,{x:b.cx,y:b.cy})))return;
+                var following=[1,2].map(function(n){return keys.find(function(k){if(k.contours.length!==1||k.recovered)return false;var q=bounds.get(k.contours[0]);return near(q.width,16.38125,.15)&&near(q.height,14,.15)&&near(q.cy,b.cy,.15)&&near(q.cx+1.190625,b.cx+n*23.8125,.15);});});
+                if(following.some(function(k){return !k;}))return;
+                var sx=b.cx-23.8125,cy=b.cy;
+                var helpers=doc.contours.filter(function(q){var z=bounds.get(q);if(!free(q)||!near(z.width,16.38125,.15)||z.height<15||z.height>18||!near(z.minX+7,sx,.15)||!near(z.minY+7,cy,.15))return false;
+                    var extra=z.height-14,rings=P.rings(P.union([rect(z.width,14,z.cx,cy),rect(7,extra+1,sx-2.38125,cy+7+(extra-1)/2)]));return rings.length===1&&fit(q,rings[0]);});
+                if(helpers.length!==1)return;
+                claim(c,{x:b.cx,y:cy},1.25,'1.25u bottom row larger variant');
+                claim(helpers[0],{x:sx,y:cy},1.25,'1.25u / 7u support');
+            });
+        }
         // 6.25/7u multi-layout bottom row: three tall/central rectangles plus
         // the adjacent switch with its extra 7u support notch. Long thin relief
         // windows are not part of the assembly. Both modifier runs must agree.
@@ -117,14 +133,14 @@
             var left=run(-1),right;
             // The first right position is the special notched companion;
             // the other three 1.25u windows start one key further to its right.
-            right=[1,2,3].map(function(n){var x=cx+(3.75+n*1.25)*pitch;return keys.find(function(k){if(k.contours.length!==1||k.recovered)return false;var q=bounds.get(k.contours[0]);return near(q.width,16.38125,.15)&&near(q.height,14,.15)&&near(q.cy,cy,.15)&&near(q.cx+1.190625,x,.15)&&fit(k.contours[0],G.rectangle(q.width,q.height,{x:q.cx,y:q.cy}));});});
+            right=[1,2,3].map(function(n){var x=cx+(3.75+n*1.25)*pitch;return keys.find(function(k){if(k.contours.length!==1||k.recovered)return false;var q=bounds.get(k.contours[0]);var wide=!options.legacyWidePcb&&near(q.width,18.7625,.15);return (wide||near(q.width,16.38125,.15))&&near(q.height,14,.15)&&near(q.cy,cy,.15)&&near(q.cx+(wide?0:1.190625),x,.15)&&fit(k.contours[0],G.rectangle(q.width,q.height,{x:q.cx,y:q.cy}));});});
             if(left.some(function(k){return !k;})||right.some(function(k){return !k;}))return;
             var supports=[{x:cx-47.621875,w:11.75625},{x:cx+50,w:7}].map(function(v){return doc.contours.find(function(q){var z=bounds.get(q);return q!==c&&free(q)&&near(z.cx,v.x,.25)&&near(z.width,v.w,.45)&&z.height>=14.8&&z.height<=18&&Math.abs(z.cy-cy)<=2&&fit(q,G.rectangle(z.width,z.height,{x:z.cx,y:z.cy}));});});
             if(supports.some(function(q){return !q;}))return;
-            var sx=cx+71.4375,companion=keys.find(function(k){if(k.contours.length!==1||k.recovered||k.stabilizers.length)return false;var q=bounds.get(k.contours[0]);return near(q.cx,sx,.18)&&near(q.width,14,.15)&&q.height>=15&&q.height<=18&&near(q.minY,cy-7,.15);});
+            var sx=cx+71.4375,companion=keys.find(function(k){if(k.contours.length!==1||k.recovered||k.stabilizers.length)return false;var q=bounds.get(k.contours[0]);return near(q.minX+7,sx,.18)&&(near(q.width,14,.15)||(!options.legacyWidePcb&&near(q.width,16.38125,.15)))&&q.height>=15&&q.height<=18&&near(q.minY,cy-7,.15);});
             if(!companion)return;
             var q=bounds.get(companion.contours[0]),extra=q.height-14;
-            var combined=P.rings(P.union([rect(14,14,sx,cy),rect(7,extra+1,sx-2.38125,cy+7+(extra-1)/2)]));
+            var combined=P.rings(P.union([rect(q.width,14,q.cx,cy),rect(7,extra+1,sx-2.38125,cy+7+(extra-1)/2)]));
             if(combined.length!==1||!fit(companion.contours[0],combined[0]))return;
             // The cutout assembly is valid only if its two visible caps and
             // modifier runs fit the inferred layout. Never force neighbours
@@ -132,14 +148,14 @@
             var replaced=[companion].concat(left,right,owned(c));
             var proposed=[{center:{x:cx,y:cy},width:6.25},{center:{x:sx,y:cy},width:1.25}];
             left.forEach(function(k){proposed.push({center:{x:bounds.get(k.contours[0]).cx-1.190625,y:cy},width:1.25});});
-            right.forEach(function(k){proposed.push({center:{x:bounds.get(k.contours[0]).cx+1.190625,y:cy},width:1.25});});
+            right.forEach(function(k){var z=bounds.get(k.contours[0]);proposed.push({center:{x:z.cx+(near(z.width,18.7625,.15)?0:1.190625),y:cy},width:1.25});});
             proposed.forEach(function(k){k.height=1;k.capAngle=0;});
             var remaining=keys.filter(function(k){return !replaced.includes(k)&&!F.incompleteMxCandidate(k);});
             if(proposed.some(function(k,i){return remaining.concat(proposed.slice(i+1)).some(function(n){return F.capPolygons(k).some(function(a){return F.capPolygons(n).some(function(b){return F.intersects(a,b);});});});}))return;
             var space=claim(c,{x:cx,y:cy},6.25,'PCB mount 6.25u and 7u',supports),group='pcb-space-'+space.id;
             space.assembly=group;companion.assembly=group;companion.width=1.25;companion.type='mx';companion.center={x:sx,y:cy};companion.capAngle=companion.holeAngle=0;companion.label='1.25u / 7u support';
             left.forEach(function(k){var z=bounds.get(k.contours[0]);Object.assign(k,{type:'mx',width:1.25,center:{x:z.cx-1.190625,y:cy},capAngle:0,holeAngle:0,label:'mx bottom row 1.25'});});
-            right.forEach(function(k){var z=bounds.get(k.contours[0]);Object.assign(k,{type:'mx',width:1.25,center:{x:z.cx+1.190625,y:cy},capAngle:0,holeAngle:0,label:'mx bottom row 1.25'});});
+            right.forEach(function(k){var z=bounds.get(k.contours[0]),wide=near(z.width,18.7625,.15);Object.assign(k,{type:'mx',width:1.25,center:{x:z.cx+(wide?0:1.190625),y:cy},capAngle:0,holeAngle:0,label:wide?'1.25u bottom row larger variant':'mx bottom row 1.25'});});
         });
         if(!options.legacyRoundedPcb){
             // A previously recognized 6.25u assembly can have only one right

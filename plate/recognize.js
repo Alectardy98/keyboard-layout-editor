@@ -553,13 +553,13 @@
         if(!options.legacyFamilies){
             // User-confirmed families are matched by their complete relative
             // geometry, never by drawing filename or transient key number.
-            Families.filter(function(f){return !f.presetOnly && !(options.legacyAssembly && f.review5) && (options.legacyAlignment?!f.id.endsWith('-aligned') && f.id!=='mx-pcb2-combined':!f.legacy);}).flatMap(function(f){return [f].concat(options.legacyAssembly?[]:(f.variants || []).map(function(parts){return Object.assign({},f,{parts:parts});}));}).forEach(function(f){
+            Families.filter(function(f){return !f.presetOnly && !(options.legacyWidePcb && f.review10) && !(options.legacyAssembly && f.review5) && (options.legacyAlignment?!f.id.endsWith('-aligned') && f.id!=='mx-pcb2-combined':!f.legacy);}).flatMap(function(f){return [f].concat(options.legacyAssembly?[]:(f.variants || []).map(function(parts){return Object.assign({},f,{parts:parts});}));}).forEach(function(f){
                 document.contours.forEach(function(first){
                     if(!inLayer(first))return;
                     var owner=keys.find(function(k){return k.contours.includes(first);});
                     if(owner && (owner.family || owner.recovered || owner.contours.length!==1))return;
                     if(keys.some(function(k){return k.stabilizers.includes(first);}))return;
-                    [0,Math.PI/2,Math.PI,3*Math.PI/2].concat(G.axes(first.points).flatMap(function(a){return [a,a+Math.PI/2,a+Math.PI,a+3*Math.PI/2];})).some(function(angle){
+                    (f.matchAngles || [0,Math.PI/2,Math.PI,3*Math.PI/2].concat(G.axes(first.points).flatMap(function(a){return [a,a+Math.PI/2,a+Math.PI,a+3*Math.PI/2];}))).some(function(angle){
                         var b=G.bounds(first.points.map(function(p){return G.rotate(p,-angle);})),t=G.bounds(f.parts[0]);
                         if(Math.abs(b.width-t.width)>.06 || Math.abs(b.height-t.height)>.06)return false;
                         var center=G.rotate({x:b.cx-t.cx,y:b.cy-t.cy},angle);
@@ -673,7 +673,7 @@
             counts={mx:0,alps:0,universal:0,unknown:0,topre:0};
             keys.forEach(function(k){counts[k.type]=(counts[k.type] || 0)+1;});
         }
-        if(!options.legacyPcb)PcbRefine.run(document,keys,{layer:options.layer,matches:matches,legacyRoundedPcb:options.legacyRoundedPcb});
+        if(!options.legacyPcb)PcbRefine.run(document,keys,{layer:options.layer,matches:matches,legacyRoundedPcb:options.legacyRoundedPcb,legacyWidePcb:options.legacyWidePcb});
         var review=[];
         if(!options.legacyRefine){review=Refine.run(document,keys,{layer:options.layer,cores:cores,matches:matches});
             counts={mx:0,alps:0,universal:0,unknown:0,topre:0};keys.forEach(function(k){counts[k.type]=(counts[k.type] || 0)+1;});}
