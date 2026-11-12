@@ -58,3 +58,24 @@ test('interior modifier size requires independent agreement from both neighbours
   assert.equal(k.width,rightWidth===1?1.5:1);unchanged(d,r);
  }
 });
+test('wide-cap boundary and repeated modifier pitch infer a pair without filename assumptions',()=>{
+ const f=families.find(f=>f.id==='mx-space625-option2');
+ for(const width of [1.25,1.5,1.75])for(const side of [-1,1])for(const x of [250,450]){
+  const first=x+side*(6.25+width)*19.05/2,second=first+side*width*19.05;
+  const d=from([...at(f.parts,x,100),...at([G.rectangle(14,14)],first,100),...at([G.rectangle(14,14)],second,100)]),r=R.analyze(d);
+  for(const cx of [first,second])assert.equal(r.keys.find(k=>Math.abs(k.center.x-cx)<.001).width,width);
+  unchanged(d,r);
+ }
+});
+test('modifier-pair inference rejects unequal spacing and overlapping offset clusters',()=>{
+ const f=families.find(f=>f.id==='mx-space625-option2'),first=250+3.875*19.05,second=first+1.5*19.05;
+ for(const mode of ['unequal','single','blocked']){
+  let rings=[...at(f.parts),...at([G.rectangle(14,14)],first,100)];
+  if(mode!=='single')rings.push(...at([G.rectangle(14,14)],second+(mode==='unequal'?4:0),100));
+  if(mode==='blocked')rings.push(...at([G.rectangle(14,14)],second+19.05,95.2375));
+  const r=R.analyze(from(rings));assert.equal(r.keys.find(k=>Math.abs(k.center.x-first)<.001).width,1,mode);
+ }
+ const d=from([...at(f.parts),...at([G.rectangle(14,14)],first,100),...at([G.rectangle(14,14)],second,100)]);
+ assert.equal(R.analyze(d,{legacyRuns:true}).keys.find(k=>Math.abs(k.center.x-first)<.001).width,1);
+ assert.equal(D.parse(d.source,'old',{legacyRuns:true}).recognitionVersion,5);
+});
