@@ -356,12 +356,13 @@ test('manual shape selection creates a key without changing source cuts and surv
  p.m.restore(original);assert.equal(p.m.original[key._plateId],undefined);assert.deepEqual(Buffer.from(p.m.exportFile(p.keys.filter(k=>k!==key))),Buffer.from(bytes));
  const outline=p.d.contours.find(c=>G.bounds(c.points).width>100 && G.bounds(c.points).height>50);assert.ok(outline);assert.equal(p.m.selectableContours().includes(outline.id),false);
 });
-test('plate outline stops inferred cap growth and edits beyond the edge',()=>{
+test('plate outline constrains inference but allows manual cap corrections',()=>{
  const base=D.parse(makeFixture(),'base');
  const shapes=[G.rectangle(80,40,{x:28,y:0}),...[-1,37.1,56.15].map(x=>G.rectangle(15.5,12.8,{x,y:0}))];
  const bytes=D.exportBytes(base,base.raw.entities.map(record=>({record})),shapes.map(points=>({points}))),p=plate(bytes);
  assert.equal(p.r.keys[0].width,1);
- const before=structuredClone(p.keys),key=p.keys[2];key.x+=2;p.m.reconcile(before,p.keys);near(key.x,before[2].x);assert.equal(p.m.boundaryBlocked,true);
+ const before=structuredClone(p.keys),key=p.keys[0],center=p.m.physical(key).center;key.width=2;p.m.reconcile(before,p.keys);assert.equal(key.width,2);near(p.m.physical(key).center.x,center.x);
+ assert.deepEqual(Buffer.from(p.m.exportFile(p.keys)),Buffer.from(bytes));
 });
 test('spline-corner Caps Multistep is recognized, moved and converted without lost geometry',()=>{
  const tag=a=>a.join('\n')+'\n',w=20.36191,h=12.801,r=.3,k=.55228475,parts=[];let handle=500;
