@@ -50,7 +50,7 @@ test('old plate projects retain the pre-family interpretation',()=>{
  const d=from(assembly(families.find(f=>f.id==='topre-1')));
  assert.equal(R.analyze(d).keys.find(k=>Math.abs(k.center.x-250)<.001).type,'topre');
  assert.notEqual(R.analyze(d,{legacyFamilies:true}).keys.find(k=>Math.abs(k.center.x-250)<.001)?.type,'topre');
- assert.equal(d.recognitionVersion,7);assert.equal(D.parse(d.source,'old',{legacyFamilies:true}).recognitionVersion,2);
+ assert.equal(d.recognitionVersion,8);assert.equal(D.parse(d.source,'old',{legacyFamilies:true}).recognitionVersion,2);
 });
 // Four straight sides plus overlong corner arcs, as found in CAD exports.
 function overrunCornerDXF(){
