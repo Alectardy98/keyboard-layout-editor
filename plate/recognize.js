@@ -247,7 +247,8 @@
         });
         // Complete DC2014 patterns: wire slots plus the barrel and its two
         // square supports. Match geometry, never the filename or key number.
-        [{pattern:Measured.multi275,width:2.75,height:1,label:'2.75u multi stab',family:'alps-multi275'},
+        [{pattern:Measured.space625All,width:6.25,height:1,label:'6.25u all stabs',family:'alps-625-all'},
+         {pattern:Measured.multi275,width:2.75,height:1,label:'2.75u multi stab',family:'alps-multi275'},
          {pattern:Measured.space975Barrel,width:9.75,height:1,label:'9.75u',family:'alps-975-barrel'},
          {pattern:Measured.z150Supports,width:1,height:2,label:'Z150 Enter',family:'alps-z150',
           capShape:{width2:2,height2:1,x2:-1,y2:1}}].forEach(function(preset){
