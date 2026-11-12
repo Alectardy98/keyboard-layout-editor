@@ -322,8 +322,8 @@ the Alps stabilizer-family selector.
 
 ### Add a key from unidentified shapes
 
-Enable **Select unrecognized shapes** above the drawing. Click the switch opening
-first, then any additional source shapes that belong to it; click again to
+Click an unidentified switch opening in the drawing to reveal **Add key**.
+Then click any additional source shapes that belong to it; click again to
 remove a selection. Set the name and cap width/height, then **Add key**. The first
 opening's bounding-box centre defines the key reference; the chosen cap size is
 visual and does not resize the imported cuts. Review that reference for irregular
@@ -334,3 +334,10 @@ surrounding existing keys, unsupported geometry and already-owned openings are
 excluded. The complete selected geometry moves/deletes together and survives
 plate-project saving and Undo/Redo. Creating the key alone leaves DXF output
 byte-for-byte unchanged.
+
+Anchor outlines are blue. When a closed outer contour surrounds the switches,
+cap-width inference stays inside it. Moving or resizing an existing in-bounds
+cap beyond that boundary is stopped; existing imported overhangs are preserved.
+Planar, non-rational degree 1–3 splines can join lines into closed openings;
+rigid moves preserve their original spline records. Caps Multistep recognition
+accepts the small rounded-corner variation in Satisfaction75.
