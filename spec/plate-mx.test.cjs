@@ -5,7 +5,7 @@ const near=(a,b)=>assert.ok(Math.abs(a-b)<.001,`${a} != ${b}`);
 function fromShapes(shapes){const d=D.parse(makeFixture());return D.parse(D.exportBytes(d,[],shapes.map(points=>({points}))),'mx.dxf');}
 function at(shape,x,y,angle=0){return P.rings(P.place(shape,{x,y},angle));}
 test('all MX presets generate finite contours and retain their cap dimensions',()=>{
- assert.equal(P.mxPresets.length,46);
+ assert.equal(P.mxPresets.length,49);
  for(const item of P.mxPresets){const p=P.preset(item.id),shapes=P.generate(p.options,p.key);
   assert.ok(shapes.length);assert.equal(p.key.width*4%1,0);
   for(const ring of P.rings(shapes)){assert.ok(Math.abs(G.area(ring))>0);for(const v of ring)assert.ok(Number.isFinite(v.x)&&Number.isFinite(v.y));}
@@ -113,4 +113,16 @@ test('tall rectangular PCB clearances retain an Enter-sized cap from row pitch',
  for(const x of [-11.938,11.938])parts.push(G.rectangle(7,18.7,{x:200+x,y:99.65}));
  for(const x of [200-1.625*19.05,200-2.625*19.05])parts.push(...at(P.generate({switch:'mx',stabilizer:'none'},{width:1,height:1}),x,100));
  const k=R.analyze(fromShapes(parts)).keys.find(k=>Math.abs(k.center.x-200)<.001);assert.equal(k.width,2.25);assert.equal(k.stabilizers.length,2);
+});
+test('vertical/horizontal PCB presets retain mirrored L caps and complete clearance cuts',()=>{
+ const F=require('../plate/refine');
+ for(const reversed of [false,true]){
+  const id=reversed?'mx-2-reversed-vertical-horizontal':'mx-2-vertical-horizontal',p=P.preset(id);
+  assert.deepEqual([p.key.width,p.key.height,p.key.width2,p.key.height2,p.key.x2,p.key.y2],[1,2,2,1,reversed?-1:0,1]);
+  const d=fromShapes(at(P.generate(p.options,p.key),250,120)),r=R.analyze(d),k=r.keys.find(k=>k.family===id);assert.ok(k,id);
+  const neighbour={width:1,height:1,capAngle:0,center:{x:250+(reversed?-19.05:19.05),y:129.525}};
+  assert.equal(F.capPolygons(k).some(a=>F.capPolygons(neighbour).some(b=>F.intersects(a,b))),false);
+  const m=M.create(d,r);assert.deepEqual(Buffer.from(m.exportFile(m.makeKeys(S.defaultKeyProps))),Buffer.from(D.exportBytes(d)));
+  assert.equal(R.analyze(d,{legacyWidePcb:true}).keys.some(k=>k.family===id),false);
+ }
 });

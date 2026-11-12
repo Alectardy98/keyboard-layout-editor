@@ -54,3 +54,18 @@ test('wide PCB windows use neighbouring pitch rather than window width for cap s
   assert.equal(r.keys.find(k=>Math.abs(k.center.x-cx)<.01).width,width);
  }
 });
+test('wider companion and three-position modifier form a linked spacebar pair without overlaps',()=>{
+ const {makePcbFixture}=require('./plate-fixture.cjs');
+ // Expand only the right edge of the helper and both sides of the next slot.
+ const source=makePcbFixture(),base=D.parse(source,'base',{units:'mm'});
+ const rings=base.contours.map(c=>{const b=G.bounds(c.points);return c.points.map(p=>{
+  let x=p.x;if(Math.abs(b.cx-321.4375)<.01&&b.height>15&&x>328.4374)x+=2.38125;
+  if(Math.abs(b.cx-(250+5*19.05-1.190625))<.01)x+=x>b.cx?2.38125:0;
+  return {x,y:p.y};});});
+ const text='0\nSECTION\n2\nENTITIES\n'+rings.map(p=>'0\nLWPOLYLINE\n8\nCUT\n90\n'+p.length+'\n70\n1\n'+p.map(q=>'10\n'+q.x+'\n20\n'+q.y+'\n').join('')).join('')+'0\nENDSEC\n0\nEOF\n';
+ const d=D.parse(text,'wide',{units:'mm'}),r=R.analyze(d),pair=r.keys.filter(k=>k.assembly);
+ assert.equal(pair.length,2);assert.ok(r.keys.some(k=>k.label==='1.25u bottom row larger variant'&&k.width===1.25));
+ assert.equal(r.review.filter(x=>x.kind==='cap-overlap').length,0);
+ const m=M.create(d,r);assert.equal(Buffer.from(m.exportFile(m.makeKeys(S.defaultKeyProps))).toString(),text);
+ const preset=P.preset('mx-bottom125-large');assert.equal(preset.key.width,1.25);assert.equal(P.generate(preset.options,preset.key).length,1);
+});
