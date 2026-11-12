@@ -488,7 +488,7 @@ reviewed rounded 1u opening, right-hole and dual-hole modifier footprints, a
 mirrored modifier, and the 7u spacebar with its two square supports. Modifier
 cutouts stay the same size when the inferred cap grows to 2.25u or 2.75u.
 
-The reviewed MX additions include Plate ANSI-ISO (an L-shaped cap), bottom-row
+The reviewed MX additions include PCB mount ANSI-ISO (an L-shaped cap), bottom-row
 1.25u, 6.25u with Left stab, 1.75u multistep and 2.25u PCB mount option 2. These
 are measured patterns from reviewed drawings, not universal replacements for
 every manufacturer's footprint. Detection checks relative geometry and, for
@@ -502,7 +502,7 @@ the opening regenerates its contour. Review the warning before manufacturing.
 Closed unrecognized outlines assembled from separate LINE/ARC entities can now
 be selected by clicking inside them, then mapped, deleted or attached to a key.
 
-New plate projects record recognition version 4. Older saved projects keep their
+New plate projects record recognition version 5. Older saved projects keep their
 previous interpretation so new detections do not silently reassign existing
 key edits. Open the original DXF afresh to use the new recognition rules.
 
@@ -512,3 +512,18 @@ This changes inferred cap positions, not the imported cuts. Version 3 projects
 retain their previous positions and profile templates. The combined 2u PCB
 opening also recognizes split-keyboard rotations; 7 × 15 mm stabilizer slots
 with complete but overshooting corner joins can be recovered as supports.
+
+
+The option-2 plate-mounted short-wire opening has 2u, 2.25u, 2.75u and
+vertical 2u presets. Horizontal cap width uses neighboring switch spacing;
+these sizes share a cutout, so isolated geometry cannot distinguish every cap.
+The PCB menu also includes the three-rectangle 6.25u spacebar option 2.
+ANSI–ISO variants retain their full L-shaped cap and belong in the PCB menu.
+
+Recognition simplifies dense, collinear CAD vertices without modifying the
+source drawing. Mixed-layer LINE/ARC chains are joined only when their endpoints
+form an unambiguous closed loop; original entity layers survive export. This
+also makes otherwise unrecognized closed openings available for manual mapping.
+A single-layer filter does not claim a loop that needs edges from other layers.
+Version 4 projects retain their previous assembly rules. Open the original DXF
+again to apply these new detections.
