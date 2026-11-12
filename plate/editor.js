@@ -110,6 +110,8 @@
             if(!ui.selectableShapes.includes(path.contour)){ui.pickedShapes=[];select(path.key,event);return;}
             event.preventDefault();event.stopPropagation();
             if(!path.contour || !ui.selectableShapes.includes(path.contour))return;
+            scope.unselectAll();ui.highlightSupport=null;
+            if(!event.shiftKey){ui.pickedShapes=[path.contour];return;}
             var index=ui.pickedShapes.indexOf(path.contour);
             if(index<0)ui.pickedShapes.push(path.contour);else ui.pickedShapes.splice(index,1);
         };
