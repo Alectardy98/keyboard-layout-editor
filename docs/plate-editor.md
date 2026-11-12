@@ -270,3 +270,18 @@ vertical key with a 1u cap width. Since those cutouts alone do not distinguish
 1u from 1.25u caps, recognition uses neighbouring key clearance to reject the
 wider cap where it would overlap. Review cap dimensions when surrounding keys
 are absent or their widths are uncertain.
+
+### NCR80 multi-position openings
+
+**Caps Multistep** represents the full elongated opening as a 1.75u cap, using
+its rightmost Alps stem position as the reference centre. **2.75u multi stab**
+includes both pairs of wire slots. Adjacent circular mounting holes are not part
+of either key. Both patterns are available in **Add Alps Keys**.
+
+New DXF imports use a padded, key-based KLE origin, so unrelated plate margins
+no longer introduce arbitrary offsets into every X/Y field. This is a coordinate
+transform only; actual drawing positions and gaps remain unchanged. Saved plate
+projects retain their existing coordinate frame. The KLE canvas is centred, and
+newly added keys snap to quarter units relative to the first key. Small measured
+deviations in imported drawings are retained rather than rounding the holes onto
+a different grid.
