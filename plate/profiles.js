@@ -64,9 +64,9 @@
             if(size!==6.25)throw Error('The twin-barrel pattern requires a 6.25u key.');
             return place(Measured.space625Barrels.map(polygon),{x:0,y:0},(vertical?Math.PI/2:0)+(options.direction==='north'?Math.PI:0));
         }
-        if(style==='alps-zkb2') {
-            if(key.width!==2.25 || key.height!==1 || vertical)throw Error('ZKB2 Enter uses a 2.25u lower section with an upper-right extension.');
-            return place(Measured.zkb2Supports.map(polygon),{x:0,y:0},options.direction==='north'?Math.PI:0);
+        if(style==='alps-zkb2' || style==='alps-bae') {
+            if(key.width!==2.25 || key.height!==1 || vertical)throw Error('BAE/ZKB2 Enter uses a 2.25u lower section with an upper-right extension.');
+            return place((style==='alps-bae'?Measured.baeSupports:Measured.zkb2Supports).map(polygon),{x:0,y:0},options.direction==='north'?Math.PI:0);
         }
         if(style==='alps-default' && size===5.5 && !options.spacing) {
             var measured=Measured.space55.map(polygon);
@@ -147,6 +147,7 @@
         {id:'alps-175-step15',label:'1.75u stepped — 1.5u raised area',width:1.5,full:1.75},
         {id:'alps-2',label:'2u — stabilizers',width:2,stabs:true},
         {id:'alps-225',label:'2.25u — stabilizers',width:2.25,stabs:true},
+        {id:'alps-bae',label:'BAE',width:2.25,bae:true,stabs:true},
         {id:'alps-zkb2',label:'ZKB2 Enter',width:2.25,zkb2:true,stabs:true},
         {id:'alps-canon8',label:'8u — Canon complete supports',width:8,canon:'alps-canon8'},
         {id:'alps-canon-vertical2',label:'cannon vertical 2u',width:1.25,height:2,canon:'alps-canon-vertical2'},
@@ -157,9 +158,9 @@
         var p=presets.find(function(p){return p.id===id;});
         if(id==='ec11')p={label:'EC11',width:1};
         if(!p)throw Error('Unknown key preset.');
-        return {key:{width:p.width,width2:p.zkb2?1:p.full || p.width,height:p.height || 1,height2:p.zkb2?2:p.height || 1,
-            x2:p.zkb2?1.25:p.left?p.width-p.full:0,y2:p.zkb2?-1:0,stepped:!!p.full,labels:[p.label]},
-            options:{switch:id==='ec11'?'ec11':'alps',switchRotation:p.height===2?90:0,stabilizer:p.canon || (p.barrels?'alps-barrel625':p.zkb2?'alps-zkb2':p.stabs?'alps-default':'none'),direction:'south'}};
+        return {key:{width:p.width,width2:p.bae?1.5:p.zkb2?1:p.full || p.width,height:p.height || 1,height2:(p.zkb2 || p.bae)?2:p.height || 1,
+            x2:p.bae?.75:p.zkb2?1.25:p.left?p.width-p.full:0,y2:(p.zkb2 || p.bae)?-1:0,stepped:!!p.full,labels:[p.label]},
+            options:{switch:id==='ec11'?'ec11':'alps',switchRotation:p.height===2?90:0,stabilizer:p.canon || (p.barrels?'alps-barrel625':p.bae?'alps-bae':p.zkb2?'alps-zkb2':p.stabs?'alps-default':'none'),direction:'south'}};
     }
     return {presets:presets,preset:preset,switches:switches,spacing:spacing,stabilizers:stabilizers,switchShape:switchShape,generate:generate,
         polygon:polygon,rings:rings,union:union,place:place,clip:clip};
