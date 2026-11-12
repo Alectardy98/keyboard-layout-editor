@@ -617,9 +617,9 @@
             keys.filter(function(k){return k.type==='mx' && k.width===1 && k.height===1 && Math.abs(k.capAngle)<.001;}).forEach(function(k){
                 [-1,1].forEach(function(side){
                     if(keys.some(function(n){return n!==k && Math.abs(n.center.y-k.center.y)<.06 && (n.center.x-k.center.x)*side>0 && Math.abs(n.center.x-k.center.x)<3*19.05;}))return;
-                    var n=keys.filter(function(n){return n!==k && n.width===1 && Math.abs(n.center.y-k.center.y)<.06 && (n.center.x-k.center.x)*side<0;})
+                    var n=keys.filter(function(n){return n!==k && n.width>=1 && n.width<=1.75 && Math.abs(n.center.y-k.center.y)<.06 && (n.center.x-k.center.x)*side<0;})
                         .sort(function(a,b){return Math.abs(a.center.x-k.center.x)-Math.abs(b.center.x-k.center.x);})[0];
-                    if(!n)return;var width=2*Math.abs(n.center.x-k.center.x)/19.05-1;
+                    if(!n)return;var width=2*Math.abs(n.center.x-k.center.x)/19.05-n.width;
                     if(![1.25,1.5,1.75].some(function(w){return Math.abs(w-width)<.005;}))return;
                     width=Math.round(width*4)/4;var edge=k.center.x+side*width*19.05/2;
                     if(keys.some(function(a){return a!==k && a.width>=1.5 && a.width<3 && Math.abs(a.capAngle)<.001 &&
