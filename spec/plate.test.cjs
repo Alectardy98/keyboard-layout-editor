@@ -93,7 +93,7 @@ test('vertical stabilizers and explicit stem offsets preserve the chosen stem',(
  near(horizontal.width,vertical.height);near(horizontal.height,vertical.width);near(horizontal.cx,-2);
 });
 test('applied stabilizer spacing is frozen until explicitly reapplied after a keycap resize',()=>{
- const {m,keys}=plate(),key=keys.find(k=>k.width===2);m.apply([key],options({stabilizer:'mx'}));const initial=m.plan(keys).paths.filter(p=>p.key===key._plateId);
+ const {m,keys}=plate(makeFixture({outlineWidth:250})),key=keys.find(k=>k.width===2);m.apply([key],options({stabilizer:'mx'}));const initial=m.plan(keys).paths.filter(p=>p.key===key._plateId);
  const before=structuredClone(keys);key.width=7;m.reconcile(before,keys);
  assert.deepEqual(m.plan(keys).paths.filter(p=>p.key===key._plateId),initial);assert.match(m.plan(keys).warnings[0],/spacing is retained/);
  m.apply([key],options({stabilizer:'mx'}));assert.notDeepEqual(m.plan(keys).paths.filter(p=>p.key===key._plateId),initial);
@@ -355,4 +355,29 @@ test('manual shape selection creates a key without changing source cuts and surv
  const removed=p.m.plan(p.keys.filter(k=>k!==key));assert.equal(removed.edits.length,2);
  p.m.restore(original);assert.equal(p.m.original[key._plateId],undefined);assert.deepEqual(Buffer.from(p.m.exportFile(p.keys.filter(k=>k!==key))),Buffer.from(bytes));
  const outline=p.d.contours.find(c=>G.bounds(c.points).width>100 && G.bounds(c.points).height>50);assert.ok(outline);assert.equal(p.m.selectableContours().includes(outline.id),false);
+});
+test('plate outline stops inferred cap growth and edits beyond the edge',()=>{
+ const base=D.parse(makeFixture(),'base');
+ const shapes=[G.rectangle(80,40,{x:28,y:0}),...[-1,37.1,56.15].map(x=>G.rectangle(15.5,12.8,{x,y:0}))];
+ const bytes=D.exportBytes(base,base.raw.entities.map(record=>({record})),shapes.map(points=>({points}))),p=plate(bytes);
+ assert.equal(p.r.keys[0].width,1);
+ const before=structuredClone(p.keys),key=p.keys[2];key.x+=2;p.m.reconcile(before,p.keys);near(key.x,before[2].x);assert.equal(p.m.boundaryBlocked,true);
+});
+test('spline-corner Caps Multistep is recognized, moved and converted without lost geometry',()=>{
+ const tag=a=>a.join('\n')+'\n',w=20.36191,h=12.801,r=.3,k=.55228475,parts=[];let handle=500;
+ for(let i=0;i<4;i++){
+  const angle=i*Math.PI/2,rot=p=>G.rotate(p,angle),cx=w/2-r,cy=h/2-r;
+  // Use separate corner centres because this rounded opening is not square.
+  const center=[{x:cx,y:cy},{x:-cx,y:cy},{x:-cx,y:-cy},{x:cx,y:-cy}][i];
+  const control=[{x:r,y:0},{x:r,y:k*r},{x:k*r,y:r},{x:0,y:r}].map(p=>{p=rot(p);return {x:center.x+p.x,y:center.y+p.y};});
+  parts.push(tag([0,'SPLINE',5,(handle++).toString(16),8,'CUT',70,8,71,3,72,8,73,4,74,0,...[0,0,0,0,1,1,1,1].flatMap(n=>[40,n]),...control.flatMap(p=>[10,p.x,20,p.y,30,0])]));
+  const next=[{x:-cx,y:h/2},{x:-w/2,y:-cy},{x:cx,y:-h/2},{x:w/2,y:cy}][i],end=control.at(-1);
+  parts.push(tag([0,'LINE',5,(handle++).toString(16),8,'CUT',10,end.x,20,end.y,11,next.x,21,next.y]));
+ }
+ const source=tag([0,'SECTION',2,'HEADER',9,'$INSUNITS',70,4,0,'ENDSEC',0,'SECTION',2,'ENTITIES'])+parts.join('')+tag([0,'ENDSEC',0,'EOF']);
+ const p=plate(source),key=p.keys[0];assert.equal(p.r.keys[0].label,'Caps Multistep');assert.equal(key.width,1.75);assert.equal(p.r.keys[0].editable,true);
+ assert.equal(Buffer.from(p.m.exportFile(p.keys)).toString(),source);
+ const start=p.m.physical(key).center;key.x+=.25;const moved=plate(p.m.exportFile(p.keys));near(moved.r.keys[0].center.x,start.x+4.7625);
+ assert.equal(moved.d.raw.entities.filter(e=>e.type==='SPLINE').length,4);
+ p.m.apply([key],options());const converted=plate(p.m.exportFile(p.keys));assert.ok(converted.r.keys.some(k=>Math.hypot(k.center.x-start.x-4.7625,k.center.y-start.y)<.03));
 });
