@@ -415,3 +415,10 @@ test('unidentified shapes can be deleted or bound at the current key pose',()=>{
  const without=p.keys.filter(k=>k!==key),deleted=D.parse(p.m.exportFile(without),'key deleted');assert.equal(deleted.contours.some(c=>Math.hypot(G.bounds(c.points).cx-expected.x,G.bounds(c.points).cy-expected.y)<.001),false);
  p.m.restore(initial);assert.equal(p.m.selectableContours().includes(cid),true);
 });
+test('agreed row ends allow edge modifiers above plate corner reliefs',()=>{
+ const base=D.parse(makeFixture(),'base'),span=5*19.05,outline=[{x:0,y:10},{x:10,y:0},{x:span-10,y:0},{x:span,y:10},{x:span,y:40},{x:0,y:40}],shapes=[outline];
+ [[1,1,1,1,1],[1.5,1,1,1.5]].forEach((row,i)=>{let x=0;row.forEach(w=>{shapes.push(G.rectangle(15.5,12.8,{x:(x+w/2)*19.05,y:28.575-i*19.05}));x+=w;});});
+ const bytes=D.exportBytes(base,base.raw.entities.map(record=>({record})),shapes.map(points=>({points}))),p=plate(bytes);
+ assert.deepEqual(p.r.keys.filter(k=>k.center.y<10).map(k=>k.width),[1.5,1,1,1.5]);
+ assert.deepEqual(Buffer.from(p.m.exportFile(p.keys)),Buffer.from(bytes));
+});
