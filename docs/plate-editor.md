@@ -359,7 +359,7 @@ remain independent of switch/stabilizer profile replacements.
 
 ## MX plate-mount and PCB-mount workflow
 
-**Add MX Keys** offers 28 presets: 1–1.75u unstabilized keys, stepped and
+**Add MX Keys** offers 29 presets: 1–1.75u unstabilized keys, stepped and
 multi-position Caps, 2/2.25/2.75/3u keys, 6/6.25/7/8u spacebars, vertical 2u,
 ISO Enter and offset-stem 6u. Stabilized presets have separate plate and PCB
 mount variants. ISO has a 1.25u × 2u primary rectangle and a 1.5u upper arm.
@@ -423,3 +423,8 @@ profiles, source-byte preservation, conversions, and browser Apply/Undo/project
 saving. Local corpus checks also cover the original Alps files and No1Rev2
 variants. The FoldKB right plate contains non-editable imported geometry; it
 is preserved and previewed rather than rewritten automatically.
+
+The **2.75u dual opening PCB mount** preset preserves both measured No1Rev2
+right-Shift openings as one key. Detection requires the complete pair at the
+correct relative positions. Moving, rotating or deleting the key handles both
+openings together; no-op export leaves their original records unchanged.
