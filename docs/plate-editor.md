@@ -311,3 +311,26 @@ A complete measured bottom-row pattern can infer the common arrangement
 **1.5u, 1u gap, 1.5u, 7u, 1.5u, 1u gap, 1.5u**. All four modifier centres must
 match; no switch is moved and the gaps remain empty. The earlier misnamed
 `alps-625-all` saved profile remains readable, but new presets use **7u all stabs**.
+
+**7u all stabs flex** (Satisfaction75 Alps AT101) groups the four wire slots,
+both three-part barrel assemblies, both narrow rectangular slots, both large
+outer rectangles, and the curved oval flex opening: fifteen support contours.
+For this explicitly identified pattern, the flex contour belongs to the key and
+moves/deletes with it. This does not change how other plates' flex cuts are kept
+fixed. The full measured assembly is available under **Add Alps Keys** and in
+the Alps stabilizer-family selector.
+
+### Add a key from unidentified shapes
+
+Enable **Select unrecognized shapes** above the drawing. Click the switch opening
+first, then any additional source shapes that belong to it; click again to
+remove a selection. Set the name and cap width/height, then **Add key**. The first
+opening's bounding-box centre defines the key reference; the chosen cap size is
+visual and does not resize the imported cuts. Review that reference for irregular
+openings before moving the new key.
+
+Only unassigned, editable closed contours can be selected. Plate outlines
+surrounding existing keys, unsupported geometry and already-owned openings are
+excluded. The complete selected geometry moves/deletes together and survives
+plate-project saving and Undo/Redo. Creating the key alone leaves DXF output
+byte-for-byte unchanged.
