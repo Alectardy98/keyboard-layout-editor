@@ -143,3 +143,18 @@ test('nearby opening inclusion highlights, supports undo and persists in project
  expect(await page.evaluate(()=>Object.values(angular.element(document.body).scope().plate.model.settings).some(c=>c.supports?.length))).toBe(false);
  await page.locator('.plate-switch').nth(1).click();await expect(row.getByRole('button',{name:'Include',exact:true})).toBeVisible();
 });
+test('selecting unidentified shapes adds a key, supports undo and reloads from a project',async({page})=>{
+ const G=require('../../plate/geometry'),base=D.parse(makeFixture(),'base');
+ const source=Buffer.from(D.exportBytes(base,[],[{points:G.rectangle(12,10,{x:145,y:-80})}])).toString();await open(page,source);
+ await page.getByRole('button',{name:'Select unrecognized shapes',exact:true}).click();
+ // The isolated unknown opening is selectable; the plate outline is not.
+ const target=await page.evaluate(()=>{const s=angular.element(document.body).scope();return s.plate.document.contours.find(c=>PlateGeometry.bounds(c.points).cx>130).id;});
+ const pathIndex=await page.evaluate(id=>angular.element(document.body).scope().plate.paths.findIndex(p=>p.contour===id),target);
+ await page.locator('.plate-svg .plate-path').nth(pathIndex).click();
+ await expect(page.locator('.plate-shape-picked')).toHaveCount(1);
+ await page.getByLabel('Name',{exact:true}).fill('Unrecognized key');await page.getByRole('button',{name:'Add key',exact:true}).click();await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
+ const saved=page.waitForEvent('download');await page.getByRole('button',{name:'Save plate project',exact:true}).click();const savedPath=await(await saved).path();const project=JSON.parse(fs.readFileSync(savedPath,'utf8'));expect(Object.values(project.settings).some(c=>c.sourceContours?.length===1)).toBe(true);
+ await page.getByRole('button',{name:/Undo$/}).click();await expect(page.locator('#keyboard .keycap')).toHaveCount(4);
+ page.on('dialog',d=>d.accept());const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open plate project',exact:true}).click();await(await chooser).setFiles(savedPath);await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
+ const downloaded=page.waitForEvent('download');await page.getByRole('button',{name:'Download edited DXF',exact:true}).click();expect(fs.readFileSync(await(await downloaded).path(),'utf8')).toBe(source);
+});
