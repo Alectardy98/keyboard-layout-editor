@@ -143,8 +143,8 @@ test('malformed, oversized, binary and overlapping DXF edits fail before produci
 });
 
 test('Alps preset sizes, stepped stems and complete Zenith spacebar supports',()=>{
- assert.equal(P.presets.length,14);
- for(const item of P.presets){const p=P.preset(item.id);assert.equal(p.key.width*4%1,0);assert.ok(P.generate(p.options,p.key).length);if(p.key.width>=2)assert.ok(['alps-default','alps-zkb2','alps-barrel625'].includes(p.options.stabilizer));}
+ assert.equal(P.presets.length,16);
+ for(const item of P.presets){const p=P.preset(item.id);assert.equal(p.key.width*4%1,0);assert.ok(P.generate(p.options,p.key).length);if(p.key.width>=2)assert.ok(['alps-default','alps-zkb2','alps-barrel625','alps-canon8'].includes(p.options.stabilizer));}
  const left=P.preset('alps-15-left').key,right=P.preset('alps-15-right').key;
  assert.equal(left.width,1);assert.equal(left.width2,1.5);assert.equal(left.x2,-.5);assert.equal(right.x2,0);
  assert.equal(P.generate(P.preset('alps-55').options,{width:5.5,height:1}).length,8);
@@ -217,4 +217,21 @@ test('6.25u barrel recognition requires both complete assemblies and supports no
  assert.equal(full.r.keys.find(k=>k.label==='6.25u').detectedStabilizer.direction,'north');
  const partial=plate(D.exportBytes(base.d,[],rings.slice(0,-1).map(points=>({points}))));
  assert.equal(partial.r.keys.some(k=>k.label==='6.25u'),false);
+});
+
+test('Canon 8u and vertical 2u own all support sets without moving switch centres',()=>{
+ for(const [id,label,count,width,height] of [['alps-canon8','8u',14,8,1],['alps-canon-vertical2','cannon vertical 2u',4,1,2]]) {
+  const base=plate(),preset=P.preset(id),rings=P.rings(P.place(P.generate(preset.options,preset.key),{x:150,y:-100},0));
+  const bytes=D.exportBytes(base.d,[],rings.map(points=>({points}))),p=plate(bytes);
+  const source=p.r.keys.find(k=>k.label===label);assert.ok(source,id);assert.equal(source.stabilizers.length,count);
+  assert.equal(source.width,width);assert.equal(source.height,height);
+  assert.deepEqual(Buffer.from(p.m.exportFile(p.keys)),Buffer.from(bytes));
+  const key=p.keys.find(k=>k._plateId===source.id);key.x+=1;
+  const moved=R.analyze(D.parse(p.m.exportFile(p.keys),'moved')).keys.find(k=>k.label===label);
+  near(moved.center.x,169.05);near(moved.center.y,-100);assert.equal(moved.stabilizers.length,count);
+  const owned=new Set(source.contours.concat(source.stabilizers).flatMap(c=>c.parts.map(p=>p.raw.id)));
+  assert.equal(p.m.plan(p.keys.filter(k=>k!==key)).edits.filter(e=>owned.has(e.record.id)).length,owned.size);
+  const partial=plate(D.exportBytes(base.d,[],rings.slice(0,-1).map(points=>({points}))));
+  assert.equal(partial.r.keys.some(k=>k.label===label),false);
+ }
 });
