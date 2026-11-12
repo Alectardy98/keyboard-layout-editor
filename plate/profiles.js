@@ -271,6 +271,23 @@
             options:mx?{switch:id==='mx-6-plate-compat'?id:id.startsWith('mx-compat-')?id:id==='mx-dual275'?'mx-dual275':id==='mx-multistep'?'mx-multistep':'mx',switchRotation:p.height===2?90:0,
                 stabilizer:id==='mx-compat-2.75-split'?id:id==='mx-dual275'?'mx-dual275':p.stabs?'mx':'none',mount:p.mount || 'plate',mxPattern:id==='mx-6-plate-compat'?'legacy':'cherry',direction:'south',stemOffset:p.offset || 0}: {switch:id==='ec11'?'ec11':id==='alps-multistep'?'alps-multistep':'alps',switchRotation:p.height===2?90:0,stabilizer:p.canon || (p.barrels?'alps-barrel625':p.bae?'alps-bae':p.zkb2?'alps-zkb2':p.stabs?'alps-default':'none'),direction:'south'}};
     }
-    return {presets:presets,mxPresets:mxPresets,toprePresets:toprePresets,preset:preset,switches:switches,spacing:spacing,stabilizers:stabilizers,switchShape:switchShape,generate:generate,
+    // UI categories do not change the stable profile IDs stored in projects.
+    var stabilizerCategories=[
+        {id:'alps',label:'Alps',patterns:[
+            ['alps-default','Alps default (Zenith)'],['alps-aek','AEK / common Alps'],['alps-at101','AT101'],['costar','Costar'],
+            ['alps-canon8','8u — Canon complete supports'],['alps-canon-vertical2','cannon vertical 2u'],
+            ['alps-barrel625','6.25u — two barrel stabilizers'],['alps-975-barrel','9.75u — barrel stabilizer'],
+            ['alps-z150','Z150 Enter — wire + barrel'],['alps-7-all-flex','7u all stabs flex'],['alps-7-all','7u all stabs'],
+            ['alps-multi275','2.75u multi stab'],['alps-bae','5140 BAE — wire + barrel'],['alps-zkb2','ZKB2 Enter — wire + barrel']]},
+        {id:'mx-pcb',label:'MX PCB Mount',patterns:[['mx','Standard housing clearance'],['mx-compat-2.75-split','2.75u split PCB compatibility'],['mx-dual275','2.75u dual opening PCB mount']]},
+        {id:'mx-plate',label:'MX Plate Mount',patterns:[['mx','Standard clip-in stabilizer']]},
+        {id:'topre',label:'Topre',patterns:[]}
+    ];
+    stabilizerCategories.forEach(function(group){
+        group.patterns=group.patterns.map(function(p){return {id:p[0],label:p[1]};});
+        Families.filter(function(f){return f.parts.length>1&&(f.type==='topre'?group.id==='topre':f.type==='mx'?group.id==='mx-'+(f.mount||'pcb'):group.id==='alps');})
+            .forEach(function(f){group.patterns.push({id:f.id,label:f.label+(f.legacy?' (previous alignment)':'')});});
+    });
+    return {stabilizerCategories:stabilizerCategories,presets:presets,mxPresets:mxPresets,toprePresets:toprePresets,preset:preset,switches:switches,spacing:spacing,stabilizers:stabilizers,switchShape:switchShape,generate:generate,
         pcbCompatibility:pcbCompatibility,polygon:polygon,rings:rings,union:union,place:place,clip:clip};
 }));

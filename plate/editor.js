@@ -7,7 +7,7 @@
         var workspace=!!root.KLE_PLATE_WORKSPACE;
         var ui=scope.plate={workspace:workspace,model:null,error:'',notice:'',busy:false,paths:[],warnings:[],
             units:'mm',layer:'',layers:[],options:{switch:'original',stabilizer:'original',direction:'south',mount:'plate',mxPattern:'cherry',
-                axis:'auto',switchRotation:0,extraSize:0,spacing:'',stemOffset:0},alpsFamily:'alps-default',
+                axis:'auto',switchRotation:0,extraSize:0,spacing:'',stemOffset:0},
             stabChoice:'original',pending:null,mappingShapes:false,pickedShapes:[],shapeKey:{name:'Custom key',width:1,height:1}};
         function guarded(fn) {
             try {ui.error='';fn();}catch(error){ui.error=error.message || String(error);}
@@ -102,6 +102,21 @@
             guarded(function(){var d=ui.model.document;load(D.exportBytes(d),d.name,{units:ui.units,layer:ui.layer});});
         };
         ui.familyProfiles=(root.PlateSwitchFamilies || []).map(function(f){return f.legacy?Object.assign({},f,{label:f.label+' (previous alignment)'}):f;});
+        ui.stabCategories=root.PlateProfiles?.stabilizerCategories || [];
+        ui.stabCategory='alps';ui.stabAction='original';
+        ui.stabPatterns=function(){return ui.stabCategories.find(function(g){return g.id===ui.stabCategory;}).patterns;};
+        ui.changeStabCategory=function(){
+            ui.stabAction='replace';ui.stabChoice=ui.stabPatterns()[0].id;
+            if(ui.stabCategory.indexOf('mx-')===0)ui.options.mount=ui.stabCategory==='mx-pcb'?'pcb':'plate';
+        };
+        ui.changeStabAction=function(){if(ui.stabAction==='replace')ui.changeStabCategory();else ui.stabChoice=ui.stabAction;};
+        function syncStabCategory(){
+            ui.stabAction=['original','none'].includes(ui.stabChoice)?ui.stabChoice:'replace';
+            if(ui.stabAction!=='replace')return;
+            var group=ui.stabChoice==='mx'?ui.stabCategories.find(function(g){return g.id==='mx-'+(ui.options.mount||'plate');}):
+                ui.stabCategories.find(function(g){return g.patterns.some(function(p){return p.id===ui.stabChoice;});});
+            if(group)ui.stabCategory=group.id;
+        }
         ui.isMeasuredFamily=function(id){return ui.familyProfiles.some(function(f){return f.id===id;});};
         ui.presets=root.PlateProfiles?.presets || [];
         ui.mxPresets=root.PlateProfiles?.mxPresets || [];
@@ -195,7 +210,7 @@
             guarded(function() {
                 if(!ui.model)throw Error('Open a DXF first.');
                 var targets=all?scope.keys().filter(function(k){return !k.decal && (!ui.model.original[k._plateId] || ui.model.original[k._plateId].editable);}):scope.selectedKeys;
-                var options=angular.copy(ui.options);options.stabilizer=ui.stabChoice==='alps'?ui.alpsFamily:ui.stabChoice;
+                var options=angular.copy(ui.options);options.stabilizer=ui.stabChoice;
                 hooks.transaction('plate-profile',function(){ui.model.apply(targets,options);});
                 ui.notice='Applied to '+targets.length+' key'+(targets.length===1?'':'s')+'. Switch centres, anchors and fixed drawing geometry are preserved.';
             });
@@ -298,13 +313,13 @@
                 if(profiles[0]) {
                     ui.options=angular.extend({axis:'auto',spacing:'',mxPattern:'legacy'},angular.copy(profiles[0]));
                     var style=ui.options.stabilizer || 'original';
-                    ui.stabChoice=style.startsWith('alps-')?'alps':style;
-                    if(ui.stabChoice==='alps')ui.alpsFamily=ui.options.stabilizer;
+                    ui.stabChoice=style;
                 } else {
                     ui.options={switch:'original',stabilizer:'original',direction:'south',mount:'plate',mxPattern:'cherry',axis:'auto',switchRotation:0,extraSize:0,spacing:'',stemOffset:0};
                     ui.stabChoice='original';
                 }
             } else ui.mixedProfiles=false;
+            syncStabCategory();
         });
         if(workspace) {
             document.title='DXF Plate Editor — Keebal KLE';
