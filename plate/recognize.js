@@ -473,6 +473,24 @@
                 key.capShape={width2:1.5,height2:1,x2:-.25,y2:0};
             }
         });
+        // The split right-Shift compatibility window is one 2.75u assembly.
+        // Require both complete contours in their measured relative positions;
+        // neither a lone rectangle nor a nearby mounting opening is sufficient.
+        document.contours.forEach(function(first){
+            function available(c){return (!options.layer || c.parts.some(function(p){return p.layer===options.layer;})) &&
+                !keys.some(function(k){return k.contours.includes(c)||k.stabilizers.includes(c);});}
+            if(!available(first))return;
+            [0,Math.PI/2,Math.PI,3*Math.PI/2].some(function(angle){
+                var b=G.bounds(first.points.map(function(p){return G.rotate(p,-angle);})),t=G.bounds(Measured.mxDual275[0]);
+                var center=G.rotate({x:b.cx-t.cx,y:b.cy-t.cy},angle);
+                if(!matches(first.points,Measured.mxDual275[0],center,angle,.25))return false;
+                var second=document.contours.find(function(c){return c!==first && available(c) && matches(c.points,Measured.mxDual275[1],center,angle);});
+                if(!second)return false;
+                keys.push({id:'key-'+String(keys.length+1).padStart(3,'0'),center:center,holeAngle:angle,capAngle:angle,
+                    label:'2.75u dual opening PCB mount',type:'mx',core:{width:14,height:14},contours:[first],stabilizers:[second],
+                    editable:first.editable && second.editable,width:2.75,height:1,compound:true});counts.mx++;return true;
+            });
+        });
         var types=Object.keys(counts).filter(function(type){return counts[type]>0;});
         return {keys:keys,counts:counts,type:types.length===1?types[0]:types.length?'mixed':'unknown',
             ambiguous:ambiguous,duplicates:duplicate,unassigned:document.contours.filter(function(c) {

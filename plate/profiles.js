@@ -65,6 +65,10 @@
     function stabilizers(options,key) {
         var style=options.stabilizer || 'original';
         if(style==='original' || style==='none') return [];
+        if(style==='mx-dual275') {
+            if(key.width!==2.75 || key.height!==1)throw Error('The dual-opening PCB pattern requires a 2.75u key.');
+            return [polygon(Measured.mxDual275[1])];
+        }
         if(!['north','south'].includes(options.direction || 'south')) throw Error('Choose North or South stabilizer orientation.');
         if(style==='mx' && !['plate','pcb'].includes(options.mount || 'plate')) throw Error('Choose Plate mount or PCB mount.');
         var vertical=options.axis==='vertical' || (options.axis!=='horizontal' && key.height>key.width);
@@ -153,6 +157,7 @@
         });
     }
     function switchShape(options) {
+        if(options.switch==='mx-dual275')return polygon(Measured.mxDual275[0]);
         if(options.switch==='mx-multistep')return polygon(Measured.mxCapsMultistep);
         if(options.switch==='alps-multistep')return polygon(Measured.capsMultistep);
         if(options.switch==='ec11') return polygon(Measured.ec11);
@@ -215,7 +220,8 @@
     ];
     // Explicit sizes rather than rounding unknown spacebars to a nearby wire.
     var mxPresets=[1,1.25,1.5,1.75].map(function(size){return {id:'mx-'+size,label:size+'u',width:size};});
-    mxPresets.push({id:'mx-multistep',label:'1.75u Caps Multistep',width:1.75},
+    mxPresets.push({id:'mx-dual275',label:'2.75u dual opening PCB mount',width:2.75,mount:'pcb'},
+        {id:'mx-multistep',label:'1.75u Caps Multistep',width:1.75},
         {id:'mx-stepped',label:'1.75u stepped Caps — 1.25u raised area',width:1.25,full:1.75});
     ['plate','pcb'].forEach(function(mount){
         [2,2.25,2.75,3,6,6.25,7,8].forEach(function(size){mxPresets.push({id:'mx-'+size+'-'+mount,
@@ -231,8 +237,8 @@
         if(!p)throw Error('Unknown key preset.');
         return {key:{width:p.width,width2:p.iso?1.5:p.z150?2:p.bae?1.5:p.zkb2?1:p.full || p.width,height:p.height || 1,height2:p.iso?1:p.z150?1:(p.zkb2 || p.bae)?2:p.height || 1,
             x2:p.iso?-.25:p.z150?-1:p.bae?.75:p.zkb2?1.25:p.left?p.width-p.full:0,y2:p.z150?1:(p.zkb2 || p.bae)?-1:0,stepped:!!p.full,labels:[p.label]},
-            options:mx?{switch:id==='mx-multistep'?'mx-multistep':'mx',switchRotation:p.height===2?90:0,
-                stabilizer:p.stabs?'mx':'none',mount:p.mount || 'plate',mxPattern:'cherry',direction:'south',stemOffset:p.offset || 0}: {switch:id==='ec11'?'ec11':id==='alps-multistep'?'alps-multistep':'alps',switchRotation:p.height===2?90:0,stabilizer:p.canon || (p.barrels?'alps-barrel625':p.bae?'alps-bae':p.zkb2?'alps-zkb2':p.stabs?'alps-default':'none'),direction:'south'}};
+            options:mx?{switch:id==='mx-dual275'?'mx-dual275':id==='mx-multistep'?'mx-multistep':'mx',switchRotation:p.height===2?90:0,
+                stabilizer:id==='mx-dual275'?'mx-dual275':p.stabs?'mx':'none',mount:p.mount || 'plate',mxPattern:'cherry',direction:'south',stemOffset:p.offset || 0}: {switch:id==='ec11'?'ec11':id==='alps-multistep'?'alps-multistep':'alps',switchRotation:p.height===2?90:0,stabilizer:p.canon || (p.barrels?'alps-barrel625':p.bae?'alps-bae':p.zkb2?'alps-zkb2':p.stabs?'alps-default':'none'),direction:'south'}};
     }
     return {presets:presets,mxPresets:mxPresets,preset:preset,switches:switches,spacing:spacing,stabilizers:stabilizers,switchShape:switchShape,generate:generate,
         polygon:polygon,rings:rings,union:union,place:place,clip:clip};
