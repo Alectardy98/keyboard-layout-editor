@@ -36,6 +36,11 @@
     <button class="btn btn-default" ng-click="plate.reinterpret()">Confirm / re-read</button>
     <span class="text-warning" ng-if="!plate.document.units.confirmed">Unitless DXF: confirm the units before edited export.</span>
   </div>
+  <details class="plate-review-summary" ng-if="plate.recognized.review.length">
+    <summary>{{plate.recognized.review.length}} items need human review</summary>
+    <p>Geometry and layout constraints could not resolve these after matching the researched footprint families. Original cuts remain unchanged. A match is not a manufacturing approval.</p>
+    <ul><li ng-repeat="item in plate.recognized.review track by $index"><button class="btn btn-link" ng-click="plate.reviewItem(item)">{{item.key || item.contour || item.kind}}</button> {{item.message}}</li></ul>
+  </details>
   <div class="plate-columns" ng-if="plate.model">
     <section class="plate-drawing">
       <h2>Plate drawing <small>Click a cutout to select; click an unidentified shape to map or delete it</small></h2>

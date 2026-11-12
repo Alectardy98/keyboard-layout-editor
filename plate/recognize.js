@@ -1,9 +1,9 @@
 // Recognition proposes switch centres from closed geometry, not filenames.
 // Ambiguous contours and unmatched drawing features remain unchanged.
 (function(root,factory) {
-    if(typeof module==='object' && module.exports) module.exports=factory(require('./geometry.js'),require('./measured.js'),require('./overlaps.js'),require('./profiles.js'),require('./switch-families.js'));
-    else root.PlateRecognize=factory(root.PlateGeometry,root.PlateMeasured,root.PlateOverlaps,root.PlateProfiles,root.PlateSwitchFamilies);
-}(typeof globalThis!=='undefined'?globalThis:this,function(G,Measured,O,P,Families) {
+    if(typeof module==='object' && module.exports) module.exports=factory(require('./geometry.js'),require('./measured.js'),require('./overlaps.js'),require('./profiles.js'),require('./switch-families.js'),require('./refine.js'));
+    else root.PlateRecognize=factory(root.PlateGeometry,root.PlateMeasured,root.PlateOverlaps,root.PlateProfiles,root.PlateSwitchFamilies,root.PlateRefine);
+}(typeof globalThis!=='undefined'?globalThis:this,function(G,Measured,O,P,Families,Refine) {
     'use strict';
     function unique(values,tolerance) {
         var result=[];
@@ -524,15 +524,15 @@
             [0,Math.PI/2,Math.PI,3*Math.PI/2].some(function(angle){
                 var points=(options.legacyAssembly?first.points:G.simplifyRing(first.points)).map(function(p){return G.rotate(p,-angle);}),b=G.bounds(points);
                 var variants=[{size:2,width:33.05},{size:2.25,width:35.43125},{size:2.75,width:40.19375},
-                    {size:2.75,width:23.525,split:true}].filter(function(v){return Math.abs(b.width-v.width)<.08;});
-                if(!variants.length || b.height<15 || b.height>22.05)return false;
+                    {size:2.75,width:23.525,split:true}].filter(function(v){return Math.abs(b.width-v.width)<(options.legacyRefine?.08:.22);});
+                if(!variants.length || b.height<(options.legacyRefine?15:14.999) || b.height>22.05)return false;
                 var levels=unique(points.filter(function(p,i){var q=points[(i+1)%points.length];
                     return Math.abs(p.y-q.y)<.01 && Math.abs(p.x-q.x)>8;
                 }).map(function(p){return p.y;}),.02);
                 return pairs(levels,14).some(function(band){return variants.some(function(v){
                     var height=Math.round(b.height*1000)/1000,offset=b.cy-band.center;
                     if(height>22 || Math.abs(offset)>4)return false;
-                    var center=G.rotate({x:b.minX+16.525,y:band.center},angle);
+                    var center=G.rotate({x:b.minX+16.525+(options.legacyRefine?0:(b.width-v.width)/2),y:band.center},angle);
                     var patterns=P.rings(P.pcbCompatibility(v.size,{split:v.split,height:height,offset:offset}));
                     if(!matches(first.points,patterns[0],center,angle,options.legacyAssembly?.22:.26))return false;
                     var second=null;
@@ -673,8 +673,11 @@
             counts={mx:0,alps:0,universal:0,unknown:0,topre:0};
             keys.forEach(function(k){counts[k.type]=(counts[k.type] || 0)+1;});
         }
+        var review=[];
+        if(!options.legacyRefine){review=Refine.run(document,keys,{layer:options.layer,cores:cores,matches:matches});
+            counts={mx:0,alps:0,universal:0,unknown:0,topre:0};keys.forEach(function(k){counts[k.type]=(counts[k.type] || 0)+1;});}
         var types=Object.keys(counts).filter(function(type){return counts[type]>0;});
-        return {keys:keys,counts:counts,type:types.length===1?types[0]:types.length?'mixed':'unknown',
+        return {keys:keys,counts:counts,review:review,type:types.length===1?types[0]:types.length?'mixed':'unknown',
             ambiguous:ambiguous,duplicates:duplicate,unassigned:document.contours.filter(function(c) {
                 return !keys.some(function(k){return k.contours.includes(c) || k.stabilizers.includes(c);});
             })};

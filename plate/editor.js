@@ -131,6 +131,12 @@
             });
             scope.calcKbHeight();ui.notice='Added '+preset.key.labels[0]+'. The raised area is centred on the stem; move the new key into position.';
         });};
+        ui.reviewItem=function(item){
+            ui.mappingShapes=false;
+            if(item.key){ui.pickedShapes=[];select(item.key);}
+            else if(item.contour&&ui.selectableShapes.includes(item.contour)){scope.unselectAll();ui.pickedShapes=[item.contour];}
+            ui.notice=item.message;
+        };
         ui.selectPath=function(path,event){
             if(ui.mappingShapes && path.key){select(path.key,event);return;}
             if(!ui.selectableShapes.includes(path.contour)){ui.pickedShapes=[];select(path.key,event);return;}
@@ -229,7 +235,7 @@
                 });
                 ['x','y'].forEach(function(f){if(!Number.isFinite(data.frame[f]))throw Error('The project has an invalid coordinate frame.');});
                 if(data.unitOverride!==null && !['mm','in','cm'].includes(data.unitOverride))throw Error('The project has an unsupported unit selection.');
-                var document=D.parse(source,data.name,{units:data.unitOverride,legacyExtrusion:data.coordinateVersion!==2,legacyFamilies:!(data.recognitionVersion>=3),legacyAlignment:!(data.recognitionVersion>=4),legacyAssembly:!(data.recognitionVersion>=5),legacyRuns:!(data.recognitionVersion>=6)}),recognized=R.analyze(document,{layer:data.layer,legacyFamilies:!(data.recognitionVersion>=3),legacyAlignment:!(data.recognitionVersion>=4),legacyAssembly:!(data.recognitionVersion>=5),legacyRuns:!(data.recognitionVersion>=6)}),candidate=M.create(document,recognized);
+                var document=D.parse(source,data.name,{units:data.unitOverride,legacyExtrusion:data.coordinateVersion!==2,legacyFamilies:!(data.recognitionVersion>=3),legacyAlignment:!(data.recognitionVersion>=4),legacyAssembly:!(data.recognitionVersion>=5),legacyRuns:!(data.recognitionVersion>=6),legacyRefine:!(data.recognitionVersion>=7)}),recognized=R.analyze(document,{layer:data.layer,legacyFamilies:!(data.recognitionVersion>=3),legacyAlignment:!(data.recognitionVersion>=4),legacyAssembly:!(data.recognitionVersion>=5),legacyRuns:!(data.recognitionVersion>=6),legacyRefine:!(data.recognitionVersion>=7)}),candidate=M.create(document,recognized);
                 var ids=new Set();
                 keys.forEach(function(key){if(typeof key._plateId!=='string' || ids.has(key._plateId) || !data.settings[key._plateId])throw Error('The project has missing or duplicate key references.');ids.add(key._plateId);});
                 Object.keys(data.settings).forEach(function(id){
@@ -242,7 +248,7 @@
                 candidate.frame.x=data.frame.x;candidate.frame.y=data.frame.y;candidate.restore(data.settings);candidate.plan(keys);
                 var prepared=hooks.prepareDocument($serial.serialize({keys:angular.copy(keys),meta:data.meta || $serial.defaultMetaData()}));
                 prepared.keyboard.keys=keys;
-                load(source,data.name,{units:data.unitOverride,layer:data.layer,legacyExtrusion:data.coordinateVersion!==2,legacyFamilies:!(data.recognitionVersion>=3),legacyAlignment:!(data.recognitionVersion>=4),legacyAssembly:!(data.recognitionVersion>=5),legacyRuns:!(data.recognitionVersion>=6)});
+                load(source,data.name,{units:data.unitOverride,layer:data.layer,legacyExtrusion:data.coordinateVersion!==2,legacyFamilies:!(data.recognitionVersion>=3),legacyAlignment:!(data.recognitionVersion>=4),legacyAssembly:!(data.recognitionVersion>=5),legacyRuns:!(data.recognitionVersion>=6),legacyRefine:!(data.recognitionVersion>=7)});
                 ui.model=candidate;hooks.applyDocument(prepared);hooks.updateSerialized();hooks.resetUndoStack();refresh();ui.notice='Plate project restored, including anchors and applied cutout profiles.';
             });
         };

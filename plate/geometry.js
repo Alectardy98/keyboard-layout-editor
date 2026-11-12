@@ -235,6 +235,36 @@
         var far=1;for(var i=2;i<ring.length;i++)if(distance(ring[0],ring[i])>distance(ring[0],ring[far]))far=i;
         return reduce(ring.slice(0,far+1)).slice(0,-1).concat(reduce(ring.slice(far).concat([ring[0]])).slice(0,-1));
     }
+    // Some CAD exporters leave a short LINE on top of a longer one. It is
+    // not a branch in the cut. Ignore it for topology, but retain it as an
+    // owned source entity so moves and exports preserve the original file.
+    function joinRedundantContours(paths) {
+        var lines=paths.open.filter(function(p){return p.editable && p.stitch && p.type==='LINE' && p.points.length===2;});
+        var redundant=new Map(),buckets=new Map();
+        // Only collinear lines can contain one another. Index by direction
+        // and normal offset so dense CAD exports do not require an all-pairs
+        // scan. The exact segment test below still decides containment.
+        var indexed=lines.map(function(p,i){var a=p.points[0],b=p.points[1],dx=b.x-a.x,dy=b.y-a.y,length=Math.hypot(dx,dy);
+            if(dx<0 || (dx===0&&dy<0)){dx=-dx;dy=-dy;}
+            var angle=Math.atan2(dy,dx),offset=length?(-dy*a.x+dx*a.y)/length:0;
+            var row={p:p,i:i,length:length,angle:Math.round(angle/1e-7),offset:Math.round(offset/1e-5)},key=row.angle+':'+row.offset;
+            if(!buckets.has(key))buckets.set(key,[]);buckets.get(key).push(row);return row;});
+        function onSegment(p,a,b){var dx=b.x-a.x,dy=b.y-a.y,t=((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy || 1);
+            return t>=-1e-7 && t<=1+1e-7 && distance(p,{x:a.x+t*dx,y:a.y+t*dy})<1e-6;}
+        indexed.forEach(function(row){var p=row.p,length=row.length;if(length<1e-6)return;
+            var candidates=[];for(var da=-1;da<=1;da++)for(var dc=-1;dc<=1;dc++)candidates.push(...(buckets.get((row.angle+da)+':'+(row.offset+dc)) || []));
+            var owner=candidates.find(function(q){return q.p!==p && q.p.layer===p.layer &&
+                (q.length>length+1e-6 || (Math.abs(q.length-length)<1e-6 && q.i<row.i)) && p.points.every(function(v){return onSegment(v,q.p.points[0],q.p.points[1]);});});
+            if(owner)redundant.set(p,owner.p);
+        });
+        if(!redundant.size)return paths;
+        var merged=contours(paths.open.filter(function(p){return !redundant.has(p);})),used=new Set();
+        merged.closed.forEach(function(c){
+            redundant.forEach(function(owner,p){while(redundant.has(owner))owner=redundant.get(owner);if(c.parts.includes(owner))c.parts.push(p);});
+            paths.closed.push(c);c.parts.forEach(function(p){used.add(p);});
+        });
+        paths.open=paths.open.filter(function(p){return !used.has(p);});return paths;
+    }
     function joinCrossLayerContours(paths) {
         var byId=new Map(paths.open.map(function(p){return [p.id,p];}));
         var merged=contours(paths.open.filter(function(p){return p.editable && p.stitch;}).map(function(p){return Object.assign({},p,{layer:'__joined_for_topology__'});}));
@@ -246,6 +276,6 @@
         });
         paths.open=paths.open.filter(function(p){return !used.has(p.id);});return paths;
     }
-    return {simplifyRing:simplifyRing,joinCrossLayerContours:joinCrossLayerContours,recoverSwitchCorners:recoverSwitchCorners,TAU:TAU,point:point,distance:distance,rotate:rotate,transform:transform,multiply:multiply,bounds:bounds,
+    return {joinRedundantContours:joinRedundantContours,simplifyRing:simplifyRing,joinCrossLayerContours:joinCrossLayerContours,recoverSwitchCorners:recoverSwitchCorners,TAU:TAU,point:point,distance:distance,rotate:rotate,transform:transform,multiply:multiply,bounds:bounds,
         area:area,rectangle:rectangle,arc:arc,bulge:bulge,polyline:polyline,contains:contains,axes:axes,minimumBox:minimumBox,contours:contours};
 }));

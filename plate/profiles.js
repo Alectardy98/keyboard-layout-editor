@@ -181,6 +181,7 @@
         if(family)return polygon(family.parts[0]);
         if(options.switch?.startsWith('mx-compat-'))return pcbCompatibility(Number(options.switch.split('-')[2]),{split:options.switch.endsWith('-split')})[0];
         if(options.switch==='mx-dual275')return polygon(Measured.mxDual275[0]);
+        if(options.switch==='mx-6-plate-compat')return rectangle(23.525,14,4.7625,0);
         if(options.switch==='mx-multistep')return polygon(Measured.mxCapsMultistep);
         if(options.switch==='alps-multistep')return polygon(Measured.capsMultistep);
         if(options.switch==='ec11') return polygon(Measured.ec11);
@@ -255,6 +256,7 @@
             {id:'mx-iso-'+mount,label:'ISO Enter — '+mount+' mount',width:1.25,height:2,iso:true,mount:mount,stabs:true},
             {id:'mx-6-offset-'+mount,label:'6u offset stem — '+mount+' mount',width:6,mount:mount,stabs:true,offset:9.525});
     });
+    mxPresets.push({id:'mx-6-plate-compat',label:'6u plate mount stabilizer — alternate stem',width:6,mount:'plate',stabs:true});
     Families.filter(function(f){return f.type==='mx' && !f.legacy;}).forEach(function(f){mxPresets.push({id:f.id,label:f.label,width:f.width,mount:f.mount});});
     var toprePresets=Families.filter(function(f){return f.type==='topre';}).map(function(f){return {id:f.id,label:f.label,width:f.width};});
     function preset(id) {
@@ -266,8 +268,8 @@
         if(!p)throw Error('Unknown key preset.');
         return {key:{width:p.width,width2:p.iso?1.5:p.z150?2:p.bae?1.5:p.zkb2?1:p.full || p.width,height:p.height || 1,height2:p.iso?1:p.z150?1:(p.zkb2 || p.bae)?2:p.height || 1,
             x2:p.iso?-.25:p.z150?-1:p.bae?.75:p.zkb2?1.25:p.left?p.width-p.full:0,y2:p.z150?1:(p.zkb2 || p.bae)?-1:0,stepped:!!p.full,labels:[p.label]},
-            options:mx?{switch:id.startsWith('mx-compat-')?id:id==='mx-dual275'?'mx-dual275':id==='mx-multistep'?'mx-multistep':'mx',switchRotation:p.height===2?90:0,
-                stabilizer:id==='mx-compat-2.75-split'?id:id==='mx-dual275'?'mx-dual275':p.stabs?'mx':'none',mount:p.mount || 'plate',mxPattern:'cherry',direction:'south',stemOffset:p.offset || 0}: {switch:id==='ec11'?'ec11':id==='alps-multistep'?'alps-multistep':'alps',switchRotation:p.height===2?90:0,stabilizer:p.canon || (p.barrels?'alps-barrel625':p.bae?'alps-bae':p.zkb2?'alps-zkb2':p.stabs?'alps-default':'none'),direction:'south'}};
+            options:mx?{switch:id==='mx-6-plate-compat'?id:id.startsWith('mx-compat-')?id:id==='mx-dual275'?'mx-dual275':id==='mx-multistep'?'mx-multistep':'mx',switchRotation:p.height===2?90:0,
+                stabilizer:id==='mx-compat-2.75-split'?id:id==='mx-dual275'?'mx-dual275':p.stabs?'mx':'none',mount:p.mount || 'plate',mxPattern:id==='mx-6-plate-compat'?'legacy':'cherry',direction:'south',stemOffset:p.offset || 0}: {switch:id==='ec11'?'ec11':id==='alps-multistep'?'alps-multistep':'alps',switchRotation:p.height===2?90:0,stabilizer:p.canon || (p.barrels?'alps-barrel625':p.bae?'alps-bae':p.zkb2?'alps-zkb2':p.stabs?'alps-default':'none'),direction:'south'}};
     }
     return {presets:presets,mxPresets:mxPresets,toprePresets:toprePresets,preset:preset,switches:switches,spacing:spacing,stabilizers:stabilizers,switchShape:switchShape,generate:generate,
         pcbCompatibility:pcbCompatibility,polygon:polygon,rings:rings,union:union,place:place,clip:clip};

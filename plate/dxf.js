@@ -98,6 +98,7 @@
         catch(error) {throw Error('Could not parse this DXF: '+error.message);}
         if(!parsed || !Array.isArray(parsed.entities)) throw Error('The DXF has no readable entities.');
         if(parsed.entities.length>100000) throw Error('This drawing has too many entities for the plate editor.');
+        parsed.header=parsed.header || {};
         var unitFactors={1:25.4,2:304.8,4:1,5:10,6:1000,8:0.0000254,9:0.0254,13:0.001,14:100};
         var code=parsed.header.$INSUNITS,factor=unitFactors[code],confirmed=!!factor,inferred=false;
         if(options.units==='mm') {factor=1;confirmed=true;}
@@ -224,10 +225,11 @@
             primitive.points=primitive.points.map(function(p){return G.point(p.x*factor,p.y*factor);});
         });
         var paths=G.contours(primitives),allPoints=[];
+        if(!options.legacyRefine)G.joinRedundantContours(paths);
         if(!options.legacyAssembly)G.joinCrossLayerContours(paths);
         if(!options.legacyFamilies)G.recoverSwitchCorners(paths,0,0,options.legacyAlignment);
         primitives.forEach(function(p){allPoints=allPoints.concat(p.points);});
-        return {recognitionVersion:options.legacyFamilies?2:options.legacyAlignment?3:options.legacyAssembly?4:options.legacyRuns?5:6,coordinateVersion:options.legacyExtrusion?1:2,source:source,encoding:encoding,name:name || 'plate.dxf',raw:raw,parsed:parsed,primitives:primitives,
+        return {recognitionVersion:options.legacyFamilies?2:options.legacyAlignment?3:options.legacyAssembly?4:options.legacyRuns?5:options.legacyRefine?6:7,coordinateVersion:options.legacyExtrusion?1:2,source:source,encoding:encoding,name:name || 'plate.dxf',raw:raw,parsed:parsed,primitives:primitives,
             contours:paths.closed,open:paths.open,bounds:G.bounds(allPoints),factor:factor,
             units:{code:code,factor:factor,declaredFactor:unitFactors[code] || null,
                 override:['mm','in','cm'].includes(options.units)?options.units:null,
