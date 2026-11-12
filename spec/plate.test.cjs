@@ -143,8 +143,8 @@ test('malformed, oversized, binary and overlapping DXF edits fail before produci
 });
 
 test('Alps preset sizes, stepped stems and complete Zenith spacebar supports',()=>{
- assert.equal(P.presets.length,20);
- for(const item of P.presets){const p=P.preset(item.id);assert.equal(p.key.width*4%1,0);assert.ok(P.generate(p.options,p.key).length);if(p.key.width>=2)assert.ok(['alps-default','alps-975-barrel','alps-bae','alps-zkb2','alps-barrel625','alps-canon8'].includes(p.options.stabilizer));}
+ assert.equal(P.presets.length,22);
+ for(const item of P.presets){const p=P.preset(item.id);assert.equal(p.key.width*4%1,0);assert.ok(P.generate(p.options,p.key).length);if(p.key.width>=2)assert.ok(['alps-default','alps-multi275','alps-975-barrel','alps-bae','alps-zkb2','alps-barrel625','alps-canon8'].includes(p.options.stabilizer));}
  const left=P.preset('alps-15-left').key,right=P.preset('alps-15-right').key;
  assert.equal(left.width,1);assert.equal(left.width2,1.5);assert.equal(left.x2,-.5);assert.equal(right.x2,0);
  assert.equal(P.generate(P.preset('alps-55').options,{width:5.5,height:1}).length,8);
@@ -276,4 +276,26 @@ test('neighbour clearance distinguishes 1u vertical cap from 1.25u with identica
  rings.push(G.rectangle(15.5,12.8,{x:130.95,y:-109.525}));
  const p=plate(D.exportBytes(base.d,[],rings.map(points=>({points}))));
  const key=p.r.keys.find(k=>Math.abs(k.center.x-150)<.01);assert.equal(key.width,1);assert.equal(key.height,2);assert.equal(key.label,'vertical 2u');
+});
+test('Caps Multistep is a 1.75u cap owning the full elongated opening',()=>{
+ const base=plate(),preset=P.preset('alps-multistep'),center={x:150,y:-80};
+ const rings=P.rings(P.place(P.generate(preset.options,preset.key),center,0));
+ const bytes=D.exportBytes(base.d,[],rings.map(points=>({points}))),p=plate(bytes),found=p.r.keys.find(k=>k.label==='Caps Multistep');
+ assert.ok(found);assert.equal(found.width,1.75);near(found.center.x,150);near(found.center.y,-80);
+ const key=p.keys.find(k=>k._plateId===found.id);assert.deepEqual(Buffer.from(p.m.exportFile(p.keys)),Buffer.from(bytes));
+ key.x+=.25;const moved=R.analyze(D.parse(p.m.exportFile(p.keys),'moved')).keys.find(k=>k.label==='Caps Multistep');near(moved.center.x,154.7625);
+});
+test('2.75u multi stab owns four slots while nearby circular holes remain fixed',()=>{
+ const base=plate(),preset=P.preset('alps-multi275');
+ const rings=P.rings(P.place(P.generate(preset.options,preset.key),{x:150,y:-80},0));
+ const mount=G.arc({x:129.5,y:-80},3,0,G.TAU),bytes=D.exportBytes(base.d,[],rings.concat([mount]).map(points=>({points}))),p=plate(bytes);
+ const source=p.r.keys.find(k=>k.label==='2.75u multi stab');assert.ok(source);assert.equal(source.stabilizers.length,4);
+ const key=p.keys.find(k=>k._plateId===source.id),record=p.d.raw.entities.at(-1),raw=p.d.source.slice(record.start,record.end);
+ key.x+=.25;const moved=D.parse(p.m.exportFile(p.keys),'moved');assert.ok(moved.source.includes(raw));assert.equal(R.analyze(moved).keys.find(k=>k.label==='2.75u multi stab').stabilizers.length,4);
+});
+test('clean display origin keeps padding without moving physical switch centres',()=>{
+ const {m,keys,r,d}=plate();assert.equal(keys[0].x*4%1,0);assert.equal(keys[0].y*4%1,0);
+ assert.ok(keys.every(k=>k.x>=.5 && k.y>=.5));
+ for(const k of keys){const src=r.keys.find(s=>s.id===k._plateId);near(G.distance(m.physical(k).center,src.center),0);}
+ assert.deepEqual(Buffer.from(m.exportFile(keys)),Buffer.from(d.source));
 });
