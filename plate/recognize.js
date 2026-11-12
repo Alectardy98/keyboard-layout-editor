@@ -636,6 +636,29 @@
                         Math.abs(a.center.y-k.center.y)>=19 && Math.abs(a.center.x+side*a.width*19.05/2-edge)<.06;}))k.width=width;
                 });
             });
+            // A late-discovered wide cap can establish the boundary of a
+            // repeated modifier pair. Solve both widths from that boundary,
+            // and require the independent centre pitch to agree. A lone key
+            // or unequal gaps are insufficient evidence for enlarging caps.
+            if(!options.legacyRuns && !options.legacyAssembly)keys.filter(function(k){return k.width>=2 && k.height===1 && Math.abs(k.capAngle)<.001;}).forEach(function(anchor){
+                [-1,1].forEach(function(side){
+                    var row=keys.filter(function(k){return k!==anchor && k.height===1 && Math.abs(k.capAngle)<.001 &&
+                        Math.abs(k.center.y-anchor.center.y)<.06 && (k.center.x-anchor.center.x)*side>0;})
+                        .sort(function(a,b){return Math.abs(a.center.x-anchor.center.x)-Math.abs(b.center.x-anchor.center.x);});
+                    var a=row[0],b=row[1];
+                    if(!a || !b || [a,b].some(function(k){return k.type!=='mx' || k.width!==1 || k.family || k.capShape;}))return;
+                    var width=2*Math.abs(a.center.x-anchor.center.x)/19.05-anchor.width;
+                    if(![1.25,1.5,1.75].some(function(w){return Math.abs(w-width)<.005;}) ||
+                        Math.abs(Math.abs(b.center.x-a.center.x)/19.05-width)>.005)return;
+                    width=Math.round(width*4)/4;
+                    // Do not enlarge into another key, including an offset
+                    // arrow cluster whose centres are not on this row.
+                    if([a,b].some(function(k){return keys.some(function(n){return n!==k && n!==a && n!==b && Math.abs(n.capAngle)<.001 &&
+                        Math.abs(n.center.y-k.center.y)<(n.height+1)*19.05/2-.06 &&
+                        Math.abs(n.center.x-k.center.x)<(n.width+width)*19.05/2-.06;});}))return;
+                    a.width=b.width=width;
+                });
+            });
             // An interior cap is constrained independently from both sides.
             // Do not fill deliberate gaps unless both neighbours imply the
             // same quarter-unit size; preserve already identified wider caps.
