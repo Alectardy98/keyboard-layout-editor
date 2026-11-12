@@ -286,9 +286,28 @@ newly added keys snap to quarter units relative to the first key. Small measured
 deviations in imported drawings are retained rather than rounding the holes onto
 a different grid.
 
-**6.25u all stabs** (NCR80 Plate1) includes twelve support openings: four wire
+**7u all stabs** (NCR80 Plate1) includes twelve support openings: four wire
 slots, two barrel assemblies (each a circle and two side supports), and the two
 large outer rectangles. Nearby concentric mounting circles remain fixed. The
 measured pattern preserves the source's asymmetric side-support contour rather
 than replacing it with an idealized square. It is available in **Add Alps Keys**
 and the Alps stabilizer-family selector.
+
+### Reviewing nearby supports
+
+Select one imported key to see **Nearby support openings**. Hover a row to
+highlight its contour, then use **Include** to attach it or **Remove** to return
+it to fixed geometry. These are proximity candidates, not confirmed stabilizers;
+inspect circles carefully because they may be mounting holes. Large outlines,
+unsupported contours, and openings already owned by another key are excluded.
+
+Include supports before moving the key, with **Keep imported stabilizers**
+applied. Included openings move/delete with the key and are saved in plate
+projects; Undo restores ownership. Merely viewing or highlighting a candidate
+changes nothing. Replacing a stabilizer pattern intentionally replaces its
+included support openings too.
+
+A complete measured bottom-row pattern can infer the common arrangement
+**1.5u, 1u gap, 1.5u, 7u, 1.5u, 1u gap, 1.5u**. All four modifier centres must
+match; no switch is moved and the gaps remain empty. The earlier misnamed
+`alps-625-all` saved profile remains readable, but new presets use **7u all stabs**.
