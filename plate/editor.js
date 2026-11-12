@@ -19,6 +19,8 @@
                 ui.paths=result.paths.map(function(path,index) {
                     return {id:index,key:path.key,d:path.points.map(function(p,i){return (i?'L':'M')+p.x.toFixed(5)+' '+(-p.y).toFixed(5);}).join(' ')+(path.closed?' Z':'')};
                 });
+                ui.recoveredCount=Object.values(ui.model.original).filter(function(k){return k.recovered;}).length;
+                ui.pendingRecovery=scope.selectedKeys.some(function(k){return ui.model.original[k._plateId]?.recovered && !ui.model.settings[k._plateId]?.confirmed;});
                 ui.keyCount=scope.keys().filter(function(k){return !k.decal;}).length;
                 ui.editableCount=scope.keys().filter(function(k){return !k.decal && (!ui.model.original[k._plateId] || ui.model.original[k._plateId].editable);}).length;
                 ui.anchorCount=Object.values(ui.model.settings).filter(function(c){return !!c.anchor;}).length;
@@ -97,6 +99,9 @@
                 scope.unselectAll();scope.selectedKeys.push(key);scope.multi=angular.copy(key);
             });
             scope.calcKbHeight();ui.notice='Added '+preset.key.labels[0]+'. The raised area is centred on the stem; move the new key into position.';
+        });};
+        ui.confirmRecovered=function(){guarded(function(){hooks.transaction('plate-confirm',function(){ui.model.confirm(scope.selectedKeys);});
+            ui.notice='Recovered geometry confirmed for the selected keys. Fixed shared cuts remain in place.';
         });};
         ui.select=select;
         ui.isSelected=function(id){return scope.selectedKeys.some(function(k){return k._plateId===id;});};
@@ -206,6 +211,7 @@
         ui.cancelAlignment=function(){ui.pending=null;hooks.updateSerialized();};
         function selectedInfo() {
             var key=scope.selectedKeys[0];ui.selectedInfo='';
+            ui.pendingRecovery=!!ui.model && scope.selectedKeys.some(function(k){return ui.model.original[k._plateId]?.recovered && !ui.model.settings[k._plateId]?.confirmed;});
             if(key && ui.model){var p=ui.model.physical(key);ui.selectedInfo='Centre '+p.center.x.toFixed(3)+', '+p.center.y.toFixed(3)+' mm';}
             ui.selectedReadOnly=!!ui.model && scope.selectedKeys.some(function(k){return ui.model.original[k._plateId] && !ui.model.original[k._plateId].editable;});
         }

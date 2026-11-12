@@ -2,9 +2,9 @@
 // KLE uses Y-down key units; the source DXF uses Y-up millimetres. Only this
 // module crosses that boundary. Source geometry is never mutated in place.
 (function(root,factory) {
-    if(typeof module==='object' && module.exports) module.exports=factory(require('./geometry.js'),require('./profiles.js'),require('./dxf.js'));
-    else root.PlateDocument=factory(root.PlateGeometry,root.PlateProfiles,root.PlateDxf);
-}(typeof globalThis!=='undefined'?globalThis:this,function(G,P,D) {
+    if(typeof module==='object' && module.exports) module.exports=factory(require('./geometry.js'),require('./profiles.js'),require('./dxf.js'),require('./overlaps.js'));
+    else root.PlateDocument=factory(root.PlateGeometry,root.PlateProfiles,root.PlateDxf,root.PlateOverlaps);
+}(typeof globalThis!=='undefined'?globalThis:this,function(G,P,D,O) {
     'use strict';
     var PITCH=19.05,EPS=1e-7;
     function copy(value){return JSON.parse(JSON.stringify(value));}
@@ -35,6 +35,11 @@
         // coordinates. It does not translate or resize the actual DXF drawing.
         var frame={x:document.bounds.minX-margin,y:document.bounds.maxY+margin,pitch:PITCH};
         var original=Object.create(null),settings=Object.create(null),next=1;
+        var groups=[];
+        keys.filter(function(k){return k.recovered;}).forEach(function(k){
+            if(groups.some(function(g){return g.loop===k.sharedLoop;}))return;
+            groups.push(O.create(k.sharedLoop,keys.filter(function(q){return q.sharedLoop===k.sharedLoop;}),!!k.sharedMaterial));
+        });
         keys.forEach(function(key){original[key.id]=key;settings[key.id]={anchor:null,profile:null};});
         if(keys.length) settings[keys[0].id].anchor={center:copy(keys[0].center),angle:keys[0].capAngle};
         function id(){var name;do{name='new-'+next++;}while(settings[name]);return name;}
@@ -42,7 +47,7 @@
             return keys.map(function(source,index) {
                 var key=defaultKey();key.width=key.width2=source.width;key.height=key.height2=source.height;
                 if(source.capShape)Object.assign(key,source.capShape);
-                key.labels=[source.label || (source.type==='ec11'?'EC11':'Key '+(index+1))];key._plateId=source.id;
+                key.labels=[source.label || (source.recovered?'Probable '+source.type:source.type==='ec11'?'EC11':'Key '+(index+1))];key._plateId=source.id;
                 position(key,source.center,source.capAngle,frame);return key;
             });
         }
@@ -67,7 +72,7 @@
                     if(options.keepStemOnResize!==false) {
                         key.x-=(key.width-previous.width)/2;key.y-=(key.height-previous.height)/2;
                     }
-                    var fixed=config.anchor || (source && !source.editable?{center:source.center,angle:source.capAngle}:null);
+                    var fixed=config.anchor || (source && (!source.editable || (source.recovered && !config.confirmed))?{center:source.center,angle:source.capAngle}:null);
                     if(fixed) {
                         var current=physical(key,frame);
                         if(G.distance(current.center,fixed.center)>EPS || Math.abs(current.angle-fixed.angle)>EPS) blocked++;
@@ -77,7 +82,7 @@
             });
             before.forEach(function(key) {
                 var config=settings[key._plateId],source=original[key._plateId];
-                if(config && !config.excluded && (config.anchor || (source && !source.editable)) && !seen.has(key._plateId)) {after.push(key);blocked++;}
+                if(config && !config.excluded && (config.anchor || (source && (!source.editable || (source.recovered && !config.confirmed)))) && !seen.has(key._plateId)) {after.push(key);blocked++;}
             });
             return blocked;
         }
@@ -98,6 +103,7 @@
             selected.forEach(function(key) {
                 var source=original[key._plateId];
                 if(source && !source.editable) throw Error('This key has a block, overlapping entity, unsupported plane or nonzero polyline width/thickness. Resolve it in CAD before editing.');
+                if(source && source.recovered && !settings[key._plateId].confirmed)throw Error('Confirm the recovered geometry before editing this probable key.');
                 var profile=copy(options);
                 // Validate the complete batch before changing any settings.
                 if(profile.switch!=='original') P.switchShape(profile);
@@ -125,6 +131,9 @@
             }
             return P.clip.union(base,...P.stabilizers(options,profile.size));
         }
+        function confirm(selected){
+            selected.forEach(function(k){if(original[k._plateId]?.recovered)settings[k._plateId].confirmed=true;});
+        }
         function plan(layout) {
             var edits=[],additions=[],preview=[],owners=new Map(),warnings=[];
             var current=new Map(layout.filter(function(k){return !k.decal;}).map(function(k){return [k._plateId,k];}));
@@ -134,6 +143,7 @@
             }
             Object.keys(original).forEach(function(name) {
                 var source=original[name],key=current.get(name),config=settings[name] || {},profile=config.profile;
+                if(source.recovered)return;
                 var all=source.contours.concat(source.stabilizers),raw=records(all);
                 if(config.excluded) {
                     all.forEach(function(c){preview.push({key:null,points:c.points,closed:true});});return;
@@ -163,6 +173,47 @@
                 if(profile.size.width!==key.width || profile.size.height!==key.height)
                     warnings.push(name+': keycap size changed; applied stabilizer spacing is retained. Reapply the pattern to change it.');
             });
+            groups.forEach(function(group){
+                var changed=false,shapes=[],supportShapes=[];
+                group.keys.forEach(function(source,index){
+                    var key=current.get(source.id),config=settings[source.id] || {},excluded=config.excluded;
+                    var at=key?physical(key,frame):{center:source.center,angle:source.capAngle};
+                    var moved=G.distance(at.center,source.center)>EPS || Math.abs(at.angle-source.capAngle)>EPS;
+                    var edited=!excluded && (!key || moved || !!config.profile);
+                    if(edited && !config.confirmed)throw Error('Confirm the recovered geometry before editing this probable key.');
+                    changed=changed||edited;
+                    var portion=group.portions[index],shape=portion;
+                    if(!key && !excluded)shape=[];
+                    else if(!excluded && config.profile){
+                        var opts=config.profile.options;
+                        if(opts.switch!=='original')shape=P.place([P.switchShape(opts)],source.center,source.capAngle);
+                        // Keep the shared remainder fixed; stabilizer edits own
+                        // only the separately associated support openings.
+                        if(opts.stabilizer!=='original')supportShapes.push(...P.place(P.stabilizers(opts,config.profile.size),at.center,at.angle));
+                    }
+                    if(!excluded && key){
+                        shape=P.place(P.place(shape,{x:-source.center.x,y:-source.center.y},0),{x:0,y:0},at.angle-source.capAngle);
+                        shape=P.place(shape,at.center,0);
+                    }
+                    shapes.push(shape);
+                    var removeStabs=!excluded && (!key || (config.profile && optionsReplacesStabs(config.profile)));
+                    records(source.stabilizers).forEach(function(record){
+                        if(removeStabs){claim(record,source.id);edits.push({record:record});}
+                        else if(moved && !excluded){claim(record,source.id);edits.push({record:record,motion:{from:source.center,to:at.center,angle:at.angle-source.capAngle}});}
+                    });
+                    if(!removeStabs)source.stabilizers.forEach(function(c){preview.push({key:source.id,closed:true,points:c.points.map(function(p){
+                        if(excluded || !key)return p;var q=G.rotate(p,at.angle-source.capAngle,source.center);return {x:q.x+at.center.x-source.center.x,y:q.y+at.center.y-source.center.y};
+                    })});});
+                    // Selectable key overlay; export is composed once per group.
+                    P.rings(shape).forEach(function(points){preview.push({key:source.id,points:points,closed:true});});
+                });
+                var raw=records([group.loop]);
+                if(changed){
+                    var composed=group.compose(shapes.concat(supportShapes.map(function(p){return [p];}))),rings=P.rings(composed);
+                    raw.forEach(function(record,index){claim(record,'shared-'+group.loop.id);edits.push({record:record,rings:index===0?rings:[]});});
+                    rings.forEach(function(points){preview.push({key:null,points:points,closed:true});});
+                }else preview.push({key:null,points:group.loop.points,closed:true});
+            });
             current.forEach(function(key,name) {
                 if(original[name])return;
                 var profile=settings[name]?.profile;
@@ -185,7 +236,7 @@
             return D.exportBytes(document,result.edits,result.additions);
         }
         return {document:document,recognition:recognized,frame:frame,original:original,settings:settings,
-            makeKeys:makeKeys,reconcile:reconcile,setAnchors:setAnchors,exclude:exclude,apply:apply,plan:plan,exportFile:exportFile,
+            makeKeys:makeKeys,reconcile:reconcile,confirm:confirm,groups:groups,setAnchors:setAnchors,exclude:exclude,apply:apply,plan:plan,exportFile:exportFile,
             physical:function(key){return physical(key,frame);},position:function(key,center,angle){position(key,center,angle,frame);},
             snapshot:function(){return copy(settings);},restore:function(snapshot){
                 settings=copy(snapshot);

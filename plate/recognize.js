@@ -1,9 +1,9 @@
 // Recognition proposes switch centres from closed geometry, not filenames.
 // Ambiguous contours and unmatched drawing features remain unchanged.
 (function(root,factory) {
-    if(typeof module==='object' && module.exports) module.exports=factory(require('./geometry.js'),require('./measured.js'));
-    else root.PlateRecognize=factory(root.PlateGeometry,root.PlateMeasured);
-}(typeof globalThis!=='undefined'?globalThis:this,function(G,Measured) {
+    if(typeof module==='object' && module.exports) module.exports=factory(require('./geometry.js'),require('./measured.js'),require('./overlaps.js'));
+    else root.PlateRecognize=factory(root.PlateGeometry,root.PlateMeasured,root.PlateOverlaps);
+}(typeof globalThis!=='undefined'?globalThis:this,function(G,Measured,O) {
     'use strict';
     function unique(values,tolerance) {
         var result=[];
@@ -28,10 +28,9 @@
         });
         return Math.min(1,total/(high-low));
     }
-    function cores(loop) {
+    function cores(loop,exterior) {
         var initial=G.minimumBox(loop.points);
-        if(Math.min(initial.width,initial.height)<10 || Math.max(initial.width,initial.height)>170 ||
-            Math.min(initial.width,initial.height)>24) return [];
+        if(!exterior && Math.min(initial.width,initial.height)<10) return [];
         var result=[];
         G.axes(loop.points).forEach(function(base) {
             [base,base+Math.PI/2].forEach(function(angle) {
@@ -49,7 +48,7 @@
                         pairs(ys,profile.height).forEach(function(y) {
                             var center={x:x.center,y:y.center},valid=true;
                             [-1,0,1].forEach(function(sx) {[-1,0,1].forEach(function(sy) {
-                                if(!G.contains(points,{x:center.x+sx*(profile.width/2-0.6),y:center.y+sy*(profile.height/2-0.6)})) valid=false;
+                                if(G.contains(points,{x:center.x+sx*(profile.width/2-0.6),y:center.y+sy*(profile.height/2-0.6)})===!!exterior) valid=false;
                             });});
                             if(!valid) return;
                             var sides=[coverage(edges,'x',x.low,y.low,y.high),coverage(edges,'x',x.high,y.low,y.high),
@@ -105,7 +104,13 @@
                 var group=centers.find(function(g){return G.distance(g[0].center,core.center)<0.2;});
                 if(group) group.push(core);else centers.push([core]);
             });
-            if(centers.length>1) {ambiguous.push(loop);return;}
+            if(centers.length>1) {
+                // Multiple independently supported cores share one source entity.
+                centers.forEach(function(group){var best=group.sort(function(a,b){return b.score-a.score;})[0];
+                    keys.push({center:best.center,holeAngle:best.angle,capAngle:normalizedAngle(best.angle),type:best.type,
+                        core:best,contours:[loop],editable:loop.editable,width:1,height:1,stabilizers:[],recovered:true,sharedLoop:loop});
+                });return;
+            }
             if(centers.length===1) {
                 var group=centers[0].sort(function(a,b){return b.score-a.score;}),best=group[0];
                 var type=group.some(function(c){return c.type==='mx';}) && group.some(function(c){return c.type==='alps';})?'universal':best.type;
@@ -115,6 +120,16 @@
                 var candidate=unknownCandidate(loop);
                 if(candidate) unknown.push({candidate:candidate,loop:loop});
             }
+        });
+        // Plate material surrounds the other holes. Search its concave boundary
+        // for complete switch-sized edge pairs whose interiors lie outside it.
+        document.contours.forEach(function(loop){
+            if(!loop.editable || (options.layer && !loop.parts.some(function(p){return p.layer===options.layer;})) || !O.material(loop,keys))return;
+            cores(loop,true).forEach(function(best){
+                if(keys.some(function(k){return G.distance(k.center,best.center)<.2;}))return;
+                keys.push({center:best.center,holeAngle:best.angle,capAngle:normalizedAngle(best.angle),type:best.type,
+                    core:best,contours:[loop],editable:true,width:1,height:1,stabilizers:[],recovered:true,sharedLoop:loop,sharedMaterial:true});
+            });
         });
         // Repetition suggests an unknown switch family; a lone encoder window
         // or other miscellaneous opening is not automatically turned into a key.
@@ -178,6 +193,7 @@
             if(pair.axis)pair.key.height=length;else pair.key.width=length;
         });
         keys.forEach(function(key) {
+            if(key.recovered)return;
             var box=G.minimumBox(key.contours[0].points);
             key.compound=box.width>24 || box.height>24;
             if(key.compound && key.width===1 && key.height===1) {
@@ -283,6 +299,7 @@
             row.keys.sort(function(a,b){return a.center.x-b.center.x;});
             row.keys.forEach(function(key){keys.push(key);});
         });
+        keys=keys.filter(function(k){return !k.recovered;}).concat(keys.filter(function(k){return k.recovered;}));
         keys.forEach(function(key,index) {key.id='key-'+String(index+1).padStart(3,'0');counts[key.type]++;});
         // Append miscellaneous controls after switches to keep historical
         // switch IDs stable when opening a saved plate project.

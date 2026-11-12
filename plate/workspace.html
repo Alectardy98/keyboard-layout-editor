@@ -13,6 +13,11 @@
   <p class="plate-fixed-frame"><i class="fa fa-anchor" aria-hidden="true"></i> The original plate outline, mounting holes and coordinate frame stay fixed. Keycap resizing keeps the switch centre; stabilizer changes require Apply.</p>
   <p class="alert alert-danger" role="alert" ng-if="plate.error">{{plate.error}}</p>
   <p class="alert alert-info" role="status" ng-if="plate.notice">{{plate.notice}}</p>
+  <div class="alert alert-warning" ng-if="plate.recoveredCount">
+    {{plate.recoveredCount}} probable keys share fixed geometry. Select a candidate and inspect its opening before confirming.
+    Surviving edges determine the key; recognizable circular intrusions stay fixed. Hidden boundaries can be ambiguous.
+    <button class="btn btn-warning" ng-disabled="!plate.pendingRecovery" ng-click="plate.confirmRecovered()">Confirm recovered geometry</button>
+  </div>
   <div class="plate-units" ng-if="plate.model">
     <strong>{{plate.document.name}}</strong>
     <span>{{plate.keyCount}} keys ({{plate.editableCount}} editable) · MX {{plate.recognized.counts.mx}} / Alps {{plate.recognized.counts.alps}} / Universal {{plate.recognized.counts.universal}} / Unknown {{plate.recognized.counts.unknown}} / EC11 {{plate.recognized.counts.ec11 || 0}}</span>
