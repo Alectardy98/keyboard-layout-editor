@@ -144,7 +144,7 @@ test('malformed, oversized, binary and overlapping DXF edits fail before produci
 
 test('Alps preset sizes, stepped stems and complete Zenith spacebar supports',()=>{
  assert.equal(P.presets.length,23);
- for(const item of P.presets){const p=P.preset(item.id);assert.equal(p.key.width*4%1,0);assert.ok(P.generate(p.options,p.key).length);if(p.key.width>=2)assert.ok(['alps-default','alps-625-all','alps-multi275','alps-975-barrel','alps-bae','alps-zkb2','alps-barrel625','alps-canon8'].includes(p.options.stabilizer));}
+ for(const item of P.presets){const p=P.preset(item.id);assert.equal(p.key.width*4%1,0);assert.ok(P.generate(p.options,p.key).length);if(p.key.width>=2)assert.ok(['alps-default','alps-7-all','alps-multi275','alps-975-barrel','alps-bae','alps-zkb2','alps-barrel625','alps-canon8'].includes(p.options.stabilizer));}
  const left=P.preset('alps-15-left').key,right=P.preset('alps-15-right').key;
  assert.equal(left.width,1);assert.equal(left.width2,1.5);assert.equal(left.x2,-.5);assert.equal(right.x2,0);
  assert.equal(P.generate(P.preset('alps-55').options,{width:5.5,height:1}).length,8);
@@ -299,15 +299,36 @@ test('clean display origin keeps padding without moving physical switch centres'
  for(const k of keys){const src=r.keys.find(s=>s.id===k._plateId);near(G.distance(m.physical(k).center,src.center),0);}
  assert.deepEqual(Buffer.from(m.exportFile(keys)),Buffer.from(d.source));
 });
-test('6.25u all stabs owns all twelve supports and leaves mounting circles fixed',()=>{
- const base=plate(),preset=P.preset('alps-625-all'),center={x:180,y:-80};
+test('7u all stabs owns all twelve supports and leaves mounting circles fixed',()=>{
+ const base=plate(),preset=P.preset('alps-7-all'),center={x:180,y:-80};
  const rings=P.rings(P.place(P.generate(preset.options,preset.key),center,0));assert.equal(rings.length,13);
  const mount=G.arc({x:center.x+14.2879,y:center.y},1.6,0,G.TAU);
  const bytes=D.exportBytes(base.d,[],rings.concat([mount]).map(points=>({points}))),p=plate(bytes);
- const source=p.r.keys.find(k=>k.label==='6.25u all stabs');assert.ok(source);assert.equal(source.width,6.25);assert.equal(source.stabilizers.length,12);
+ const source=p.r.keys.find(k=>k.label==='7u all stabs');assert.ok(source);assert.equal(source.width,7);assert.equal(source.stabilizers.length,12);
  const key=p.keys.find(k=>k._plateId===source.id),record=p.d.raw.entities.at(-1),raw=p.d.source.slice(record.start,record.end);
  assert.deepEqual(Buffer.from(p.m.exportFile(p.keys)),Buffer.from(bytes));
- key.x+=.25;const moved=D.parse(p.m.exportFile(p.keys),'moved');assert.ok(moved.source.includes(raw));const assembly=R.analyze(moved).keys.find(k=>k.label==='6.25u all stabs');assert.equal(assembly.stabilizers.length,12);near(assembly.center.x,184.7625);
+ key.x+=.25;const moved=D.parse(p.m.exportFile(p.keys),'moved');assert.ok(moved.source.includes(raw));const assembly=R.analyze(moved).keys.find(k=>k.label==='7u all stabs');assert.equal(assembly.stabilizers.length,12);near(assembly.center.x,184.7625);
  const deleted=D.parse(p.m.exportFile(p.keys.filter(k=>k!==key)),'deleted');assert.ok(deleted.source.includes(raw));
- const partial=plate(D.exportBytes(base.d,[],rings.slice(0,-1).map(points=>({points}))));assert.equal(partial.r.keys.some(k=>k.label==='6.25u all stabs'),false);
+ const partial=plate(D.exportBytes(base.d,[],rings.slice(0,-1).map(points=>({points}))));assert.equal(partial.r.keys.some(k=>k.label==='7u all stabs'),false);
+});
+test('complete common 7u bottom row preserves both one-unit gaps',()=>{
+ const base=plate(),center={x:180,y:-100},preset=P.preset('alps-7-all');
+ const rings=P.rings(P.place(P.generate(preset.options,preset.key),center,0));
+ for(const offset of [-6.75,-4.25,4.25,6.75])rings.push(G.rectangle(15.5,12.8,{x:center.x+offset*19.05,y:center.y}));
+ const p=plate(D.exportBytes(base.d,[],rings.map(points=>({points})))),row=p.r.keys.filter(k=>Math.abs(k.center.y+100)<.001).sort((a,b)=>a.center.x-b.center.x);
+ assert.deepEqual(row.map(k=>k.width),[1.5,1.5,7,1.5,1.5]);
+ const caps=row.map(k=>p.keys.find(q=>q._plateId===k.id));near(caps[1].x-(caps[0].x+caps[0].width),1);near(caps[4].x-(caps[3].x+caps[3].width),1);
+ assert.doesNotThrow(()=>P.stabilizers({stabilizer:'alps-625-all'},{width:6.25,height:1}));
+});
+test('nearby supports require inclusion, persist, move with the key and can be released',()=>{
+ const base=plate(),bytes=D.exportBytes(base.d,[],[{points:G.rectangle(2.4,3,{x:19.05,y:10})}]),p=plate(bytes),key=p.keys[1];
+ const candidate=p.m.nearbySupports(key).find(c=>Math.abs(c.dx)<.01 && Math.abs(c.dy-10)<.01);assert.ok(candidate);
+ const original=Buffer.from(p.m.exportFile(p.keys));p.m.setSupport(key,candidate.id,true);
+ assert.deepEqual(Buffer.from(p.m.exportFile(p.keys)),original);
+ const snapshot=p.m.snapshot();assert.deepEqual(snapshot[key._plateId].supports,[candidate.id]);
+ const restored=plate(bytes);restored.m.restore(snapshot);assert.equal(restored.m.nearbySupports(restored.keys[1]).find(c=>c.id===candidate.id).included,true);
+ key.x+=.25;let parsed=D.parse(p.m.exportFile(p.keys),'moved');assert.ok(parsed.contours.some(c=>{let b=G.bounds(c.points);return Math.abs(b.cx-23.8125)<.001&&Math.abs(b.cy-10)<.001;}));
+ p.m.setSupport(key,candidate.id,false);parsed=D.parse(p.m.exportFile(p.keys),'released');assert.ok(parsed.contours.some(c=>{let b=G.bounds(c.points);return Math.abs(b.cx-19.05)<.001&&Math.abs(b.cy-10)<.001;}));
+ assert.throws(()=>p.m.setSupport(key,candidate.id,true),/before moving/);
+ const bad=p.m.snapshot();bad[key._plateId].supports=[p.r.keys[0].contours[0].id];p.m.restore(bad);assert.throws(()=>p.m.plan(p.keys),/already owned/);
 });
