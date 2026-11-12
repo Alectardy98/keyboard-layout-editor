@@ -3,7 +3,8 @@
 The original [Keyboard Layout Editor](https://www.keyboard-layout-editor.com/) interface, with support for opening and editing **Vial and VIA keyboard-definition JSON files**. GitHub sign-in, Gist saving, presets, raw layout editing, and the existing KLE tools remain available.
 
 The **[DXF plate editor](https://keebal.com/kle/plate.html)** displays a plate
-above an inferred KLE layout. Convert MX/Alps switch openings, select North/South
+above an inferred KLE layout. Add MX plate-mount, MX PCB-mount, Alps and Topre
+footprints. Convert MX/Alps switch openings, select North/South
 stabilizers and Plate/PCB MX mounting, and edit keys relative to fixed anchors.
 The imported outline, mounting geometry and physical coordinate frame stay in
 place. Pattern changes require Apply; unchanged DXFs round-trip exactly.

@@ -43,18 +43,19 @@ All rights reserved.
 <!-- plate-engine:start — the build loads this engine only in plate.html -->
 <script type="text/javascript" src="js/dxf-parser.js"></script>
 <script type="text/javascript" src="js/polygon-clipping.js"></script>
-<script type="text/javascript" src="plate/geometry.js?v=20261112-keyhub1"></script>
-<script type="text/javascript" src="plate/dxf.js?v=20261112-keyhub1"></script>
-<script type="text/javascript" src="plate/measured.js?v=20261112-keyhub1"></script>
-<script type="text/javascript" src="plate/profiles.js?v=20261112-keyhub1"></script>
-<script type="text/javascript" src="plate/overlaps.js?v=20261112-keyhub1"></script>
-<script type="text/javascript" src="plate/recognize.js?v=20261112-keyhub1"></script>
-<script type="text/javascript" src="plate/document.js?v=20261112-keyhub1"></script>
+<script type="text/javascript" src="plate/geometry.js?v=20261112-review2"></script>
+<script type="text/javascript" src="plate/dxf.js?v=20261112-review2"></script>
+<script type="text/javascript" src="plate/measured.js?v=20261112-review2"></script>
+<script type="text/javascript" src="plate/switch-families.js?v=20261112-review2"></script>
+<script type="text/javascript" src="plate/profiles.js?v=20261112-review2"></script>
+<script type="text/javascript" src="plate/overlaps.js?v=20261112-review2"></script>
+<script type="text/javascript" src="plate/recognize.js?v=20261112-review2"></script>
+<script type="text/javascript" src="plate/document.js?v=20261112-review2"></script>
 <!-- plate-engine:end -->
-<script type="text/javascript" src="plate/editor.js?v=20261112-keyhub1"></script>
-<link rel="stylesheet" href="plate/editor.css?v=20261112-keyhub1">
+<script type="text/javascript" src="plate/editor.js?v=20261112-review2"></script>
+<link rel="stylesheet" href="plate/editor.css?v=20261112-review2">
 <script type="text/javascript" src="site-config.js"></script>
-<script type="text/javascript" src="kb.js?v=20261112-keyhub1"></script>
+<script type="text/javascript" src="kb.js?v=20261112-review2"></script>
 </head>
 <body ng-controller="kbCtrl" ng-class="{'plate-page':plate.workspace}"
       ng-mouseup="selectRelease($event)"
@@ -143,7 +144,7 @@ Nav Bar / Header
 </nav>
 
 <div class="body" ng-cloak>
-  <div ng-if="plate.workspace" ng-include="'plate/workspace.html?v=20261112-keyhub1'"></div>
+  <div ng-if="plate.workspace" ng-include="'plate/workspace.html?v=20261112-review2'"></div>
   <div class="alert alert-danger" role="alert" ng-if="!plate.workspace && plate.error">{{plate.error}}</div>
 
   <!--***********************************************
@@ -162,8 +163,16 @@ Nav Bar / Header
     <ul class="dropdown-menu plate-preset-menu"><li ng-repeat="preset in plate.presets"><a href="" ng-click="plate.addPreset(preset.id)">{{preset.label}}</a></li></ul>
   </div>
   <div class="btn-group" dropdown ng-if="plate.workspace">
-    <button class="btn btn-primary dropdown-toggle" dropdown-toggle ng-disabled="!plate.model">Add MX Keys <span class="caret"></span></button>
-    <ul class="dropdown-menu plate-preset-menu"><li ng-repeat="preset in plate.mxPresets"><a href="" ng-click="plate.addPreset(preset.id)">{{preset.label}}</a></li></ul>
+    <button class="btn btn-primary dropdown-toggle" dropdown-toggle ng-disabled="!plate.model">Add MX Plate Mount <span class="caret"></span></button>
+    <ul class="dropdown-menu plate-preset-menu"><li ng-repeat="preset in plate.mxPlatePresets"><a href="" ng-click="plate.addPreset(preset.id)">{{preset.label}}</a></li></ul>
+  </div>
+  <div class="btn-group" dropdown ng-if="plate.workspace">
+    <button class="btn btn-primary dropdown-toggle" dropdown-toggle ng-disabled="!plate.model">Add MX PCB Mount <span class="caret"></span></button>
+    <ul class="dropdown-menu plate-preset-menu"><li ng-repeat="preset in plate.mxPcbPresets"><a href="" ng-click="plate.addPreset(preset.id)">{{preset.label}}</a></li></ul>
+  </div>
+  <div class="btn-group" dropdown ng-if="plate.workspace">
+    <button class="btn btn-primary dropdown-toggle" dropdown-toggle ng-disabled="!plate.model">Add Topre Keys <span class="caret"></span></button>
+    <ul class="dropdown-menu plate-preset-menu"><li ng-repeat="preset in plate.toprePresets"><a href="" ng-click="plate.addPreset(preset.id)">{{preset.label}}</a></li></ul>
   </div>
   <div class="btn-group" dropdown ng-if="plate.workspace">
     <button class="btn btn-primary dropdown-toggle" dropdown-toggle ng-disabled="!plate.model">Add Other <span class="caret"></span></button>
