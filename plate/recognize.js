@@ -312,6 +312,16 @@
                 });
             });
         }
+        function rowSpanFits(key,width){
+            // Plate corner reliefs need not follow the cap silhouette. When
+            // row alignment and neighbouring caps independently agree, check
+            // the actual horizontal row span rather than its lower corners.
+            var half=(width*19.05-1.2)/2,steps=Math.ceil(half*2);
+            return outlines.every(function(c){
+                for(var i=0;i<=steps;i++)if(!G.contains(c.points,{x:key.center.x-half+2*half*i/steps,y:key.center.y}))return false;
+                return true;
+            });
+        }
         // Establish shared row edges from ordinary 1u runs or supported end
         // caps. KLE cells include spacing: the plate need not contain the full
         // nominal cell rectangle. The small inset above permits that clearance.
@@ -347,11 +357,12 @@
                     var proposals=neighbours.filter(function(n){return trusted.has(n);}).map(function(n){
                         return 2*Math.abs(n.center.x-k.center.x)/19.05-n.width;
                     }).filter(function(w){return w>=k.width-0.002 && w<=limit && Math.abs(w*4-Math.round(w*4))<0.006;});
+                    var edgeAgrees=edge!==null && proposals.some(function(w){return Math.abs(w-edge)<.002;});
                     if(edge!==null && edge>=k.width-.002)proposals.push(edge);
                     if(!proposals.length)return;
                     var width=Math.round(Math.min(...proposals)*4)/4;
                     if(neighbours.some(function(n){return (width+n.width)*19.05/2>Math.abs(n.center.x-k.center.x)+0.03;}))return;
-                    if(width>k.width+0.01){if(!capFits(k,width))return;k.width=width;changed=true;}
+                    if(width>k.width+0.01){if(!capFits(k,width) && !(edgeAgrees && Math.abs(width-edge)<.002 && rowSpanFits(k,width)))return;k.width=width;changed=true;}
                     if(!trusted.has(k)){trusted.add(k);changed=true;}
                 });
                 if(!changed)break;
