@@ -399,3 +399,19 @@ test('aligned row edges fill modifiers and a spacebar without moving switch cent
  for(const e of expected){const key=p.r.keys.find(k=>G.distance(k.center,e.center)<.03);assert.ok(key);assert.equal(key.width,e.width,JSON.stringify(e));}
  assert.deepEqual(Buffer.from(p.m.exportFile(p.keys)),Buffer.from(bytes));
 });
+test('unidentified shapes can be deleted or bound at the current key pose',()=>{
+ const base=plate(),bytes=D.exportBytes(base.d,[],[{points:G.rectangle(3,4,{x:145,y:-80})}]),p=plate(bytes);
+ const cid=p.d.contours.find(c=>G.bounds(c.points).cx>130).id,initial=p.m.snapshot();
+ p.m.deleteShapes([cid]);assert.equal(p.m.selectableContours().includes(cid),false);assert.equal(D.parse(p.m.exportFile(p.keys),'deleted').raw.entities.length,p.d.raw.entities.length-1);
+ const saved=p.m.snapshot(),restored=plate(bytes);restored.m.restore(saved);assert.deepEqual(Buffer.from(restored.m.exportFile(restored.keys)),Buffer.from(p.m.exportFile(p.keys)));
+ p.m.restore(initial);assert.deepEqual(Buffer.from(p.m.exportFile(p.keys)),Buffer.from(bytes));
+ const key=p.keys[1];key.x+=1;key.rotation_angle=15;const at=p.m.physical(key),beforeBind=Buffer.from(p.m.exportFile(p.keys));p.m.bindShapes([cid],key);
+ assert.deepEqual(Buffer.from(p.m.exportFile(p.keys)),beforeBind);assert.equal(p.m.selectableContours().includes(cid),false);
+ assert.throws(()=>p.m.bindShapes([cid],p.keys[2]),/unassigned/);
+ const bound=p.m.snapshot();restored.m.restore(bound);assert.deepEqual(Buffer.from(restored.m.exportFile(p.keys)),beforeBind);
+ p.m.position(key,{x:at.center.x+5,y:at.center.y-3},at.angle+Math.PI/2);
+ const expected=G.rotate({x:145,y:-80},Math.PI/2,at.center);expected.x+=5;expected.y-=3;
+ const output=D.parse(p.m.exportFile(p.keys),'moved');assert.ok(output.contours.some(c=>{const b=G.bounds(c.points);return Math.hypot(b.cx-expected.x,b.cy-expected.y)<.001;}));
+ const without=p.keys.filter(k=>k!==key),deleted=D.parse(p.m.exportFile(without),'key deleted');assert.equal(deleted.contours.some(c=>Math.hypot(G.bounds(c.points).cx-expected.x,G.bounds(c.points).cy-expected.y)<.001),false);
+ p.m.restore(initial);assert.equal(p.m.selectableContours().includes(cid),true);
+});
