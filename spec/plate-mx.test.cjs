@@ -5,7 +5,7 @@ const near=(a,b)=>assert.ok(Math.abs(a-b)<.001,`${a} != ${b}`);
 function fromShapes(shapes){const d=D.parse(makeFixture());return D.parse(D.exportBytes(d,[],shapes.map(points=>({points}))),'mx.dxf');}
 function at(shape,x,y,angle=0){return P.rings(P.place(shape,{x,y},angle));}
 test('all MX presets generate finite contours and retain their cap dimensions',()=>{
- assert.equal(P.mxPresets.length,29);
+ assert.equal(P.mxPresets.length,33);
  for(const item of P.mxPresets){const p=P.preset(item.id),shapes=P.generate(p.options,p.key);
   assert.ok(shapes.length);assert.equal(p.key.width*4%1,0);
   for(const ring of P.rings(shapes)){assert.ok(Math.abs(G.area(ring))>0);for(const v of ring)assert.ok(Number.isFinite(v.x)&&Number.isFinite(v.y));}
@@ -92,4 +92,25 @@ test('late PCB stabilizer discovery preserves 2.25u and 2.75u cap inference',()=
   assert.equal(key.width,width);assert.equal(key.stabilizers.length,2);near(key.detectedStabilizer.spacing,23.876);
   const m=M.create(d,r),keys=m.makeKeys(S.defaultKeyProps);assert.deepEqual(Buffer.from(m.exportFile(keys)),Buffer.from(D.exportBytes(d)));
  }
+});
+test('joined PCB compatibility windows recognize at every cardinal rotation',()=>{
+ for(const size of [2,2.25,2.75])for(const angle of [0,Math.PI/2,Math.PI,3*Math.PI/2])for(const height of [16,18,20,22]){
+  const parts=at(P.pcbCompatibility(size,{height,offset:-1}),200,100,angle);
+  const d=fromShapes(parts),r=R.analyze(d),k=r.keys.find(k=>k.label===size+'u wide PCB compatibility');
+  assert.ok(k,`${size}/${angle}/${height}`);near(k.center.x,200);near(k.center.y,100);assert.equal(k.width,size);
+  const m=M.create(d,r),keys=m.makeKeys(S.defaultKeyProps);assert.deepEqual(Buffer.from(m.exportFile(keys)),Buffer.from(D.exportBytes(d)));
+ }
+});
+test('split compatibility needs both matching openings; a rectangle is not sufficient',()=>{
+ const parts=at(P.pcbCompatibility(2.75,{split:true}),200,100),r=R.analyze(fromShapes(parts));
+ const k=r.keys.find(k=>k.label==='2.75u split PCB compatibility');assert.ok(k);near(k.center.x,200);assert.equal(k.stabilizers.length,1);
+ assert.equal(R.analyze(fromShapes([parts[0]])).keys.some(k=>k.label?.includes('compatibility')),false);
+ const rectangle=G.rectangle(33.05,16,{x:200,y:100});assert.equal(R.analyze(fromShapes([rectangle])).keys.some(k=>k.label?.includes('compatibility')),false);
+ const wrong=parts[1].map(p=>({x:p.x+2,y:p.y}));assert.equal(R.analyze(fromShapes([parts[0],wrong])).keys.some(k=>k.label?.includes('compatibility')),false);
+});
+test('tall rectangular PCB clearances retain an Enter-sized cap from row pitch',()=>{
+ const parts=at(P.generate({switch:'mx',stabilizer:'none'},{width:1,height:1}),200,100);
+ for(const x of [-11.938,11.938])parts.push(G.rectangle(7,18.7,{x:200+x,y:99.65}));
+ for(const x of [200-1.625*19.05,200-2.625*19.05])parts.push(...at(P.generate({switch:'mx',stabilizer:'none'},{width:1,height:1}),x,100));
+ const k=R.analyze(fromShapes(parts)).keys.find(k=>Math.abs(k.center.x-200)<.001);assert.equal(k.width,2.25);assert.equal(k.stabilizers.length,2);
 });
