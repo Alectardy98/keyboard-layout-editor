@@ -256,3 +256,17 @@ barrel assembly (circle plus two square supports). A nearby circle alone is
 not a stabilizer; the left mounting opening remains fixed. **Add Alps Keys →
 BAE** creates the same measured pattern. ZKB2 Enter keeps its narrower 1u upper
 extension as a separate preset.
+
+### DC2014 spacebar and Z150 Enter
+
+The **9.75u — barrel stabilizer** preset includes both wire slots and the
+three-part barrel support. **Z150 Enter** uses a 1u × 2u vertical section with a
+2u × 1u lower section extending left. Its four wire slots and complete lower-left
+barrel move together. Recognition requires every support opening, not merely a
+nearby circle or a filename match.
+
+A **vertical 2u** preset provides the same four-slot support as the Canon
+vertical key with a 1u cap width. Since those cutouts alone do not distinguish
+1u from 1.25u caps, recognition uses neighbouring key clearance to reject the
+wider cap where it would overlap. Review cap dimensions when surrounding keys
+are absent or their widths are uncertain.
