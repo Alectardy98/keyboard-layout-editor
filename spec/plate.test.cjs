@@ -387,3 +387,15 @@ test('unchanged keys do not repeat plate boundary containment checks',()=>{
  G.contains=(...args)=>{calls++;return contains(...args);};
  try{p.m.reconcile(before,p.keys);assert.equal(calls,0);}finally{G.contains=contains;}
 });
+test('aligned row edges fill modifiers and a spacebar without moving switch centres',()=>{
+ const base=D.parse(makeFixture(),'base'),rows=[Array(13).fill(1).concat(2),[1.5,...Array(12).fill(1),1.5],[1.5,1,1.5,7,1.5,1,1.5]],expected=[],shapes=[G.rectangle(15*19.05-.8,65,{x:7.5*19.05,y:19.05})];
+ rows.forEach((widths,row)=>{let x=0;widths.forEach(w=>{
+  const center={x:(x+w/2)*19.05,y:(2-row)*19.05};expected.push({center,width:w});x+=w;
+  if(w===7)shapes.push(...P.rings(P.place(P.generate({switch:'alps',stabilizer:'alps-barrel625'},{width:6.25,height:1}),center,0)));
+  else if(w===2)shapes.push(...P.rings(P.place(P.generate({switch:'alps',stabilizer:'mx',mount:'plate'},{width:2,height:1}),center,0)));
+  else shapes.push(G.rectangle(15.5,12.8,center));
+ });});
+ const bytes=D.exportBytes(base,base.raw.entities.map(record=>({record})),shapes.map(points=>({points}))),p=plate(bytes);
+ for(const e of expected){const key=p.r.keys.find(k=>G.distance(k.center,e.center)<.03);assert.ok(key);assert.equal(key.width,e.width,JSON.stringify(e));}
+ assert.deepEqual(Buffer.from(p.m.exportFile(p.keys)),Buffer.from(bytes));
+});
