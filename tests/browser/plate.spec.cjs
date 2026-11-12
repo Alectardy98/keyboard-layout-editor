@@ -90,7 +90,7 @@ test('excluding a false detection preserves its original cutout and can be undon
 test('plate preset menus create complete Alps and EC11 geometry in one undo step',async({page})=>{
  await open(page);
  await expect(page.getByRole('button',{name:'Add Key',exact:true})).toHaveCount(0);
- await expect(page.getByRole('button',{name:'Add MX Keys',exact:true})).toBeEnabled();
+ await expect(page.getByRole('button',{name:'Add MX Plate Mount',exact:true})).toBeEnabled();
  await page.getByRole('button',{name:'Add Alps Keys',exact:true}).click();
  await page.getByRole('link',{name:'5.5u — complete spacebar supports',exact:true}).click();
  await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
@@ -204,7 +204,7 @@ test('opening a DXF can discard edits, reopen the same file, or cancel safely',a
 
 test('MX menu supplies plate/PCB ISO presets and hides Caps Multistep in switch profiles',async({page})=>{
  await open(page);await expect(page.getByLabel('Switch profile').locator('option[value="alps-multistep"]')).toHaveCount(0);
- await page.getByRole('button',{name:'Add MX Keys',exact:true}).click();
+ await page.getByRole('button',{name:'Add MX Plate Mount',exact:true}).click();
  await page.getByRole('link',{name:'ISO Enter — plate mount',exact:true}).click();
  await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
  const added=await page.evaluate(()=>{const s=angular.element(document.body).scope(),k=s.selectedKeys[0];return {w:k.width,h:k.height,w2:k.width2,x2:k.x2,profile:s.plate.model.settings[k._plateId].profile.options};});
@@ -223,7 +223,7 @@ test('PCB clearance customization stays unapplied until Apply and survives proje
 });
 test('PCB compatibility presets add complete assemblies and preserve them in project reload',async({page})=>{
  await open(page);
- await page.getByRole('button',{name:'Add MX Keys',exact:true}).click();
+ await page.getByRole('button',{name:'Add MX PCB Mount',exact:true}).click();
  await page.getByRole('link',{name:'2.75u split PCB compatibility',exact:true}).click();
  await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
  const value=await page.evaluate(()=>{const s=angular.element(document.body).scope(),k=s.selectedKeys[0];return {width:k.width,options:s.plate.model.settings[k._plateId].profile.options};});
@@ -240,4 +240,32 @@ test('PCB compatibility presets add complete assemblies and preserve them in pro
  await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
  expect(await page.evaluate(()=>angular.element(document.body).scope().plate.document.coordinateVersion)).toBe(2);
 
+});
+
+test('separate MX menus and Topre presets retain complete geometry through project reload',async({page})=>{
+ await open(page);await page.getByRole('button',{name:'Add MX Plate Mount',exact:true}).click();
+ await expect(page.getByRole('link',{name:'Plate ANSI-ISO',exact:true})).toBeVisible();
+ await expect(page.getByRole('link',{name:'6.25u with Left stab',exact:true})).not.toBeVisible();
+ await page.getByRole('button',{name:'Add MX PCB Mount',exact:true}).click();
+ await expect(page.getByRole('link',{name:'6.25u with Left stab',exact:true})).toBeVisible();
+ await expect(page.getByRole('link',{name:'Plate ANSI-ISO',exact:true})).not.toBeVisible();
+ await page.getByRole('button',{name:'Add Topre Keys',exact:true}).click();
+ await page.getByRole('link',{name:'Topre 7u',exact:true}).click();
+ await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
+ const state=await page.evaluate(()=>{const s=angular.element(document.body).scope(),k=s.selectedKeys[0];return {width:k.width,profile:s.plate.model.settings[k._plateId].profile.options};});
+ expect(state.width).toBe(7);expect(state.profile.switch).toBe('topre-7');
+ const save=page.waitForEvent('download');await page.getByRole('button',{name:'Save plate project',exact:true}).click();const file=await(await save).path(),data=fs.readFileSync(file);
+ expect(JSON.parse(data).recognitionVersion).toBe(3);
+ await page.reload();const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open plate project',exact:true}).click();await(await chooser).setFiles({name:'topre.plate.json',mimeType:'application/json',buffer:data});
+ await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
+ const download=page.waitForEvent('download');await page.getByRole('button',{name:'Download edited DXF'}).click();
+ const key=R.analyze(D.parse(fs.readFileSync(await(await download).path()))).keys.find(k=>k.family==='topre-7');expect(key.stabilizers).toHaveLength(2);
+});
+test('unrecognized joined LINE shapes can be selected through their interior',async({page})=>{
+ const lines=[[130,-70,150,-70],[150,-70,150,-60],[150,-60,130,-60],[130,-60,130,-70]].map(([a,b,c,d])=>`0\nLINE\n8\nCUT\n10\n${a}\n20\n${b}\n11\n${c}\n21\n${d}\n`).join('');
+ await open(page,makeFixture().replace('0\nENDSEC\n0\nEOF\n',lines+'0\nENDSEC\n0\nEOF\n'));
+ const index=await page.evaluate(()=>{const p=angular.element(document.body).scope().plate,c=p.document.contours.find(c=>PlateGeometry.bounds(c.points).cx===140);return p.paths.findIndex(p=>p.contour===c.id);});
+ const target=page.locator('.plate-svg .plate-path').nth(index);await target.click();
+ await expect(target).toHaveClass(/plate-shape-picked/);await expect(page.getByRole('button',{name:'Map to new key',exact:true})).toBeVisible();
+ await page.mouse.move(0,0);await expect(target).toHaveCSS('stroke','rgb(212, 119, 0)');
 });
