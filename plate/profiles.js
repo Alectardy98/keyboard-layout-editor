@@ -56,7 +56,8 @@
         if(size<minSize && !options.forceStabilizer) return [];
         if(style==='alps-canon8' || style==='alps-canon-vertical2') {
             var upright=style==='alps-canon-vertical2';
-            if(key.width!==(upright?1:8) || key.height!==(upright?2:1))throw Error('This Canon pattern requires its original key dimensions.');
+            // Accept the earlier 1u saved-profile width; the cutouts are unchanged.
+            if((upright?![1,1.25].includes(key.width):key.width!==8) || key.height!==(upright?2:1))throw Error('This Canon pattern requires its original key dimensions.');
             return place((upright?Measured.canonVertical2:Measured.canon8).map(polygon),{x:0,y:0},options.direction==='north'?Math.PI:0);
         }
         if(style==='alps-barrel625') {
@@ -148,7 +149,7 @@
         {id:'alps-225',label:'2.25u — stabilizers',width:2.25,stabs:true},
         {id:'alps-zkb2',label:'ZKB2 Enter',width:2.25,zkb2:true,stabs:true},
         {id:'alps-canon8',label:'8u — Canon complete supports',width:8,canon:'alps-canon8'},
-        {id:'alps-canon-vertical2',label:'cannon vertical 2u',width:1,height:2,canon:'alps-canon-vertical2'},
+        {id:'alps-canon-vertical2',label:'cannon vertical 2u',width:1.25,height:2,canon:'alps-canon-vertical2'},
         {id:'alps-625-barrels',label:'6.25u — two barrel stabilizers',width:6.25,barrels:true,stabs:true},
         {id:'alps-55',label:'5.5u — complete spacebar supports',width:5.5,stabs:true}
     ];

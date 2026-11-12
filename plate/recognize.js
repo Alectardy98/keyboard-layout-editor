@@ -210,7 +210,7 @@
         // Canon assemblies require every measured slot and barrel opening.
         // Relief slots and plate mounting holes are deliberately not claimed.
         [{pattern:Measured.canon8,width:8,height:1,label:'8u',family:'alps-canon8'},
-         {pattern:Measured.canonVertical2,width:1,height:2,label:'cannon vertical 2u',family:'alps-canon-vertical2'}].forEach(function(preset){
+         {pattern:Measured.canonVertical2,width:1.25,height:2,label:'cannon vertical 2u',family:'alps-canon-vertical2'}].forEach(function(preset){
             keys.filter(function(k){return k.type==='alps';}).forEach(function(key){
                 var parts=preset.pattern.map(function(pattern){return small.find(function(c){
                     return matches(c.points,pattern,key.center,key.capAngle);
