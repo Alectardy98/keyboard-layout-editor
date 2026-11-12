@@ -246,3 +246,13 @@ unusual switch, insufficient surrounding keys to identify plate material, or
 an unrecognizable intersecting shape may require manual CAD work. Hidden
 boundaries cannot always be recovered uniquely. Inspect the regenerated shared
 contour before manufacture; confirmation means accepting that interpretation.
+
+### BAE Enter (IBM 5140-style)
+
+**BAE** has a 2.25u × 1u lower section and a 1.5u-wide upper-right
+extension reaching one row above it. The lower section remains centred on the
+switch. Recognition requires both lower wire slots and the complete upper-right
+barrel assembly (circle plus two square supports). A nearby circle alone is
+not a stabilizer; the left mounting opening remains fixed. **Add Alps Keys →
+BAE** creates the same measured pattern. ZKB2 Enter keeps its narrower 1u upper
+extension as a separate preset.
