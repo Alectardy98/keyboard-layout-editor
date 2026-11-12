@@ -66,3 +66,8 @@
 
 /* Keep anchors visibly blue even while selected. */
 .plate-path.plate-anchor.plate-selected:not(.plate-hit-area) {stroke:#2474d4;fill:rgba(36,116,212,.16);}
+
+.plate-open-backdrop {position:fixed;inset:0;z-index:1060;background:#0007;display:flex;align-items:center;justify-content:center;padding:20px;}
+.plate-open-dialog {background:#fff;border:1px solid #cbd1da;border-radius:8px;padding:24px;max-width:520px;box-shadow:0 8px 32px #0004;}
+.plate-open-dialog p {line-height:1.6;overflow-wrap:anywhere;}
+.plate-open-dialog .plate-buttons {justify-content:flex-end;}

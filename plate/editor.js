@@ -53,9 +53,9 @@
                 'No reliable switch openings were found. The drawing is preserved; check units/layer or explode and flatten it in CAD.';
             refresh();
         }
-        function read(file,callback) {
+        function read(file,callback,confirmed) {
             if(!file)return;
-            if(ui.model && scope.dirty && !root.confirm('Discard the unsaved plate edits in this tab and open another file?'))return;
+            if(!confirmed && ui.model && scope.dirty && !root.confirm('Discard the unsaved plate edits in this tab and open another file?'))return;
             if(file.size>32*1024*1024){ui.error='Plate files must be 16 MiB or smaller (projects: 32 MiB).';return;}
             ui.busy=true;ui.error='';
             var reader=new FileReader();
@@ -79,7 +79,22 @@
                 }
                 root.addEventListener('message',transfer);
                 timer=root.setTimeout(function(){root.removeEventListener('message',transfer);},60000);
-            } else read(file,function(source){load(source,file.name,{});});
+            } else if(ui.model && scope.dirty){
+                ui.pendingOpen=file;
+                root.setTimeout(function(){root.document.getElementById('plate-open-cancel')?.focus();},0);
+            } else read(file,function(source){load(source,file.name,{});},true);
+        };
+        ui.cancelOpen=function(){ui.pendingOpen=null;};
+        ui.confirmOpen=function(){
+            var file=ui.pendingOpen;ui.pendingOpen=null;
+            if(file)read(file,function(source){load(source,file.name,{});},true);
+        };
+        ui.openDialogKey=function(event){
+            if(event.key==='Escape'){event.preventDefault();ui.cancelOpen();}
+            if(event.key==='Tab'){
+                event.preventDefault();
+                root.document.getElementById(event.target.id==='plate-open-cancel'?'plate-open-confirm':'plate-open-cancel')?.focus();
+            }
         };
         ui.reinterpret=function() {
             if(!ui.model)return;

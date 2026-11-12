@@ -4,11 +4,21 @@
     <a class="btn btn-default" href="./" target="_blank" rel="noopener">Open normal KLE editor</a>
   </div>
   <div class="plate-actions">
-    <button type="button" class="btn btn-primary" ngf-select="true" ngf-change="plate.open($files)" accept=".dxf" ng-disabled="plate.busy">Open DXF plate</button>
+    <button type="button" class="btn btn-primary" ngf-select="true" ngf-change="plate.open($files)" ngf-reset-on-click="true" accept=".dxf" ng-disabled="plate.busy">Open DXF plate</button>
     <button type="button" class="btn btn-default" ngf-select="true" ngf-change="plate.openProject($files)" accept=".json" ng-disabled="plate.busy">Open plate project</button>
     <button type="button" class="btn btn-success" ng-click="plate.download()" ng-disabled="!plate.model || plate.busy">Download edited DXF</button>
     <button type="button" class="btn btn-default" ng-click="plate.saveProject()" ng-disabled="!plate.model || plate.busy">Save plate project</button>
     <span ng-if="plate.busy" role="status">Reading drawing…</span>
+  </div>
+  <div class="plate-open-backdrop" ng-if="plate.pendingOpen">
+    <div class="plate-open-dialog" role="alertdialog" aria-modal="true" aria-labelledby="plate-open-title" aria-describedby="plate-open-description" ng-keydown="plate.openDialogKey($event)">
+      <h2 id="plate-open-title">Replace the current plate?</h2>
+      <p id="plate-open-description">Unsaved changes will be discarded when you open <strong>{{plate.pendingOpen.name}}</strong>. Your original file on disk will not be changed.</p>
+      <div class="plate-buttons">
+        <button id="plate-open-cancel" class="btn btn-default" ng-click="plate.cancelOpen()">Cancel</button>
+        <button id="plate-open-confirm" class="btn btn-primary" ng-click="plate.confirmOpen()">Discard changes and open</button>
+      </div>
+    </div>
   </div>
   <p class="plate-fixed-frame"><i class="fa fa-anchor" aria-hidden="true"></i> The original plate outline, mounting holes and coordinate frame stay fixed. Keycap resizing keeps the switch centre; stabilizer changes require Apply.</p>
   <p class="alert alert-danger" role="alert" ng-if="plate.error">{{plate.error}}</p>
