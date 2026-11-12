@@ -20,8 +20,8 @@ test('dedicated plate page displays DXF above its editable KLE and does not uplo
  await page.screenshot({path:'test-results/plate-desktop.png',fullPage:true,animations:'disabled'});
 });
 test('MX/Alps controls affect DXF only on Apply and support undo/redo without moving fixed features',async({page})=>{
- await open(page);await page.getByLabel('Switch profile',{exact:true}).selectOption('alps');await page.getByLabel('Stabilizer style',{exact:true}).selectOption('mx');
- await page.getByRole('button',{name:'North',exact:true}).click();await page.getByRole('button',{name:'PCB mount',exact:true}).click();
+ await open(page);await page.getByLabel('Switch profile',{exact:true}).selectOption('alps');await page.getByLabel('Stabilizer style',{exact:true}).selectOption('mx-pcb');
+ await page.getByRole('button',{name:'North',exact:true}).click();
  expect(await scopeRead(page,()=>Object.values(angular.element(document.body).scope().plate.model.settings).some(c=>c.profile))).toBe(false);
  await page.getByRole('button',{name:'Apply to all editable keys',exact:true}).click();
  await expect(page.getByRole('status').filter({hasText:'Applied to 4 keys'})).toBeVisible();
@@ -29,8 +29,8 @@ test('MX/Alps controls affect DXF only on Apply and support undo/redo without mo
  expect(R.analyze(output).counts.alps).toBe(4);expect(output.source).toContain('MOUNTS');
  await page.getByRole('button',{name:/Undo$/}).click();expect(await scopeRead(page,()=>Object.values(angular.element(document.body).scope().plate.model.settings).some(c=>c.profile))).toBe(false);
  await page.getByRole('button',{name:/Redo$/}).click();expect(await scopeRead(page,()=>Object.values(angular.element(document.body).scope().plate.model.settings).every(c=>c.profile))).toBe(true);
- await page.getByLabel('Stabilizer style',{exact:true}).selectOption('alps');await expect(page.getByLabel('Alps keycap family')).toBeVisible();
- await page.getByLabel('Stabilizer style',{exact:true}).selectOption('costar');await expect(page.getByRole('button',{name:'South',exact:true})).toBeVisible();
+ await page.getByLabel('Stabilizer style',{exact:true}).selectOption('alps');await expect(page.getByLabel('Stabilizer pattern')).toBeVisible();
+ await page.getByLabel('Stabilizer pattern',{exact:true}).selectOption('costar');await expect(page.getByRole('button',{name:'South',exact:true})).toBeVisible();
 });
 test('cutout selection, anchor locking and repeated KLE resizing preserve the stem centre',async({page})=>{
  await open(page);await page.locator('.plate-switch').nth(1).click();await expect(page.getByText(/1 selected · 1 anchors/)).toBeVisible();
@@ -213,7 +213,7 @@ test('MX menu supplies plate/PCB ISO presets and hides Caps Multistep in switch 
 });
 test('PCB clearance customization stays unapplied until Apply and survives project save',async({page})=>{
  await open(page);await page.locator('#keyboard').getByText('Key 3',{exact:true}).click();
- await page.getByLabel('Stabilizer style',{exact:true}).selectOption('mx');await page.getByRole('button',{name:'PCB mount',exact:true}).click();
+ await page.getByLabel('Stabilizer style',{exact:true}).selectOption('mx-pcb');
  await page.getByLabel('Housing clearance height (mm)').fill('16');await page.getByLabel('Corner radius (mm)',{exact:true}).fill('0.5');
  expect(await page.evaluate(()=>Object.values(angular.element(document.body).scope().plate.model.settings).some(c=>c.profile))).toBe(false);
  await page.getByRole('button',{name:'Apply to selected keys',exact:true}).click();
@@ -255,7 +255,7 @@ test('separate MX menus and Topre presets retain complete geometry through proje
  const state=await page.evaluate(()=>{const s=angular.element(document.body).scope(),k=s.selectedKeys[0];return {width:k.width,profile:s.plate.model.settings[k._plateId].profile.options};});
  expect(state.width).toBe(7);expect(state.profile.switch).toBe('topre-7');
  const save=page.waitForEvent('download');await page.getByRole('button',{name:'Save plate project',exact:true}).click();const file=await(await save).path(),data=fs.readFileSync(file);
- expect(JSON.parse(data).recognitionVersion).toBe(10);
+ expect(JSON.parse(data).recognitionVersion).toBe(11);
  await page.reload();const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open plate project',exact:true}).click();await(await chooser).setFiles({name:'topre.plate.json',mimeType:'application/json',buffer:data});
  await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Download edited DXF'}).click();
@@ -301,4 +301,25 @@ test('PCB menu adds the large bottom modifier and both L-shaped compatibility ca
   const key=await page.evaluate(()=>{const k=angular.element(document.body).scope().selectedKeys[0];return {w:k.width,h:k.height,x2:k.x2};});
   expect(key).toEqual({w,h,x2});
  }
+});
+
+test('stabilizers have four categories and every pattern can be selected without changing source',async({page})=>{
+ await open(page);
+ const category=page.getByLabel('Stabilizer style',{exact:true});
+ await expect(category.locator('option')).toHaveText(['Alps','MX PCB Mount','MX Plate Mount','Topre']);
+ await page.getByLabel('Stabilizer action').selectOption('replace');
+ for(const id of ['alps','mx-pcb','mx-plate','topre']){
+  await category.selectOption(id);
+  const patterns=page.getByLabel('Stabilizer pattern',{exact:true});
+  await expect(patterns).toBeVisible();
+  const values=await patterns.locator('option').evaluateAll(nodes=>nodes.map(n=>n.value));
+  expect(values.length).toBeGreaterThan(0);
+  for(const value of values){await patterns.selectOption(value);expect(await scopeRead(page,()=>angular.element(document.body).scope().plate.stabChoice)).toBe(value);}
+ }
+ expect(await scopeRead(page,()=>Object.values(angular.element(document.body).scope().plate.model.settings).some(c=>c.profile))).toBe(false);
+ await page.getByLabel('Stabilizer action').selectOption('none');
+ expect(await scopeRead(page,()=>angular.element(document.body).scope().plate.stabChoice)).toBe('none');
+ await page.getByLabel('Stabilizer action').selectOption('original');
+ expect(await scopeRead(page,()=>angular.element(document.body).scope().plate.stabChoice)).toBe('original');
+ await expect(page.getByLabel('Stabilizer pattern',{exact:true})).toHaveCount(0);
 });
