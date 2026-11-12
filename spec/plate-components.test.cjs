@@ -67,3 +67,16 @@ test('7u manual override changes the cap footprint but not the independent switc
  assert.equal(p.key.width,7);assert.equal(p.key.width2,7);assert.equal(p.options.switch,'topre');
  assert.ok(P.generate(p.options,p.key).length);
 });
+
+test('North flips every complete hole by 180 degrees and South restores it',()=>{
+ for(const group of P.stabilizerCategories)for(const hole of group.patterns){
+  const p=P.replacement({components:true,switch:group.id.startsWith('mx')?'mx':group.id,stabilizer:hole.id,mount:group.id==='mx-pcb'?'pcb':'plate'}, {width:2,height:1,width2:2,height2:1});
+  const south=P.generate({...p.options,holeOrientation:'south',direction:'south'},p.key);
+  const north=P.generate({...p.options,holeOrientation:'north',direction:'south'},p.key);
+  const expected=P.place(south,{x:0,y:0},Math.PI);
+  // Compare area, not polygon winding/order after boolean normalization.
+  const area=polys=>P.rings(polys).reduce((sum,ring)=>sum+Math.abs(require('../plate/geometry').area(ring)),0);
+  assert.ok(area(P.clip.difference(north,expected))<.001,hole.id);
+  assert.ok(area(P.clip.difference(expected,north))<.001,hole.id);
+ }
+});
