@@ -48,3 +48,17 @@ test('a shared contour can span several rows and exceed a single-key bounding bo
  const g=m.groups[0];assert.ok(g.fixedChannels.length>=2);
  same(g.compose(g.portions),cut);
 });
+test('fixed mounting openings take priority over recovered key highlights',()=>{
+ const mount=poly(G.arc({x:9.525,y:0},3,0,G.TAU));
+ const {m,keys}=model(P.clip.union(rect(15.5,12.8,0,0),rect(15.5,12.8,19.05,0),mount));
+ const g=m.groups[0];for(const portion of g.portions)assert.equal(area(P.clip.intersection(g.selectable(portion),g.fixed)),0);
+ const paths=m.plan(keys).paths.filter(p=>p.key && m.original[p.key].recovered);
+ assert.ok(paths.length);assert.ok(paths.every(p=>p.hitOnly));
+ // Selection changes do not change the actual cut union.
+ same(g.compose(g.portions),g.source);
+});
+test('plate-edge mounting notch also takes priority over the selectable core',()=>{
+ const board=rect(90,60,0,0),key=rect(15.5,12.8,35,0),notch=rect(20,3,45,0);
+ const outline=P.clip.difference(board,key,notch),g=O.create({points:P.rings(outline)[0]},[{center:{x:35,y:0},core:{width:15.5,height:12.8},holeAngle:0}],true);
+ assert.equal(area(P.clip.intersection(g.selectable(g.portions[0]),notch)),0);
+});
