@@ -662,13 +662,12 @@ Selecting an imported key now populates two independent classifications:
 
 - **Switch type**: MX, Alps or Topre, identified around the physical stem.
 - **Stabilizer pattern**: the associated supports and compatibility openings,
-  grouped under Alps, MX PCB Mount, MX Plate Mount or Topre.
+  grouped under Alps, MX or Topre. Type chooses Alps default, MX PCB/Plate mount, or Topre; Hole selects the actual cutout.
 
 Named compound openings (ANSI–ISO, multistep, split Shift, alternate spacebar
-stems and other measured variants) live in the pattern selector, not the switch
+stems and other measured variants) live in the Hole selector, not the switch
 selector. Joined openings remain complete templates; the editor does not split
-them into guessed rectangles. Applying an incompatible switch technology to a
-joined pattern is rejected rather than silently cutting the wrong footprint.
+them into guessed rectangles. Explicitly choosing a joined pattern also selects its required switch technology; the manual-override note explains this before Apply.
 
 Plain MX openings do not prove a PCB/plate mounting type. Unknown openings or
 unclassified extensions keep their imported geometry. Recognized simple keys
@@ -683,4 +682,6 @@ right, Reference keys across the top of the drawing, switch/support controls
 on its right, and stabilizer settings across the bottom. These rows wrap on
 smaller screens. The inferred KLE remains below the drawing controls.
 
-Choosing a stabilizer category or pattern starts an explicit replacement. Apply fits named patterns to their catalogue cap footprint, even when that overrides the inferred layout; the switch centre and fixed plate geometry stay put. Joined patterns also select their required switch technology. Separate supports retain the independently selected switch opening. Pattern changes clear measured parameters inherited from the previous pattern. Generic wire styles still use the current cap size; short keys require explicit force and measured spacing. Selection alone never changes geometry, and Undo restores the cap and cutouts together.
+Choosing a stabilizer category or pattern starts an explicit replacement. Apply fits named patterns to their catalogue cap footprint, even when that overrides the inferred layout; the switch centre and fixed plate geometry stay put. Joined patterns also select their required switch technology. Separate supports retain the independently selected switch opening. Pattern changes clear measured parameters inherited from the previous pattern. The standard Alps and MX menu holes are 2u; Advanced exposes dimensions and custom spacing. Existing saved wire styles retain their geometry until explicitly replaced. Selection alone never changes geometry, and Undo restores the cap and cutouts together.
+
+The stabilizer controls use Category / Action / Type, then Hole and North/South. Alps default consolidates the Zenith/AEK/AT101 menu entries; older saved variants keep their original dimensions. Advanced is collapsed initially and on type changes. North rotates the complete selected hole 180 degrees about the stem; South restores its base orientation, including measured joined templates. Legacy saved orientation settings retain their prior behavior until a new orientation is chosen.
