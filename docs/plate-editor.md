@@ -502,7 +502,7 @@ the opening regenerates its contour. Review the warning before manufacturing.
 Closed unrecognized outlines assembled from separate LINE/ARC entities can now
 be selected by clicking inside them, then mapped, deleted or attached to a key.
 
-New plate projects record recognition version 9. Older saved projects keep their
+New plate projects record recognition version 10. Older saved projects keep their
 previous interpretation so new detections do not silently reassign existing
 key edits. Open the original DXF afresh to use the new recognition rules.
 
@@ -617,3 +617,20 @@ supports/companion. These are recognized for the layout but remain fixed under
 the existing non-XY editing restrictions; recognition does not flatten them.
 An assembly containing a fixed member cannot move partially. Untouched export
 preserves all original source bytes. Version 8 projects retain their old rules.
+
+
+Recognition version 10 supports the wider, alternate-stem 1.25u companion in
+6.25u/7u assemblies. The following 18.7625 × 14 mm opening is classified as
+**1.25u bottom row larger variant** only when its notched neighbour and two
+following modifier windows establish the bottom-row run. The named footprint
+is also available under **Add MX PCB Mount**. The spacebar and companion remain
+a linked pair; the following modifier is independently editable. Original cuts
+and fixed drawing geometry are preserved. Earlier saved projects keep their
+existing recognition rules and key identities.
+
+The PCB preset menu also includes **2u vertical horizontal** and **2u reversed
+vertical horizontal**. These preserve the complete measured continuous
+vertical/horizontal clearance opening and show mirrored L-shaped caps: a 1×2
+primary cap plus a 2×1 lower portion. Their missing upper corner stays empty.
+Automatic matching currently uses the upright orientation to distinguish the
+mirrored names; the added presets can still be rotated in the editor.
