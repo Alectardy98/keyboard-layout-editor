@@ -32,3 +32,11 @@ test('a recognized switch with an unexplained extension keeps imported support g
  const G=require('../plate/geometry'),key={type:'mx',width:1,height:1,center:{x:0,y:0},holeAngle:0,capAngle:0,contours:[{points:G.rectangle(20,14)}],stabilizers:[]};
  const c=P.inferComponents(key);assert.equal(c.options.switch,'mx');assert.equal(c.options.stabilizer,'original');assert.equal(c.unrecognized,true);
 });
+
+test('rotated Topre support pairs retain the wide-span classification',()=>{
+ const G=require('../plate/geometry');
+ for(const angle of [0,Math.PI/2,.3]){
+  const key={type:'topre',width:7,height:1,center:{x:0,y:0},holeAngle:angle,capAngle:angle,contours:[],stabilizers:[-1,1].map(side=>({points:G.rectangle(13.6,13.9,{x:side*57.15,y:0}).map(p=>G.rotate(p,angle))}))};
+  assert.equal(P.inferComponents(key).options.stabilizer,'topre-7-wide');
+ }
+});
