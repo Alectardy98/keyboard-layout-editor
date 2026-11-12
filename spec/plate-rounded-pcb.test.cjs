@@ -19,3 +19,12 @@ test('a notched companion is recognized beside an existing space assembly with o
  const m=M.create(d,r),keys=m.makeKeys(S.defaultKeyProps);assert.equal(Buffer.from(m.exportFile(keys)).toString(),bytes);
  m.setAnchors(keys,false);const before=structuredClone(keys),cap=keys.find(k=>k._plateId===pair[0].id);cap.x+=1;assert.ok(m.reconcile(before,keys)>0);assert.equal(cap.x,before.find(k=>k._plateId===cap._plateId).x);
 });
+test('unstabilized modifier width requires agreement from both neighbouring gaps',()=>{
+ const G=require('../plate/geometry');
+ for(const [left,right,want]of [[1.25,1.25,1.25],[1.5,1.5,1.5],[1.75,1.75,1.75],[1.75,1.5,1]]){
+  const rings=[-(left+1)*19.05/2,0,(right+1)*19.05/2].map(x=>G.rectangle(14,14,{x,y:0}));
+  const bytes='0\nSECTION\n2\nENTITIES\n'+rings.map(p=>'0\nLWPOLYLINE\n8\nCUT\n90\n4\n70\n1\n'+p.map(q=>'10\n'+q.x+'\n20\n'+q.y+'\n').join('')).join('')+'0\nENDSEC\n0\nEOF\n';
+  const d=D.parse(bytes,'three keys',{units:'mm'}),r=R.analyze(d),key=r.keys.find(k=>Math.abs(k.center.x)<.001);assert.equal(key.width,want);
+  const m=M.create(d,r);assert.equal(Buffer.from(m.exportFile(m.makeKeys(S.defaultKeyProps))).toString(),bytes);
+ }
+});
