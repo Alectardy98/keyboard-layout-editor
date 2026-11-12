@@ -502,7 +502,7 @@ the opening regenerates its contour. Review the warning before manufacturing.
 Closed unrecognized outlines assembled from separate LINE/ARC entities can now
 be selected by clicking inside them, then mapped, deleted or attached to a key.
 
-New plate projects record recognition version 8. Older saved projects keep their
+New plate projects record recognition version 9. Older saved projects keep their
 previous interpretation so new detections do not silently reassign existing
 key edits. Open the original DXF afresh to use the new recognition rules.
 
@@ -604,3 +604,16 @@ Version 7 and older saved plate projects keep their existing interpretation.
 Open the original DXF again to apply the new recognition rules. Unresolved
 geometry remains selectable and flagged for review, rather than being forced
 into an apparently complete layout.
+
+
+Recognition version 9 also matches densely tessellated rounded MX openings.
+Row-leading modifiers must agree with neighbouring pitch and the established
+row edge. Existing 6.25u spacebar assemblies can acquire the notched 1.25u/7u
+support companion even where only one modifier follows it. All inferred caps
+are checked for fit before that association is accepted.
+
+ORBIT contains a mixture of Z=0 splines and offset-Z records in its spacebar
+supports/companion. These are recognized for the layout but remain fixed under
+the existing non-XY editing restrictions; recognition does not flatten them.
+An assembly containing a fixed member cannot move partially. Untouched export
+preserves all original source bytes. Version 8 projects retain their old rules.
