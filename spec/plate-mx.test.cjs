@@ -5,7 +5,7 @@ const near=(a,b)=>assert.ok(Math.abs(a-b)<.001,`${a} != ${b}`);
 function fromShapes(shapes){const d=D.parse(makeFixture());return D.parse(D.exportBytes(d,[],shapes.map(points=>({points}))),'mx.dxf');}
 function at(shape,x,y,angle=0){return P.rings(P.place(shape,{x,y},angle));}
 test('all MX presets generate finite contours and retain their cap dimensions',()=>{
- assert.equal(P.mxPresets.length,28);
+ assert.equal(P.mxPresets.length,29);
  for(const item of P.mxPresets){const p=P.preset(item.id),shapes=P.generate(p.options,p.key);
   assert.ok(shapes.length);assert.equal(p.key.width*4%1,0);
   for(const ring of P.rings(shapes)){assert.ok(Math.abs(G.area(ring))>0);for(const v of ring)assert.ok(Number.isFinite(v.x)&&Number.isFinite(v.y));}
@@ -64,4 +64,21 @@ test('rounded switches retain size and reject invalid radii',()=>{
  assert.ok(P.switchShape({switch:'mx',switchRadius:.00001})[0].length>4);
  const shared=P.switchShape({switch:'universal',switchRotation:90,extraSize:.1});
  const bounds=G.bounds(P.rings([shared]).flat());near(bounds.width,14.1);near(bounds.height,15.6);
+});
+test('dual-opening PCB Shift owns both contours, moves and deletes them together',()=>{
+ const p=P.preset('mx-dual275');assert.equal(p.key.width,2.75);
+ const rings=at(P.generate(p.options,p.key),240,60);assert.equal(rings.length,2);
+ const d=fromShapes(rings),r=R.analyze(d),k=r.keys.find(k=>k.label==='2.75u dual opening PCB mount');
+ assert.ok(k);near(k.center.x,240);near(k.center.y,60);assert.equal(k.stabilizers.length,1);
+ assert.equal(R.analyze(fromShapes([rings[0]])).keys.some(k=>k.label==='2.75u dual opening PCB mount'),false);
+ const m=M.create(d,r),keys=m.makeKeys(S.defaultKeyProps),key=keys.find(v=>v._plateId===k.id);
+ assert.deepEqual(Buffer.from(m.exportFile(keys)),Buffer.from(D.exportBytes(d)));
+ m.apply([key],{switch:'mx',stabilizer:'original'});
+ assert.ok(R.analyze(D.parse(m.exportFile(keys),'converted')).keys.some(k=>k.label==='2.75u dual opening PCB mount'));
+ m.apply([key],{switch:'original',stabilizer:'original'});
+ const before=structuredClone(keys);key.x+=.25;key.rotation_angle=90;m.reconcile(before,keys);
+ const moved=R.analyze(D.parse(m.exportFile(keys),'moved')).keys.find(k=>k.label==='2.75u dual opening PCB mount');
+ assert.ok(moved);near(G.distance(moved.center,m.physical(key).center),0);assert.equal(moved.stabilizers.length,1);
+ const remaining=keys.filter(v=>v!==key),deleted=D.parse(m.exportFile(remaining),'deleted');assert.equal(deleted.contours.length,d.contours.length-2);
+ assert.throws(()=>P.stabilizers(p.options,{width:2,height:1}),/requires a 2.75u/);
 });
