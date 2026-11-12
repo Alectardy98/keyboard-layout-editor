@@ -502,7 +502,7 @@ the opening regenerates its contour. Review the warning before manufacturing.
 Closed unrecognized outlines assembled from separate LINE/ARC entities can now
 be selected by clicking inside them, then mapped, deleted or attached to a key.
 
-New plate projects record recognition version 10. Older saved projects keep their
+New plate projects record recognition version 11. Older saved projects keep their
 previous interpretation so new detections do not silently reassign existing
 key edits. Open the original DXF afresh to use the new recognition rules.
 
@@ -634,3 +634,23 @@ vertical/horizontal clearance opening and show mirrored L-shaped caps: a 1×2
 primary cap plus a 2×1 lower portion. Their missing upper corner stays empty.
 Automatic matching currently uses the upright orientation to distinguish the
 mirrored names; the added presets can still be rotated in the editor.
+
+Recognition version 11 labels linked PCB assemblies **6.25u-7u** and their
+companion **1.25u with 7u mount**, with both footprints available in Add MX PCB
+Mount. A companion already recognized as a plain modifier is reused, not
+added twice. Fixed ISO support rectangles can be associated with their switch
+when neighbouring stems confirm the ISO shape; non-XY geometry stays fixed.
+
+Topre WKL rows now recognize the 114.3 mm support span together with symmetric
+modifier positions: a 7u cap and adjacent 1.5u caps. Deliberate blocker gaps
+remain empty. Both supports and both neighbours are required, and inferred
+caps must not overlap other keys. Existing version-10 projects retain their
+previous recognition; reopen the source DXF for the updated inference.
+
+The Stabilizers category selector contains exactly **Alps**, **MX PCB Mount**,
+**MX Plate Mount**, and **Topre**. Choose a pattern within the category; Costar
+is grouped with Alps options. Keep imported and Remove are separate actions.
+Category or pattern changes are only applied when you press Apply. The stored
+profile IDs are unchanged, so existing project files remain compatible.
+Measured patterns retain their complete support geometry and fixed dimensions;
+standard MX and Alps patterns retain the adjustable controls.
