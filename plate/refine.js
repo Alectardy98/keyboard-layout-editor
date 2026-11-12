@@ -76,6 +76,25 @@
                     a=((a+Math.PI/2)%Math.PI+Math.PI)%Math.PI-Math.PI/2;
                     var k=add(c,box.center,'topre',2,a);k.label='Topre modifier';k.evidence='Chamfered wide housing plus repeated Topre switches';return true;});
             });
+            // Wide Topre support pair plus symmetric adjacent modifiers.
+            // WKL blockers deliberately leave gaps farther out in this row;
+            // do not infer modifier size from the next outer switch pitch.
+            if(!options.legacyReadOnlyPcb)keys.filter(function(k){return k.type==='topre'&&!k.stabilizers.length&&k.width<2;}).forEach(function(k){
+                var supports=[-1,1].map(function(side){return document.contours.filter(function(c){
+                    if(!allowed(c)||owners(c).length)return false;
+                    var p=local(c.points,k.center,k.capAngle),b=G.bounds(p);
+                    return rectangleLike(p,13.7,14)&&near(b.cx,side*57.15,.15)&&Math.abs(b.cy)<.1;
+                });});
+                if(supports.some(function(s){return s.length!==1;}))return;
+                var adjacent=[-1,1].map(function(side){return neighbours(k,side)[0];});
+                if(adjacent.some(function(n){return !n||n.type!=='topre'||!near(G.distance(n.center,k.center),4.25*pitch,.15);}))return;
+                var proposed=[Object.assign({},k,{width:7})].concat(adjacent.map(function(n){return Object.assign({},n,{width:1.5});}));
+                if(proposed.some(function(p){return keys.some(function(n){return n!==k&&!adjacent.includes(n)&&capPolygons(p).some(function(a){return capPolygons(n).some(function(b){return intersects(a,b);});});});}))return;
+                k.width=7;k.stabilizers=supports.map(function(s){return s[0];});k.label='Topre 7u';
+                k.editable=k.editable&&k.stabilizers.every(function(c){return c.editable;});
+                adjacent.forEach(function(n){n.width=1.5;n.label='Topre 1.5u';});
+                k.evidence='Repeated Topre housings, 114.3 mm support span and symmetric 1.5u modifier positions';
+            });
             keys.filter(function(k){return k.type==='topre'&&!k.stabilizers.length&&k.width<2;}).forEach(function(k){
                 var supports=document.contours.filter(function(c){return allowed(c)&&!owners(c).length;}).map(function(c){var p=local(c.points,k.center,k.capAngle),b=G.bounds(p);return {c:c,b:b,rect:rectangleLike(p,13.7,14)};})
                     .filter(function(s){return s.rect&&Math.abs(s.b.cy)<.1&&near(Math.abs(s.b.cx),47.625,.15);});

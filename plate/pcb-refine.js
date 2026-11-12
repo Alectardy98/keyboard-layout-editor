@@ -118,7 +118,7 @@
                     var extra=z.height-14,rings=P.rings(P.union([rect(z.width,14,z.cx,cy),rect(7,extra+1,sx-2.38125,cy+7+(extra-1)/2)]));return rings.length===1&&fit(q,rings[0]);});
                 if(helpers.length!==1)return;
                 claim(c,{x:b.cx,y:cy},1.25,'1.25u bottom row larger variant');
-                claim(helpers[0],{x:sx,y:cy},1.25,'1.25u / 7u support');
+                claim(helpers[0],{x:sx,y:cy},1.25,'1.25u with 7u mount');
             });
         }
         // 6.25/7u multi-layout bottom row: three tall/central rectangles plus
@@ -152,8 +152,8 @@
             proposed.forEach(function(k){k.height=1;k.capAngle=0;});
             var remaining=keys.filter(function(k){return !replaced.includes(k)&&!F.incompleteMxCandidate(k);});
             if(proposed.some(function(k,i){return remaining.concat(proposed.slice(i+1)).some(function(n){return F.capPolygons(k).some(function(a){return F.capPolygons(n).some(function(b){return F.intersects(a,b);});});});}))return;
-            var space=claim(c,{x:cx,y:cy},6.25,'PCB mount 6.25u and 7u',supports),group='pcb-space-'+space.id;
-            space.assembly=group;companion.assembly=group;companion.width=1.25;companion.type='mx';companion.center={x:sx,y:cy};companion.capAngle=companion.holeAngle=0;companion.label='1.25u / 7u support';
+            var space=claim(c,{x:cx,y:cy},6.25,'6.25u-7u',supports),group='pcb-space-'+space.id;
+            space.assembly=group;companion.assembly=group;companion.width=1.25;companion.type='mx';companion.center={x:sx,y:cy};companion.capAngle=companion.holeAngle=0;companion.label='1.25u with 7u mount';
             left.forEach(function(k){var z=bounds.get(k.contours[0]);Object.assign(k,{type:'mx',width:1.25,center:{x:z.cx-1.190625,y:cy},capAngle:0,holeAngle:0,label:'mx bottom row 1.25'});});
             right.forEach(function(k){var z=bounds.get(k.contours[0]),wide=near(z.width,18.7625,.15);Object.assign(k,{type:'mx',width:1.25,center:{x:z.cx+(wide?0:1.190625),y:cy},capAngle:0,holeAngle:0,label:wide?'1.25u bottom row larger variant':'mx bottom row 1.25'});});
         });
@@ -166,7 +166,7 @@
                 var b=bounds.get(space.contours[0]),cx=space.center.x,cy=space.center.y;
                 if(!near(b.width,25.90625,.15)||!near(b.height,14,.15))return;
                 var sx=cx+3.75*pitch;
-                var candidates=doc.contours.filter(function(c){var q=bounds.get(c);return owned(c).length===0&&(!options.layer||c.parts.every(function(p){return p.layer===options.layer;}))&&near(q.cx,sx,.25)&&near(q.width,14,.08)&&q.height>=15&&q.height<=18&&near(q.minY,cy-7,.08);});
+                var candidates=doc.contours.filter(function(c){var q=bounds.get(c);var owners=owned(c);return (owners.length===0||(!options.legacyReadOnlyPcb&&owners.length===1&&!owners[0].recovered&&owners[0].contours.length===1&&!owners[0].stabilizers.length))&&(!options.layer||c.parts.every(function(p){return p.layer===options.layer;}))&&near(q.cx,sx,.25)&&near(q.width,14,.08)&&q.height>=15&&q.height<=18&&near(q.minY,cy-7,.08);});
                 candidates=candidates.filter(function(c){var q=bounds.get(c),extra=q.height-14,rings=P.rings(P.union([rect(14,14,q.cx,cy),rect(7,extra+1,q.cx-2.38125,cy+7+(extra-1)/2)]));return rings.length===1&&fit(c,rings[0]);});
                 if(candidates.length!==1)return;
                 var neighbours=[-6.25,-5,-3.75,5].map(function(n){return keys.find(function(k){
@@ -177,11 +177,24 @@
                 var positions=[-6.25,-5,-3.75,5].map(function(n){return {x:cx+n*pitch,y:cy};});
                 var proposed=neighbours.map(function(k,i){return Object.assign({},k,{width:1.25,center:positions[i]});});
                 proposed.push(Object.assign({},space),{width:1.25,height:1,capAngle:0,center:{x:sx,y:cy}});
-                var remaining=keys.filter(function(k){return k!==space&&!neighbours.includes(k)&&!F.incompleteMxCandidate(k);});
+                var remaining=keys.filter(function(k){return k!==space&&!neighbours.includes(k)&&!owned(candidates[0]).includes(k)&&!F.incompleteMxCandidate(k);});
                 if(proposed.some(function(k,i){return remaining.concat(proposed.slice(i+1)).some(function(n){return F.capPolygons(k).some(function(a){return F.capPolygons(n).some(function(b){return F.intersects(a,b);});});});}))return;
-                var companion=claim(candidates[0],{x:sx,y:cy},1.25,'1.25u / 7u support');
-                space.assembly=companion.assembly='pcb-space-'+space.id;space.label='PCB mount 6.25u and 7u';
+                var companion=claim(candidates[0],{x:sx,y:cy},1.25,'1.25u with 7u mount');
+                space.assembly=companion.assembly='pcb-space-'+space.id;space.label='6.25u-7u';
                 neighbours.forEach(function(k,i){k.width=1.25;k.center=positions[i];});
+            });
+        }
+        if(!options.legacyReadOnlyPcb){
+            // Recognition may associate fixed source geometry without making
+            // it editable. Offset-Z PCB stabilizers still describe an ISO cap.
+            keys.filter(function(k){return k.type==='mx'&&k.width===1&&k.height===1&&!k.stabilizers.length&&!k.recovered&&Math.abs(k.capAngle)<.002;}).forEach(function(k){
+                var neighbours=[{x:-26.19375,y:9.525},{x:-21.43125,y:-9.525}];
+                if(!neighbours.every(function(v){return keys.some(function(n){return n!==k&&n.type==='mx'&&n.width===1&&n.height===1&&near(n.center.x,k.center.x+v.x,.1)&&near(n.center.y,k.center.y+v.y,.1);});}))return;
+                var supports=[-1,1].map(function(side){return doc.contours.filter(function(c){var b=bounds.get(c);return !owned(c).length&&(!options.layer||c.parts.every(function(p){return p.layer===options.layer;}))&&near(b.width,15,.1)&&near(b.height,7,.1)&&near(Math.abs(b.cx-k.center.x),1.5,.1)&&near(b.cy,k.center.y+side*11.938,.1)&&fit(c,G.rectangle(15,7,{x:b.cx,y:b.cy}));});});
+                if(supports.some(function(list){return list.length!==1;})||!near(bounds.get(supports[0][0]).cx,bounds.get(supports[1][0]).cx,.1))return;
+                k.stabilizers=supports.map(function(list){return list[0];});k.editable=k.editable&&k.stabilizers.every(function(c){return c.editable;});
+                k.width=1.25;k.height=2;k.capShape={width2:1.5,height2:1,x2:-.25,y2:0};k.label='ISO PCB mount';
+                k.detectedStabilizer={family:'mx-pcb',spacing:23.876,vertical:true};
             });
         }
         // Ordinary 7u spacebar: tall support slots at the standard wire span.

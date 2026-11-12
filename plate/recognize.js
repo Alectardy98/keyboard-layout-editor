@@ -673,9 +673,9 @@
             counts={mx:0,alps:0,universal:0,unknown:0,topre:0};
             keys.forEach(function(k){counts[k.type]=(counts[k.type] || 0)+1;});
         }
-        if(!options.legacyPcb)PcbRefine.run(document,keys,{layer:options.layer,matches:matches,legacyRoundedPcb:options.legacyRoundedPcb,legacyWidePcb:options.legacyWidePcb});
+        if(!options.legacyPcb)PcbRefine.run(document,keys,{layer:options.layer,matches:matches,legacyRoundedPcb:options.legacyRoundedPcb,legacyWidePcb:options.legacyWidePcb,legacyReadOnlyPcb:options.legacyReadOnlyPcb});
         var review=[];
-        if(!options.legacyRefine){review=Refine.run(document,keys,{layer:options.layer,cores:cores,matches:matches});
+        if(!options.legacyRefine){review=Refine.run(document,keys,{layer:options.layer,cores:cores,matches:matches,legacyReadOnlyPcb:options.legacyReadOnlyPcb});
             counts={mx:0,alps:0,universal:0,unknown:0,topre:0};keys.forEach(function(k){counts[k.type]=(counts[k.type] || 0)+1;});}
         var types=Object.keys(counts).filter(function(type){return counts[type]>0;});
         return {keys:keys,counts:counts,review:review,type:types.length===1?types[0]:types.length?'mixed':'unknown',
