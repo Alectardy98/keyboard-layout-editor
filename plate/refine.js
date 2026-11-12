@@ -39,6 +39,11 @@
             var aa=a.map(function(v){return v.x*axis.x+v.y*axis.y;}),bb=b.map(function(v){return v.x*axis.x+v.y*axis.y;});
             return Math.min(...aa)<Math.max(...bb)-1e-6&&Math.min(...bb)<Math.max(...aa)-1e-6;});});
     }
+    function incompleteMxCandidate(k) {
+        if(k.type!=='unknown'||k.recovered||k.family||k.contours.length!==1)return false;
+        var c=k.contours[0],b=G.minimumBox(c.points);
+        return Math.min(b.width,b.height)<13||Math.abs(G.area(c.points))/(b.width*b.height)<.65;
+    }
     function run(document,keys,options){
         var issues=[],next=1,boxes=new Map(),bounds=new Map();keys.forEach(function(k){next=Math.max(next,Number(k.id?.slice(4) || 0)+1);});
         function issue(kind,message,key,contour){issues.push({kind:kind,message:message,key:key?.id,contour:contour?.id});}
@@ -162,9 +167,8 @@
         // a complete MX switch. Keep these outlines selectable for review,
         // rather than inserting fictitious keys between real switches.
         if(keys.filter(function(k){return k.type==='mx';}).length>=4){
-            keys.slice().filter(function(k){return k.type==='unknown'&&!k.recovered&&!k.family&&k.contours.length===1;}).forEach(function(k){
-                var c=k.contours[0],b=boxFor(c),occupancy=Math.abs(G.area(c.points))/(b.width*b.height);
-                if(Math.min(b.width,b.height)>=13&&occupancy>=.65)return;
+            keys.slice().filter(incompleteMxCandidate).forEach(function(k){
+                var c=k.contours[0];
                 keys.splice(keys.indexOf(k),1);
                 issue('unsupported-candidate','Repeated opening is too narrow or incomplete for the surrounding MX switches. Kept as unassigned geometry; review whether it is clearance or a different switch.',null,c);
             });
@@ -189,5 +193,5 @@
         });
         return issues;
     }
-    return {run:run,chamfered:chamfered,capPolygons:capPolygons,intersects:intersects};
+    return {run:run,incompleteMxCandidate:incompleteMxCandidate,chamfered:chamfered,capPolygons:capPolygons,intersects:intersects};
 }));

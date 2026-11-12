@@ -1,9 +1,9 @@
 // Recognition proposes switch centres from closed geometry, not filenames.
 // Ambiguous contours and unmatched drawing features remain unchanged.
 (function(root,factory) {
-    if(typeof module==='object' && module.exports) module.exports=factory(require('./geometry.js'),require('./measured.js'),require('./overlaps.js'),require('./profiles.js'),require('./switch-families.js'),require('./refine.js'));
-    else root.PlateRecognize=factory(root.PlateGeometry,root.PlateMeasured,root.PlateOverlaps,root.PlateProfiles,root.PlateSwitchFamilies,root.PlateRefine);
-}(typeof globalThis!=='undefined'?globalThis:this,function(G,Measured,O,P,Families,Refine) {
+    if(typeof module==='object' && module.exports) module.exports=factory(require('./geometry.js'),require('./measured.js'),require('./overlaps.js'),require('./profiles.js'),require('./switch-families.js'),require('./refine.js'),require('./pcb-refine.js'));
+    else root.PlateRecognize=factory(root.PlateGeometry,root.PlateMeasured,root.PlateOverlaps,root.PlateProfiles,root.PlateSwitchFamilies,root.PlateRefine,root.PlatePcbRefine);
+}(typeof globalThis!=='undefined'?globalThis:this,function(G,Measured,O,P,Families,Refine,PcbRefine) {
     'use strict';
     function unique(values,tolerance) {
         var result=[];
@@ -673,6 +673,7 @@
             counts={mx:0,alps:0,universal:0,unknown:0,topre:0};
             keys.forEach(function(k){counts[k.type]=(counts[k.type] || 0)+1;});
         }
+        if(!options.legacyPcb)PcbRefine.run(document,keys,{layer:options.layer,matches:matches});
         var review=[];
         if(!options.legacyRefine){review=Refine.run(document,keys,{layer:options.layer,cores:cores,matches:matches});
             counts={mx:0,alps:0,universal:0,unknown:0,topre:0};keys.forEach(function(k){counts[k.type]=(counts[k.type] || 0)+1;});}

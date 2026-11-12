@@ -51,6 +51,8 @@
         });
         keys.forEach(function(key){original[key.id]=key;settings[key.id]={anchor:null,profile:null};});
         if(keys.length) settings[keys[0].id].anchor={center:copy(keys[0].center),angle:keys[0].capAngle};
+        var assemblies=[];
+        keys.filter(function(k){return k.assembly;}).forEach(function(k){if(!assemblies.some(function(a){return a.name===k.assembly;}))assemblies.push({name:k.assembly,ids:keys.filter(function(n){return n.assembly===k.assembly;}).map(function(n){return n.id;})});});
         function id(){var name;do{name='new-'+next++;}while(settings[name]);return name;}
         function makeKeys(defaultKey) {
             return keys.map(function(source,index) {
@@ -92,6 +94,26 @@
             before.forEach(function(key) {
                 var config=settings[key._plateId],source=original[key._plateId];
                 if(config && !config.excluded && (config.anchor || (source && (!source.editable || (source.recovered && !config.confirmed)))) && !seen.has(key._plateId)) {after.push(key);blocked++;}
+            });
+            // Multi-layout spacebar pairs are two caps but one rigid cutout
+            // assembly. Moving either cap moves the other; resizing retains
+            // both stems. A partial deletion removes the pair unless anchored.
+            assemblies.forEach(function(group){
+                var previous=group.ids.map(function(id){return old.get(id);});if(previous.some(function(k){return !k;}))return;
+                var current=group.ids.map(function(id){return after.find(function(k){return k._plateId===id;});});
+                var fixed=group.ids.some(function(id){return settings[id].anchor||settings[id].excluded;});
+                if(current.some(function(k){return !k;})){
+                    if(fixed){previous.forEach(function(k,i){if(!current[i])after.push(copy(k));});blocked++;}
+                    else for(var i=after.length-1;i>=0;i--)if(group.ids.includes(after[i]._plateId))after.splice(i,1);
+                    return;
+                }
+                var from=previous.map(function(k){return physical(k,frame);}),to=current.map(function(k){return physical(k,frame);});
+                var changed=to.map(function(p,i){return G.distance(p.center,from[i].center)>EPS||Math.abs(p.angle-from[i].angle)>EPS;});
+                var first=changed.indexOf(true);if(first<0)return;
+                var delta=to[first].angle-from[first].angle;
+                var target=from.map(function(p){var q=G.rotate(p.center,delta,from[first].center);return {center:{x:q.x+to[first].center.x-from[first].center.x,y:q.y+to[first].center.y-from[first].center.y},angle:p.angle+delta};});
+                var conflict=fixed||target.some(function(p,i){return changed[i]&&(G.distance(p.center,to[i].center)>.001||Math.abs(p.angle-to[i].angle)>EPS);});
+                current.forEach(function(k,i){var p=conflict?from[i]:target[i];position(k,p.center,p.angle,frame);});if(conflict)blocked++;
             });
             return blocked;
         }
@@ -249,6 +271,15 @@
             supportOwners();
             var edits=[],additions=[],preview=[],owners=new Map(),warnings=[];
             var current=new Map(layout.filter(function(k){return !k.decal;}).map(function(k){return [k._plateId,k];}));
+            assemblies.forEach(function(group){
+                var members=group.ids.map(function(id){return current.get(id);}),excluded=group.ids.filter(function(id){return settings[id]?.excluded;});
+                if(excluded.length&&excluded.length!==group.ids.length)throw Error('Mark both compatibility-assembly keys as fixed together.');
+                if(excluded.length||members.every(function(k){return !k;}))return;
+                if(members.some(function(k){return !k;}))throw Error('Remove both compatibility-assembly keys together.');
+                var a=original[group.ids[0]],b=original[group.ids[1]],pa=physical(members[0],frame),pb=physical(members[1],frame),delta=pa.angle-a.capAngle;
+                var expected=G.rotate(b.center,delta,a.center);expected={x:expected.x+pa.center.x-a.center.x,y:expected.y+pa.center.y-a.center.y};
+                if(G.distance(expected,pb.center)>.001||Math.abs(pb.angle-b.capAngle-delta)>EPS)throw Error('Compatibility-assembly keys must keep their relative positions.');
+            });
             function claim(record,key) {
                 if(owners.has(record.id) && owners.get(record.id)!==key) throw Error('Two keys share a DXF entity. Resolve the overlapping source geometry in CAD first.');
                 owners.set(record.id,key);
