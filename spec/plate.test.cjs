@@ -235,21 +235,21 @@ test('Canon 8u and vertical 2u own all support sets without moving switch centre
   assert.equal(partial.r.keys.some(k=>k.label===label),false);
  }
 });
-test('BAE owns the right barrel, leaves the left mounting hole fixed and matches the 1.5u upper reference',()=>{
+test('5140 BAE owns the right barrel, leaves the left mounting hole fixed and matches the 1.5u upper reference',()=>{
  const base=plate(),preset=P.preset('alps-bae'),center={x:150,y:-80};
  const rings=P.rings(P.place(P.generate(preset.options,preset.key),center,0));
  const mount=G.arc({x:center.x-4.55625,y:center.y+19.05},3.15,0,G.TAU);
  const bytes=D.exportBytes(base.d,[],rings.concat([mount]).map(points=>({points}))),p=plate(bytes);
- const found=p.r.keys.find(k=>k.label==='BAE');assert.ok(found);assert.equal(found.stabilizers.length,5);
+ const found=p.r.keys.find(k=>k.label==='5140 BAE');assert.ok(found);assert.equal(found.stabilizers.length,5);
  const key=p.keys.find(k=>k._plateId===found.id);
  assert.deepEqual([key.width,key.height,key.width2,key.height2,key.x2,key.y2],[2.25,1,1.5,2,.75,-1]);
  const mountRecord=p.d.raw.entities.at(-1),raw=p.d.source.slice(mountRecord.start,mountRecord.end);
  assert.deepEqual(Buffer.from(p.m.exportFile(p.keys)),Buffer.from(bytes));
  key.x+=1;const moved=D.parse(p.m.exportFile(p.keys),'moved');assert.ok(moved.source.includes(raw));
- near(R.analyze(moved).keys.find(k=>k.label==='BAE').center.x,169.05);
+ near(R.analyze(moved).keys.find(k=>k.label==='5140 BAE').center.x,169.05);
  const deleted=D.parse(p.m.exportFile(p.keys.filter(k=>k!==key)),'deleted');assert.ok(deleted.source.includes(raw));
  const partial=plate(D.exportBytes(base.d,[],rings.slice(0,-1).concat([mount]).map(points=>({points}))));
- assert.equal(partial.r.keys.some(k=>k.label==='BAE'),false);
+ assert.equal(partial.r.keys.some(k=>k.label==='5140 BAE'),false);
 });
 test('DC2014 spacebar and Z150 Enter own their complete barrel assemblies',()=>{
  for(const [id,label,count] of [['alps-975-barrel','9.75u',5],['alps-z150','Z150 Enter',7]]){
