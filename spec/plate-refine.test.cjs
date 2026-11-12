@@ -60,3 +60,16 @@ test('contradictory neighbouring widths are flagged rather than resolved by the 
  const review=F.run({contours:[]},keys,{});
  assert.ok(review.some(i=>i.kind==='cap-size'&&i.message.includes('different cap widths')));assert.equal(keys[0].width,2);
 });
+
+test('wide Topre supports identify a 7u WKL row without filling blocker gaps',()=>{
+ const one=families.find(f=>f.id==='topre-1');
+ const rings=at(one.parts,250,100);
+ for(const n of [-6.75,-4.25,4.25,6.75])rings.push(...at(one.parts,250+n*19.05,100));
+ for(const side of [-1,1])rings.push(G.rectangle(13.6,13.9,{x:250+side*57.15,y:100}));
+ const d=from(rings),r=R.analyze(d),space=r.keys.find(k=>Math.abs(k.center.x-250)<.01&&Math.abs(k.center.y-100)<.01);
+ assert.equal(space.width,7);assert.equal(space.stabilizers.length,2);
+ for(const side of [-1,1])assert.equal(r.keys.find(k=>Math.abs(k.center.x-(250+side*4.25*19.05))<.01).width,1.5);
+ unchanged(d,r);
+ assert.equal(R.analyze(d,{legacyReadOnlyPcb:true}).keys.find(k=>Math.abs(k.center.x-250)<.01&&Math.abs(k.center.y-100)<.01).stabilizers.length,0);
+ const missing=from(rings.slice(0,-1));assert.equal(R.analyze(missing).keys.find(k=>Math.abs(k.center.x-250)<.01&&Math.abs(k.center.y-100)<.01).stabilizers.length,0);
+});

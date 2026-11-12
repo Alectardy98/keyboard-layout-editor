@@ -69,3 +69,17 @@ test('wider companion and three-position modifier form a linked spacebar pair wi
  const m=M.create(d,r);assert.equal(Buffer.from(m.exportFile(m.makeKeys(S.defaultKeyProps))).toString(),text);
  const preset=P.preset('mx-bottom125-large');assert.equal(preset.key.width,1.25);assert.equal(P.generate(preset.options,preset.key).length,1);
 });
+
+test('fixed ISO PCB supports are classified without unlocking source geometry',()=>{
+ const rings=[G.rectangle(14,14,{x:250,y:100}),G.rectangle(14,14,{x:223.80625,y:109.525}),G.rectangle(14,14,{x:228.56875,y:90.475}),G.rectangle(15,7,{x:248.5,y:88.062}),G.rectangle(15,7,{x:248.5,y:111.938})];
+ const src='0\nSECTION\n2\nENTITIES\n'+rings.map(p=>'0\nLWPOLYLINE\n8\nCUT\n38\n1\n90\n'+p.length+'\n70\n1\n'+p.map(q=>'10\n'+q.x+'\n20\n'+q.y+'\n').join('')).join('')+'0\nENDSEC\n0\nEOF\n';
+ const d=D.parse(src,'fixed ISO',{units:'mm'}),r=R.analyze(d),k=r.keys.find(k=>Math.abs(k.center.x-250)<.01);
+ assert.equal(k.label,'ISO PCB mount');assert.equal(k.stabilizers.length,2);assert.equal(k.editable,false);assert.equal(k.height,2);
+ const m=M.create(d,r);assert.deepEqual(Buffer.from(m.exportFile(m.makeKeys(S.defaultKeyProps))),Buffer.from(src));
+ assert.equal(R.analyze(d,{legacyReadOnlyPcb:true}).keys.find(k=>Math.abs(k.center.x-250)<.01).stabilizers.length,0);
+});
+test('paired PCB presets have explicit names and independent cap dimensions',()=>{
+ for(const [id,label,width] of [['mx-space625-7','6.25u-7u',6.25],['mx-companion125-7','1.25u with 7u mount',1.25]]){
+  assert.equal(P.mxPresets.find(p=>p.id===id).label,label);const p=P.preset(id);assert.equal(p.key.width,width);assert.ok(P.generate(p.options,p.key).length);
+ }
+});

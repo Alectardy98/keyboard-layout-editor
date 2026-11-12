@@ -5,7 +5,7 @@ const near=(a,b)=>assert.ok(Math.abs(a-b)<.001,`${a} != ${b}`);
 function fromShapes(shapes){const d=D.parse(makeFixture());return D.parse(D.exportBytes(d,[],shapes.map(points=>({points}))),'mx.dxf');}
 function at(shape,x,y,angle=0){return P.rings(P.place(shape,{x,y},angle));}
 test('all MX presets generate finite contours and retain their cap dimensions',()=>{
- assert.equal(P.mxPresets.length,49);
+ assert.equal(P.mxPresets.length,51);
  for(const item of P.mxPresets){const p=P.preset(item.id),shapes=P.generate(p.options,p.key);
   assert.ok(shapes.length);assert.equal(p.key.width*4%1,0);
   for(const ring of P.rings(shapes)){assert.ok(Math.abs(G.area(ring))>0);for(const v of ring)assert.ok(Number.isFinite(v.x)&&Number.isFinite(v.y));}
@@ -124,5 +124,22 @@ test('vertical/horizontal PCB presets retain mirrored L caps and complete cleara
   assert.equal(F.capPolygons(k).some(a=>F.capPolygons(neighbour).some(b=>F.intersects(a,b))),false);
   const m=M.create(d,r);assert.deepEqual(Buffer.from(m.exportFile(m.makeKeys(S.defaultKeyProps))),Buffer.from(D.exportBytes(d)));
   assert.equal(R.analyze(d,{legacyWidePcb:true}).keys.some(k=>k.family===id),false);
+ }
+});
+
+test('four stabilizer categories cover every measured support pattern and generate finite geometry',()=>{
+ const families=require('../plate/switch-families');
+ assert.deepEqual(P.stabilizerCategories.map(g=>g.label),['Alps','MX PCB Mount','MX Plate Mount','Topre']);
+ const ids=P.stabilizerCategories.flatMap(g=>g.patterns.map(p=>p.id));
+ for(const f of families.filter(f=>f.parts.length>1))assert.ok(ids.includes(f.id),f.id);
+ for(const group of P.stabilizerCategories)for(const pattern of group.patterns){
+  const f=families.find(f=>f.id===pattern.id);
+  const special=P.presets.find(p=>p.id===pattern.id)||P.presets.find(p=>p.id==='alps-625-barrels'&&pattern.id==='alps-barrel625');
+  const key=f?{width:f.width,height:f.height}:special?P.preset(special.id).key:{width:pattern.id.includes('275')||pattern.id.includes('2.75')?2.75:2,height:1};
+  for(const direction of ['north','south']){
+   const options={switch:'original',stabilizer:pattern.id,mount:group.id==='mx-plate'?'plate':'pcb',direction,mxPattern:'cherry'};
+   const shapes=P.stabilizers(options,key);assert.ok(shapes.length,group.id+':'+pattern.id);
+   assert.ok(shapes.flat(Infinity).every(Number.isFinite),pattern.id);
+  }
  }
 });
