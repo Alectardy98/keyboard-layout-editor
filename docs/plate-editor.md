@@ -152,8 +152,8 @@ file/geometry handling, not physical fit or manufacturing acceptance.
 
 ## Alps key and encoder presets
 
-The plate workspace has **Add Alps Keys**, **Add MX Keys** (reserved for future
-presets), and **Add Other**. The normal KLE editor keeps its original Add Key menu.
+The plate workspace has **Add Alps Keys**, **Add MX Plate Mount**, **Add MX PCB Mount**,
+**Add Topre Keys**, and **Add Other**. The normal KLE editor keeps its original Add Key menu.
 Alps includes 1u, 1.25u, 1.5u, stepped 1.5u left/right, optional-stabilizer 1.75u,
 stepped 1.75u with a 1.25u or 1.5u raised area, 2u, 2.25u and 5.5u. Stepped 1.5u
 presets use a 1u raised area. The primary KLE rectangle is that raised area; the
@@ -479,3 +479,29 @@ possible gaps and unassigned openings separately. A gap is not evidence of a
 missing key. Regression coverage includes negative-Z movement/rotation,
 rotated and split PCB windows, false-positive rejection, source preservation,
 new preset export and saved-project reload.
+
+### Reviewed Topre and MX families
+
+The MX menus separate plate-mounted and PCB-mounted stabilizers. Generic switch
+openings appear in both. Topre has its own menu before **Add Other**, with the
+reviewed rounded 1u opening, right-hole and dual-hole modifier footprints, a
+mirrored modifier, and the 7u spacebar with its two square supports. Modifier
+cutouts stay the same size when the inferred cap grows to 2.25u or 2.75u.
+
+The reviewed MX additions include Plate ANSI-ISO (an L-shaped cap), bottom-row
+1.25u, 6.25u with Left stab, 1.75u multistep and 2.25u PCB mount option 2. These
+are measured patterns from reviewed drawings, not universal replacements for
+every manufacturer's footprint. Detection checks relative geometry and, for
+ambiguous widths, neighbouring switch spacing; it never checks a filename or
+key number. Nearby flex cuts and mounting openings remain separate.
+
+Some exports contain overlong corner arcs at otherwise complete 14mm switch
+openings. The importer can recognize these when all four sides and four corner
+joins agree. Import and movement preserve their original entities; replacing
+the opening regenerates its contour. Review the warning before manufacturing.
+Closed unrecognized outlines assembled from separate LINE/ARC entities can now
+be selected by clicking inside them, then mapped, deleted or attached to a key.
+
+New plate projects record recognition version 3. Older saved projects keep their
+previous interpretation so new detections do not silently reassign existing
+key edits. Open the original DXF afresh to use the new recognition rules.
