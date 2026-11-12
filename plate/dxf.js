@@ -116,9 +116,32 @@
             if(found) used[found.id]=true;
             return found;
         }
+        // dxf-parser omits extrusion on some entity classes (notably CIRCLE).
+        // Read those values from the original records, including block children.
+        var blockRecords=new WeakMap(),blockName=null,blockCursor=0;
+        raw.records.forEach(function(r){
+            if(r.section!=='BLOCKS')return;
+            if(r.type==='BLOCK'){blockName=value(r,2,'');blockCursor=0;return;}
+            if(r.type==='ENDBLK'){blockName=null;return;}
+            var children=parsed.blocks?.[blockName]?.entities;
+            if(children && children[blockCursor]?.type===r.type)blockRecords.set(children[blockCursor++],r);
+        });
         function collect(entity,matrix,record,inBlock,depth) {
             if(depth>12) {unsupported['Nested blocks']=1;return;}
             var type=entity.type,points=[],closed=false,stitch=false,editable=!inBlock;
+            // Autodesk OCS: with normal (0,0,-1), X is reversed and Y
+            // is unchanged. Lines remain in WCS. Tilted planes stay untouched.
+            var extrusion=entity.extrusionDirection || {x:entity.extrusionDirectionX || 0,y:entity.extrusionDirectionY || 0,z:entity.extrusionDirectionZ===undefined?1:entity.extrusionDirectionZ};
+            var sourceRecord=inBlock?blockRecords.get(entity):record;
+            if(sourceRecord && !options.legacyExtrusion)extrusion={x:number(sourceRecord,210,0),y:number(sourceRecord,220,0),z:number(sourceRecord,230,1)};
+            if(options.legacyExtrusion && type==='INSERT')extrusion={x:0,y:0,z:1};
+            var negative=Math.abs(extrusion.z+1)<1e-8;
+            var ocs=['ARC','CIRCLE','LWPOLYLINE','INSERT'].includes(type) || (type==='POLYLINE' && !entity.is3dPolyline && !entity.isPolyfaceMesh);
+            if(Math.abs(extrusion.x)>1e-8 || Math.abs(extrusion.y)>1e-8 ||
+               (Math.abs(extrusion.z-1)>1e-8 && (!negative || options.legacyExtrusion || (!ocs && type!=='LINE')))){
+                unsupported['Non-XY extrusion (not previewed)']=(unsupported['Non-XY extrusion (not previewed)'] || 0)+1;return;
+            }
+            var mirrored=negative && ocs;
             if(type==='INSERT') {
                 var block=parsed.blocks && parsed.blocks[entity.name];
                 if(!block) {unsupported['Missing block']=1;return;}
@@ -126,6 +149,7 @@
                 var sx=entity.xScale===undefined?1:entity.xScale,sy=entity.yScale===undefined?1:entity.yScale;
                 var at=entity.position || {x:0,y:0},base=block.position || {x:0,y:0};
                 var local=[c*sx,s*sx,-s*sy,c*sy,at.x-c*sx*base.x+s*sy*base.y,at.y-s*sx*base.x-c*sy*base.y];
+                if(mirrored)local=G.multiply([-1,0,0,1,0,0],local);
                 (block.entities || []).forEach(function(child){collect(child,G.multiply(matrix,local),record,true,depth+1);});
                 return;
             }
@@ -162,12 +186,7 @@
             if(!points.length) return;
             totalPoints+=points.length;
             if(totalPoints>250000) throw Error('This drawing is too detailed for the browser preview. Simplify it in CAD first.');
-            // Non-default extrusion needs a full OCS transform, so leave that
-            // geometry unchanged instead of interpreting it as an editable hole.
-            var extrusion=entity.extrusionDirection || {x:entity.extrusionDirectionX || 0,y:entity.extrusionDirectionY || 0,z:entity.extrusionDirectionZ===undefined?1:entity.extrusionDirectionZ};
-            if(Math.abs(extrusion.x)>1e-8 || Math.abs(extrusion.y)>1e-8 || Math.abs(extrusion.z-1)>1e-8) {
-                unsupported['Non-XY extrusion (not previewed)']=(unsupported['Non-XY extrusion (not previewed)'] || 0)+1;return;
-            }
+            if(mirrored)points=points.map(function(p){return G.point(-p.x,p.y);});
             // This editor operates on an XY plate at Z=0. Preserve 3D/offset
             // geometry rather than regenerating its cutouts in the wrong plane.
             if(record && record.pairs.some(function(p){return p.code>=30 && p.code<=38 && Math.abs(Number(p.value))>1e-8;})) editable=false;
@@ -206,7 +225,7 @@
         });
         var paths=G.contours(primitives),allPoints=[];
         primitives.forEach(function(p){allPoints=allPoints.concat(p.points);});
-        return {source:source,encoding:encoding,name:name || 'plate.dxf',raw:raw,parsed:parsed,primitives:primitives,
+        return {coordinateVersion:options.legacyExtrusion?1:2,source:source,encoding:encoding,name:name || 'plate.dxf',raw:raw,parsed:parsed,primitives:primitives,
             contours:paths.closed,open:paths.open,bounds:G.bounds(allPoints),factor:factor,
             units:{code:code,factor:factor,declaredFactor:unitFactors[code] || null,
                 override:['mm','in','cm'].includes(options.units)?options.units:null,
@@ -261,11 +280,13 @@
         }
         function transformRecord(record,motion) {
             var local=[],pairs=record.pairs,angle=motion.angle || 0,inVertex=record.type!=='POLYLINE';
+            var mirrored=document.coordinateVersion!==1 && ['ARC','CIRCLE','LWPOLYLINE','POLYLINE'].includes(record.type) && number(record,230,1)===-1;
             function move(x,y,direction) {
-                var p=G.point(x*document.factor,y*document.factor);
+                var p=G.point((mirrored?-x:x)*document.factor,y*document.factor);
                 if(direction) return G.rotate(p,angle);
                 p=G.rotate(p,angle,motion.from);
-                return G.point(p.x+motion.to.x-motion.from.x,p.y+motion.to.y-motion.from.y);
+                p=G.point(p.x+motion.to.x-motion.from.x,p.y+motion.to.y-motion.from.y);
+                return mirrored?G.point(-p.x,p.y):p;
             }
             pairs.forEach(function(pair,i) {
                 if(record.type==='POLYLINE' && pair.code===0) inVertex=pair.value==='VERTEX';
@@ -276,7 +297,7 @@
                     local.push({start:pair.valueStart,end:pair.valueEnd,text:format(p.x/document.factor)});
                     local.push({start:following.valueStart,end:following.valueEnd,text:format(p.y/document.factor)});
                 } else if(record.type==='ARC' && (pair.code===50 || pair.code===51)) {
-                    var degrees=((Number(pair.value)+angle*180/Math.PI)%360+360)%360;
+                    var degrees=((Number(pair.value)+(mirrored?-angle:angle)*180/Math.PI)%360+360)%360;
                     local.push({start:pair.valueStart,end:pair.valueEnd,text:format(degrees)});
                 }
             });

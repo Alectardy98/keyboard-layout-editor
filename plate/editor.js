@@ -200,7 +200,7 @@
         ui.saveProject=function() {
             guarded(function() {
                 var fields=Object.keys($serial.defaultKeyProps()).concat('_plateId');
-                var data={format:'keebal-plate-project',version:1,source:ui.document.source,encoding:ui.document.encoding,
+                var data={format:'keebal-plate-project',version:1,coordinateVersion:ui.document.coordinateVersion,source:ui.document.source,encoding:ui.document.encoding,
                     name:ui.document.name,unitOverride:ui.document.units.override,
                     layer:ui.importLayer,frame:ui.model.frame,settings:ui.model.snapshot(),
                     meta:scope.keyboard.meta,keys:scope.keys().map(function(key){var item={};fields.forEach(function(f){item[f]=key[f];});return item;})};
@@ -224,7 +224,7 @@
                 });
                 ['x','y'].forEach(function(f){if(!Number.isFinite(data.frame[f]))throw Error('The project has an invalid coordinate frame.');});
                 if(data.unitOverride!==null && !['mm','in','cm'].includes(data.unitOverride))throw Error('The project has an unsupported unit selection.');
-                var document=D.parse(source,data.name,{units:data.unitOverride}),recognized=R.analyze(document,{layer:data.layer}),candidate=M.create(document,recognized);
+                var document=D.parse(source,data.name,{units:data.unitOverride,legacyExtrusion:data.coordinateVersion!==2}),recognized=R.analyze(document,{layer:data.layer}),candidate=M.create(document,recognized);
                 var ids=new Set();
                 keys.forEach(function(key){if(typeof key._plateId!=='string' || ids.has(key._plateId) || !data.settings[key._plateId])throw Error('The project has missing or duplicate key references.');ids.add(key._plateId);});
                 Object.keys(data.settings).forEach(function(id){
@@ -237,7 +237,7 @@
                 candidate.frame.x=data.frame.x;candidate.frame.y=data.frame.y;candidate.restore(data.settings);candidate.plan(keys);
                 var prepared=hooks.prepareDocument($serial.serialize({keys:angular.copy(keys),meta:data.meta || $serial.defaultMetaData()}));
                 prepared.keyboard.keys=keys;
-                load(source,data.name,{units:data.unitOverride,layer:data.layer});
+                load(source,data.name,{units:data.unitOverride,layer:data.layer,legacyExtrusion:data.coordinateVersion!==2});
                 ui.model=candidate;hooks.applyDocument(prepared);hooks.updateSerialized();hooks.resetUndoStack();refresh();ui.notice='Plate project restored, including anchors and applied cutout profiles.';
             });
         };

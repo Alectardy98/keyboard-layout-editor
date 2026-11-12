@@ -1,9 +1,9 @@
 // Recognition proposes switch centres from closed geometry, not filenames.
 // Ambiguous contours and unmatched drawing features remain unchanged.
 (function(root,factory) {
-    if(typeof module==='object' && module.exports) module.exports=factory(require('./geometry.js'),require('./measured.js'),require('./overlaps.js'));
-    else root.PlateRecognize=factory(root.PlateGeometry,root.PlateMeasured,root.PlateOverlaps);
-}(typeof globalThis!=='undefined'?globalThis:this,function(G,Measured,O) {
+    if(typeof module==='object' && module.exports) module.exports=factory(require('./geometry.js'),require('./measured.js'),require('./overlaps.js'),require('./profiles.js'));
+    else root.PlateRecognize=factory(root.PlateGeometry,root.PlateMeasured,root.PlateOverlaps,root.PlateProfiles);
+}(typeof globalThis!=='undefined'?globalThis:this,function(G,Measured,O,P) {
     'use strict';
     function unique(values,tolerance) {
         var result=[];
@@ -443,8 +443,8 @@
                         !keys.some(function(k){return k.contours.includes(c)||k.stabilizers.includes(c);});}).map(function(c){
                         var points=c.points.map(function(p){return G.rotate({x:p.x-key.center.x,y:p.y-key.center.y},-angle);}),b=G.bounds(points);
                         return {c:c,b:b,area:Math.abs(G.area(points))};
-                    }).filter(function(v){return v.b.width>=6.7 && v.b.width<=7.2 && v.b.height>=13.9 && v.b.height<=16.1 &&
-                        Math.abs(v.b.cy)<=2 && v.area/(v.b.width*v.b.height)>.985;});
+                    }).filter(function(v){return v.b.width>=6.7 && v.b.width<=7.2 && v.b.height>=13.9 && v.b.height<=22.1 &&
+                        Math.abs(v.b.cy)<=4 && v.area/(v.b.width*v.b.height)>.985;});
                     var pair=null;
                     candidates.filter(function(v){return v.b.cx<0;}).some(function(a){return candidates.some(function(b){
                         var span=b.b.cx-a.b.cx;
@@ -463,7 +463,24 @@
                     // The same 23.8 mm wire fits 2u, 2.25u and 2.75u caps.
                     // Late support discovery must not shrink a width already
                     // established from adjacent keys and aligned row edges.
-                    if(axis)key.height=Math.max(key.height,size);else key.width=Math.max(key.width,size);return true;
+                    if(axis)key.height=Math.max(key.height,size);else {
+                        key.width=Math.max(key.width,size);
+                        if(size===2 && Math.abs(key.capAngle)<.001){
+                            // A short stabilizer wire is also used by Enter and
+                            // Shift. Resolve the cap using its nearest ordinary
+                            // row neighbour; never expand across a missing key.
+                            var widths=keys.filter(function(k){return k!==key && k.width===1 && k.height===1 &&
+                                Math.abs(k.center.y-key.center.y)<.1;
+                            }).map(function(k){return 2*Math.abs(k.center.x-key.center.x)/19.05-1;})
+                              .filter(function(w){return [2,2.25,2.75].some(function(n){return Math.abs(n-w)<.005;});});
+                            if(widths.length){
+                                var inferred=Math.round(Math.min(...widths)*4)/4;
+                                if(!keys.some(function(k){return k!==key && Math.abs(k.center.y-key.center.y)<.1 &&
+                                    Math.abs(k.center.x-key.center.x)<(inferred+k.width)*19.05/2-.1;
+                                }))key.width=Math.max(key.width,inferred);
+                            }
+                        }
+                    }return true;
                 });
             }
             // ISO has the 2u vertical pair and a neighbouring main typing row
@@ -492,6 +509,43 @@
                 keys.push({id:'key-'+String(keys.length+1).padStart(3,'0'),center:center,holeAngle:angle,capAngle:angle,
                     label:'2.75u dual opening PCB mount',type:'mx',core:{width:14,height:14},contours:[first],stabilizers:[second],
                     editable:first.editable && second.editable,width:2.75,height:1,compound:true});counts.mx++;return true;
+            });
+        });
+        // Match a parametric family of joined PCB clearance windows. Identify
+        // the 14 mm switch band first, then verify every boundary against the
+        // union of that band and the two 7 mm clearance slots at 23.876 mm.
+        // Width alone cannot distinguish a stabilizer from a mounting window.
+        document.contours.forEach(function(first){
+            function available(c){return c.editable && (!options.layer || c.parts.some(function(p){return p.layer===options.layer;})) &&
+                !keys.some(function(k){return k.contours.includes(c)||k.stabilizers.includes(c);});}
+            if(!available(first))return;
+            [0,Math.PI/2,Math.PI,3*Math.PI/2].some(function(angle){
+                var points=first.points.map(function(p){return G.rotate(p,-angle);}),b=G.bounds(points);
+                var variants=[{size:2,width:33.05},{size:2.25,width:35.43125},{size:2.75,width:40.19375},
+                    {size:2.75,width:23.525,split:true}].filter(function(v){return Math.abs(b.width-v.width)<.08;});
+                if(!variants.length || b.height<15 || b.height>22.05)return false;
+                var levels=unique(points.filter(function(p,i){var q=points[(i+1)%points.length];
+                    return Math.abs(p.y-q.y)<.01 && Math.abs(p.x-q.x)>8;
+                }).map(function(p){return p.y;}),.02);
+                return pairs(levels,14).some(function(band){return variants.some(function(v){
+                    var height=Math.round(b.height*1000)/1000,offset=b.cy-band.center;
+                    if(height>22 || Math.abs(offset)>4)return false;
+                    var center=G.rotate({x:b.minX+16.525,y:band.center},angle);
+                    var patterns=P.rings(P.pcbCompatibility(v.size,{split:v.split,height:height,offset:offset}));
+                    if(!matches(first.points,patterns[0],center,angle,.22))return false;
+                    var second=null;
+                    if(v.split)[0,1,2].some(function(inset){
+                        if(height-inset<15)return false;
+                        var reduced=P.rings(P.pcbCompatibility(v.size,{split:true,height:height-inset,offset:offset-inset/2}));
+                        second=document.contours.find(function(c){return c!==first && available(c) && matches(c.points,reduced[1],center,angle,.22);});
+                        return !!second;
+                    });
+                    if(v.split && !second)return false;
+                    keys.push({id:'key-'+String(keys.length+1).padStart(3,'0'),center:center,holeAngle:angle,capAngle:angle,
+                        label:v.size+'u '+(v.split?'split':'wide')+' PCB compatibility',type:'mx',core:{width:14,height:14},
+                        contours:[first],stabilizers:second?[second]:[],editable:true,width:v.size,height:1,compound:true,
+                        detectedStabilizer:{family:'mx-pcb',spacing:23.876,vertical:false}});counts.mx++;return true;
+                });});
             });
         });
         var types=Object.keys(counts).filter(function(type){return counts[type]>0;});

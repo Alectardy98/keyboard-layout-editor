@@ -64,6 +64,10 @@
     }
     function stabilizers(options,key) {
         var style=options.stabilizer || 'original';
+        if(style==='mx-compat-2.75-split'){
+            if(key.width!==2.75 || key.height!==1)throw Error('Split compatibility requires a 2.75u horizontal key.');
+            return pcbCompatibility(2.75,{split:true}).slice(1);
+        }
         if(style==='original' || style==='none') return [];
         if(style==='mx-dual275') {
             if(key.width!==2.75 || key.height!==1)throw Error('The dual-opening PCB pattern requires a 2.75u key.');
@@ -156,7 +160,22 @@
             return polygon.map(function(path){return path.map(function(p){var q=G.rotate({x:p[0],y:p[1]},angle);return [q.x,q.y];});});
         });
     }
+    // Joined PCB clearance windows used by multi-layout plates. These are
+    // clearance recipes, not plate-mount stabilizer clips. Dimensions remain
+    // independent of the cap outline and the physical stem stays at (0, 0).
+    function pcbCompatibility(size,options) {
+        options=options || {};
+        if(![2,2.25,2.75].includes(size))throw Error('Unsupported PCB compatibility size.');
+        var right=16.525+(size-2)*9.525;
+        var parts=options.split?[rectangle(23.525,14,-4.7625,0),rectangle(14,14,right-7,0)]:
+            [rectangle(right+16.525,14,(right-16.525)/2,0)];
+        var height=dimension(options.height,16,15,22,'PCB compatibility height');
+        var offset=dimension(options.offset,-1,-4,4,'PCB compatibility offset');
+        [-1,1].forEach(function(side){parts.push(rectangle(7,height,side*11.938,offset));});
+        return union(parts);
+    }
     function switchShape(options) {
+        if(options.switch?.startsWith('mx-compat-'))return pcbCompatibility(Number(options.switch.split('-')[2]),{split:options.switch.endsWith('-split')})[0];
         if(options.switch==='mx-dual275')return polygon(Measured.mxDual275[0]);
         if(options.switch==='mx-multistep')return polygon(Measured.mxCapsMultistep);
         if(options.switch==='alps-multistep')return polygon(Measured.capsMultistep);
@@ -220,6 +239,8 @@
     ];
     // Explicit sizes rather than rounding unknown spacebars to a nearby wire.
     var mxPresets=[1,1.25,1.5,1.75].map(function(size){return {id:'mx-'+size,label:size+'u',width:size};});
+    [2,2.25,2.75].forEach(function(size){mxPresets.push({id:'mx-compat-'+size,label:size+'u wide PCB compatibility',width:size,mount:'pcb'});});
+    mxPresets.push({id:'mx-compat-2.75-split',label:'2.75u split PCB compatibility',width:2.75,mount:'pcb'});
     mxPresets.push({id:'mx-dual275',label:'2.75u dual opening PCB mount',width:2.75,mount:'pcb'},
         {id:'mx-multistep',label:'1.75u Caps Multistep',width:1.75},
         {id:'mx-stepped',label:'1.75u stepped Caps — 1.25u raised area',width:1.25,full:1.75});
@@ -237,9 +258,9 @@
         if(!p)throw Error('Unknown key preset.');
         return {key:{width:p.width,width2:p.iso?1.5:p.z150?2:p.bae?1.5:p.zkb2?1:p.full || p.width,height:p.height || 1,height2:p.iso?1:p.z150?1:(p.zkb2 || p.bae)?2:p.height || 1,
             x2:p.iso?-.25:p.z150?-1:p.bae?.75:p.zkb2?1.25:p.left?p.width-p.full:0,y2:p.z150?1:(p.zkb2 || p.bae)?-1:0,stepped:!!p.full,labels:[p.label]},
-            options:mx?{switch:id==='mx-dual275'?'mx-dual275':id==='mx-multistep'?'mx-multistep':'mx',switchRotation:p.height===2?90:0,
-                stabilizer:id==='mx-dual275'?'mx-dual275':p.stabs?'mx':'none',mount:p.mount || 'plate',mxPattern:'cherry',direction:'south',stemOffset:p.offset || 0}: {switch:id==='ec11'?'ec11':id==='alps-multistep'?'alps-multistep':'alps',switchRotation:p.height===2?90:0,stabilizer:p.canon || (p.barrels?'alps-barrel625':p.bae?'alps-bae':p.zkb2?'alps-zkb2':p.stabs?'alps-default':'none'),direction:'south'}};
+            options:mx?{switch:id.startsWith('mx-compat-')?id:id==='mx-dual275'?'mx-dual275':id==='mx-multistep'?'mx-multistep':'mx',switchRotation:p.height===2?90:0,
+                stabilizer:id==='mx-compat-2.75-split'?id:id==='mx-dual275'?'mx-dual275':p.stabs?'mx':'none',mount:p.mount || 'plate',mxPattern:'cherry',direction:'south',stemOffset:p.offset || 0}: {switch:id==='ec11'?'ec11':id==='alps-multistep'?'alps-multistep':'alps',switchRotation:p.height===2?90:0,stabilizer:p.canon || (p.barrels?'alps-barrel625':p.bae?'alps-bae':p.zkb2?'alps-zkb2':p.stabs?'alps-default':'none'),direction:'south'}};
     }
     return {presets:presets,mxPresets:mxPresets,preset:preset,switches:switches,spacing:spacing,stabilizers:stabilizers,switchShape:switchShape,generate:generate,
-        polygon:polygon,rings:rings,union:union,place:place,clip:clip};
+        pcbCompatibility:pcbCompatibility,polygon:polygon,rings:rings,union:union,place:place,clip:clip};
 }));
