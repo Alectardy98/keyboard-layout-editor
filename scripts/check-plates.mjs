@@ -20,6 +20,8 @@ for(const name of fs.readdirSync(folder).filter(n=>/\.dxf$/i.test(n)&&!n.startsW
   if(!d.units.confirmed){report.unitConfirmationNeeded++;continue;}
   const owned=new Set(r.keys.flatMap(k=>k.contours.concat(k.stabilizers).flatMap(c=>c.parts.map(p=>p.raw?.id))));
   const fixed=d.raw.entities.filter(record=>!owned.has(record.id)).map(record=>d.source.slice(record.start,record.end));
+  // This synthetic conversion explicitly accepts candidates; the UI requires review.
+  m.confirm(editable);
   m.apply(editable,{switch:'mx',stabilizer:'original'});
   const exported=D.parse(m.exportFile(keys),'check.dxf'),converted=R.analyze(exported);
   for(const record of fixed)if(!exported.source.includes(record))throw Error('A fixed source entity changed.');
