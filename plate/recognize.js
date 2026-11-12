@@ -95,11 +95,12 @@
     }
     function analyze(document,options) {
         options=options || {};
+        function inLayer(c){return !options.layer || (c.crossLayer?c.parts.every(function(p){return p.layer===options.layer;}):c.parts.some(function(p){return p.layer===options.layer;}));}
         var keys=[],unknown=[],ambiguous=[],duplicate=[],counts={mx:0,alps:0,universal:0,unknown:0};
         document.contours.forEach(function(loop,index) {
             if(keys.length+unknown.length>2000)throw Error('More than 2,000 possible keys. Choose a smaller drawing or isolate the plate in CAD.');
             loop.id='contour-'+index;
-            if(options.layer && !loop.parts.some(function(part){return part.layer===options.layer;})) return;
+            if(!inLayer(loop)) return;
             var found=cores(loop),centers=[];
             found.forEach(function(core) {
                 var group=centers.find(function(g){return G.distance(g[0].center,core.center)<0.2;});
@@ -125,7 +126,7 @@
         // Plate material surrounds the other holes. Search its concave boundary
         // for complete switch-sized edge pairs whose interiors lie outside it.
         document.contours.forEach(function(loop){
-            if(!loop.editable || (options.layer && !loop.parts.some(function(p){return p.layer===options.layer;})) || !O.material(loop,keys))return;
+            if(!loop.editable || (!inLayer(loop)) || !O.material(loop,keys))return;
             cores(loop,true).forEach(function(best){
                 if(keys.some(function(k){return G.distance(k.center,best.center)<.2;}))return;
                 keys.push({center:best.center,holeAngle:best.angle,capAngle:normalizedAngle(best.angle),type:best.type,
@@ -391,7 +392,7 @@
         // Append miscellaneous controls after switches to keep historical
         // switch IDs stable when opening a saved plate project.
         document.contours.forEach(function(c){
-            if(options.layer && !c.parts.some(function(p){return p.layer===options.layer;}))return;
+            if(!inLayer(c))return;
             if(keys.some(function(k){return k.contours.includes(c)||k.stabilizers.includes(c);}))return;
             var b=G.bounds(c.points),t=G.bounds(Measured.ec11),center={x:b.cx-t.cx,y:b.cy-t.cy};
             if(!matches(c.points,Measured.ec11,center,0))return;
@@ -402,7 +403,7 @@
         // The elongated opening permits several stem positions. Use its
         // rightmost Alps stem centre for the 1.75u cap; keep the full cutout.
         document.contours.forEach(function(c){
-            if(options.layer && !c.parts.some(function(p){return p.layer===options.layer;}))return;
+            if(!inLayer(c))return;
             if(keys.some(function(k){return k.contours.includes(c)||k.stabilizers.includes(c);}))return;
             var b=G.bounds(c.points),t=G.bounds(Measured.capsMultistep),center={x:b.cx-t.cx,y:b.cy-t.cy};
             if(!matches(c.points,Measured.capsMultistep,center,0,0.18))return;
@@ -418,7 +419,7 @@
          {pattern:Measured.mxWide225,width:2.25,label:'2.25u PCB mount'},
          {pattern:Measured.mxCapsMultistep,width:1.75,label:'Caps Multistep',caps:true}].forEach(function(preset){
             document.contours.forEach(function(c){
-                if(options.layer && !c.parts.some(function(p){return p.layer===options.layer;}))return;
+                if(!inLayer(c))return;
                 if(keys.some(function(k){return k.contours.includes(c)||k.stabilizers.includes(c);}))return;
                 [0,Math.PI/2,Math.PI,3*Math.PI/2].some(function(angle){
                     var local=c.points.map(function(p){return G.rotate(p,-angle);}),b=G.bounds(local),t=G.bounds(preset.pattern);
@@ -440,7 +441,7 @@
             if(!key.stabilizers.length){
                 [key.capAngle,key.capAngle+Math.PI/2].some(function(angle,axis){
                     var candidates=document.contours.filter(function(c){return c.editable &&
-                        (!options.layer || c.parts.some(function(p){return p.layer===options.layer;})) &&
+                        (inLayer(c)) &&
                         !keys.some(function(k){return k.contours.includes(c)||k.stabilizers.includes(c);});}).map(function(c){
                         var points=c.points.map(function(p){return G.rotate({x:p.x-key.center.x,y:p.y-key.center.y},-angle);}),b=G.bounds(points);
                         return {c:c,b:b,area:Math.abs(G.area(points))};
@@ -498,7 +499,7 @@
         // Require both complete contours in their measured relative positions;
         // neither a lone rectangle nor a nearby mounting opening is sufficient.
         document.contours.forEach(function(first){
-            function available(c){return (!options.layer || c.parts.some(function(p){return p.layer===options.layer;})) &&
+            function available(c){return (inLayer(c)) &&
                 !keys.some(function(k){return k.contours.includes(c)||k.stabilizers.includes(c);});}
             if(!available(first))return;
             [0,Math.PI/2,Math.PI,3*Math.PI/2].some(function(angle){
@@ -517,11 +518,11 @@
         // union of that band and the two 7 mm clearance slots at 23.876 mm.
         // Width alone cannot distinguish a stabilizer from a mounting window.
         document.contours.forEach(function(first){
-            function available(c){return c.editable && (!options.layer || c.parts.some(function(p){return p.layer===options.layer;})) &&
+            function available(c){return c.editable && (inLayer(c)) &&
                 !keys.some(function(k){return k.contours.includes(c)||k.stabilizers.includes(c);});}
             if(!available(first))return;
             [0,Math.PI/2,Math.PI,3*Math.PI/2].some(function(angle){
-                var points=first.points.map(function(p){return G.rotate(p,-angle);}),b=G.bounds(points);
+                var points=(options.legacyAssembly?first.points:G.simplifyRing(first.points)).map(function(p){return G.rotate(p,-angle);}),b=G.bounds(points);
                 var variants=[{size:2,width:33.05},{size:2.25,width:35.43125},{size:2.75,width:40.19375},
                     {size:2.75,width:23.525,split:true}].filter(function(v){return Math.abs(b.width-v.width)<.08;});
                 if(!variants.length || b.height<15 || b.height>22.05)return false;
@@ -533,17 +534,17 @@
                     if(height>22 || Math.abs(offset)>4)return false;
                     var center=G.rotate({x:b.minX+16.525,y:band.center},angle);
                     var patterns=P.rings(P.pcbCompatibility(v.size,{split:v.split,height:height,offset:offset}));
-                    if(!matches(first.points,patterns[0],center,angle,.22))return false;
+                    if(!matches(first.points,patterns[0],center,angle,options.legacyAssembly?.22:.26))return false;
                     var second=null;
                     if(v.split)[0,1,2].some(function(inset){
                         if(height-inset<15)return false;
                         var reduced=P.rings(P.pcbCompatibility(v.size,{split:true,height:height-inset,offset:offset-inset/2}));
-                        second=document.contours.find(function(c){return c!==first && available(c) && matches(c.points,reduced[1],center,angle,.22);});
+                        second=document.contours.find(function(c){return c!==first && available(c) && matches(c.points,reduced[1],center,angle,options.legacyAssembly?.22:.26);});
                         return !!second;
                     });
                     if(v.split && !second)return false;
                     keys.push({id:'key-'+String(keys.length+1).padStart(3,'0'),center:center,holeAngle:angle,capAngle:angle,
-                        label:v.size+'u '+(v.split?'split':'wide')+' PCB compatibility',type:'mx',core:{width:14,height:14},
+                        label:v.size+'u '+(v.split?'split PCB compatibility':options.legacyAssembly?'wide PCB compatibility':'PCB mount'),type:'mx',core:{width:14,height:14},
                         contours:[first],stabilizers:second?[second]:[],editable:true,width:v.size,height:1,compound:true,
                         detectedStabilizer:{family:'mx-pcb',spacing:23.876,vertical:false}});counts.mx++;return true;
                 });});
@@ -552,9 +553,9 @@
         if(!options.legacyFamilies){
             // User-confirmed families are matched by their complete relative
             // geometry, never by drawing filename or transient key number.
-            Families.filter(function(f){return options.legacyAlignment?!f.id.endsWith('-aligned') && f.id!=='mx-pcb2-combined':!f.legacy;}).forEach(function(f){
+            Families.filter(function(f){return !f.presetOnly && !(options.legacyAssembly && f.review5) && (options.legacyAlignment?!f.id.endsWith('-aligned') && f.id!=='mx-pcb2-combined':!f.legacy);}).flatMap(function(f){return [f].concat(options.legacyAssembly?[]:(f.variants || []).map(function(parts){return Object.assign({},f,{parts:parts});}));}).forEach(function(f){
                 document.contours.forEach(function(first){
-                    if(options.layer && !first.parts.some(function(p){return p.layer===options.layer;}))return;
+                    if(!inLayer(first))return;
                     var owner=keys.find(function(k){return k.contours.includes(first);});
                     if(owner && (owner.family || owner.recovered || owner.contours.length!==1))return;
                     if(keys.some(function(k){return k.stabilizers.includes(first);}))return;
@@ -571,7 +572,7 @@
                             return k.width===1 && Math.abs(local.y)<.06 && Math.abs(Math.abs(local.x)-f.neighbourPitch)<.06;
                         }))return false;
                         var supports=f.parts.slice(1).map(function(pattern){return document.contours.find(function(c){return c!==first &&
-                            (!options.layer || c.parts.some(function(p){return p.layer===options.layer;})) &&
+                            (inLayer(c)) &&
                             !keys.some(function(k){return k!==owner && (k.contours.includes(c)||k.stabilizers.includes(c));}) &&
                             matches(c.points,pattern,center,angle,.06);});});
                         if(supports.some(function(c){return !c;}))return false;
@@ -584,6 +585,15 @@
                         if(!owner)keys.push(key);return true;
                     });
                 });
+            });
+            if(!options.legacyAssembly)keys.filter(function(k){return k.family==='mx-plate-option2';}).forEach(function(k){
+                var vertical=Math.abs(Math.sin(k.capAngle))>.9;
+                if(vertical){k.width=1;k.height=2;k.capAngle=0;k.label='vertical 2u plate mount option 2';return;}
+                var widths=keys.filter(function(n){return n!==k && n.width===1 && n.height===1 && Math.abs(n.center.y-k.center.y)<.06;})
+                    .map(function(n){return 2*Math.abs(n.center.x-k.center.x)/19.05-n.width;})
+                    .filter(function(w){return [2,2.25,2.75].some(function(v){return Math.abs(w-v)<.01;});});
+                if(widths.length)k.width=Math.round(Math.min(...widths)*4)/4;
+                k.capAngle=0;k.label=k.width+'u plate mount option 2';
             });
             if(!options.legacyAlignment)keys.filter(function(k){return k.family==='mx-space625-left-aligned';}).forEach(function(space){
                 // Resolve the alternate stem positions against the complete
@@ -625,6 +635,17 @@
                     if(keys.some(function(a){return a!==k && a.width>=1.5 && a.width<3 && Math.abs(a.capAngle)<.001 &&
                         Math.abs(a.center.y-k.center.y)>=19 && Math.abs(a.center.x+side*a.width*19.05/2-edge)<.06;}))k.width=width;
                 });
+            });
+            // An interior cap is constrained independently from both sides.
+            // Do not fill deliberate gaps unless both neighbours imply the
+            // same quarter-unit size; preserve already identified wider caps.
+            if(!options.legacyAssembly)keys.filter(function(k){return k.type==='mx' && k.width===1 && k.height===1 && Math.abs(k.capAngle)<.001;}).forEach(function(k){
+                var row=keys.filter(function(n){return n!==k && n.height===1 && Math.abs(n.capAngle)<.001 && Math.abs(n.center.y-k.center.y)<.06;});
+                var left=row.filter(function(n){return n.center.x<k.center.x;}).sort(function(a,b){return b.center.x-a.center.x;})[0];
+                var right=row.filter(function(n){return n.center.x>k.center.x;}).sort(function(a,b){return a.center.x-b.center.x;})[0];
+                if(!left || !right)return;
+                var a=2*(k.center.x-left.center.x)/19.05-left.width,b=2*(right.center.x-k.center.x)/19.05-right.width;
+                if(a>=1.24 && a<=2.76 && Math.abs(a-b)<.005 && Math.abs(a*4-Math.round(a*4))<.01)k.width=Math.round(a*4)/4;
             });
             counts={mx:0,alps:0,universal:0,unknown:0,topre:0};
             keys.forEach(function(k){counts[k.type]=(counts[k.type] || 0)+1;});

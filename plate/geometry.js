@@ -217,6 +217,35 @@
         paths.open=paths.open.filter(function(p){return !used.has(p);});
         return paths;
     }
-    return {recoverSwitchCorners:recoverSwitchCorners,TAU:TAU,point:point,distance:distance,rotate:rotate,transform:transform,multiply:multiply,bounds:bounds,
+    // Simplify only the points used for recognition. Original DXF records and
+    // export geometry remain untouched. Converted DWGs often tessellate even
+    // straight edges into hundreds of tiny segments.
+    function simplifyRing(points,tolerance) {
+        tolerance=tolerance || .003;
+        if(points.length<5)return points.slice();
+        var ring=points.slice();if(distance(ring[0],ring[ring.length-1])<1e-8)ring.pop();
+        function reduce(list){
+            var keep=new Set([0,list.length-1]),stack=[[0,list.length-1]];
+            while(stack.length){var pair=stack.pop(),a=list[pair[0]],b=list[pair[1]],dx=b.x-a.x,dy=b.y-a.y,best=tolerance,index=-1;
+                for(var i=pair[0]+1;i<pair[1];i++){var p=list[i],t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy || 1))),d=distance(p,{x:a.x+t*dx,y:a.y+t*dy});if(d>best){best=d;index=i;}}
+                if(index>=0){keep.add(index);stack.push([pair[0],index],[index,pair[1]]);}
+            }
+            return list.filter(function(p,i){return keep.has(i);});
+        }
+        var far=1;for(var i=2;i<ring.length;i++)if(distance(ring[0],ring[i])>distance(ring[0],ring[far]))far=i;
+        return reduce(ring.slice(0,far+1)).slice(0,-1).concat(reduce(ring.slice(far).concat([ring[0]])).slice(0,-1));
+    }
+    function joinCrossLayerContours(paths) {
+        var byId=new Map(paths.open.map(function(p){return [p.id,p];}));
+        var merged=contours(paths.open.filter(function(p){return p.editable && p.stitch;}).map(function(p){return Object.assign({},p,{layer:'__joined_for_topology__'});}));
+        var used=new Set();
+        merged.closed.forEach(function(c){
+            var parts=c.parts.map(function(p){return byId.get(p.id);});
+            if(new Set(parts.map(function(p){return p.layer;})).size<2)return;
+            paths.closed.push({points:c.points,parts:parts,editable:true,crossLayer:true});parts.forEach(function(p){used.add(p.id);});
+        });
+        paths.open=paths.open.filter(function(p){return !used.has(p.id);});return paths;
+    }
+    return {simplifyRing:simplifyRing,joinCrossLayerContours:joinCrossLayerContours,recoverSwitchCorners:recoverSwitchCorners,TAU:TAU,point:point,distance:distance,rotate:rotate,transform:transform,multiply:multiply,bounds:bounds,
         area:area,rectangle:rectangle,arc:arc,bulge:bulge,polyline:polyline,contains:contains,axes:axes,minimumBox:minimumBox,contours:contours};
 }));
