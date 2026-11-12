@@ -381,3 +381,8 @@ test('spline-corner Caps Multistep is recognized, moved and converted without lo
  assert.equal(moved.d.raw.entities.filter(e=>e.type==='SPLINE').length,4);
  p.m.apply([key],options());const converted=plate(p.m.exportFile(p.keys));assert.ok(converted.r.keys.some(k=>Math.hypot(k.center.x-start.x-4.7625,k.center.y-start.y)<.03));
 });
+test('unchanged keys do not repeat plate boundary containment checks',()=>{
+ const p=plate(),before=structuredClone(p.keys),contains=G.contains;let calls=0;
+ G.contains=(...args)=>{calls++;return contains(...args);};
+ try{p.m.reconcile(before,p.keys);assert.equal(calls,0);}finally{G.contains=contains;}
+});
