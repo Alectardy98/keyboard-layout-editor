@@ -413,8 +413,8 @@
         // Broad MX compatibility windows lose the 14 mm vertical core edges.
         // Match the complete contour, not a large rectangle's bounding box.
         // Append new discoveries so existing saved-project IDs stay unchanged.
-        [{pattern:Measured.mxWide2,width:2,label:'2u plate mount'},
-         {pattern:Measured.mxWide225,width:2.25,label:'2.25u plate mount'},
+        [{pattern:Measured.mxWide2,width:2,label:'2u PCB mount'},
+         {pattern:Measured.mxWide225,width:2.25,label:'2.25u PCB mount'},
          {pattern:Measured.mxCapsMultistep,width:1.75,label:'Caps Multistep',caps:true}].forEach(function(preset){
             document.contours.forEach(function(c){
                 if(options.layer && !c.parts.some(function(p){return p.layer===options.layer;}))return;
@@ -469,7 +469,7 @@
                 return k!==key && k.width===1 && Math.abs(k.center.y-(key.center.y-9.525))<.15 &&
                     Math.abs(k.center.x-(key.center.x-21.43125))<.15;
             })){
-                key.width=1.25;key.label='ISO plate mount';
+                key.width=1.25;key.label=key.detectedStabilizer.family==='mx-pcb'?'ISO PCB mount':'ISO Enter';
                 key.capShape={width2:1.5,height2:1,x2:-.25,y2:0};
             }
         });

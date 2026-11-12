@@ -285,7 +285,7 @@
                 var profiles=scope.selectedKeys.map(function(key){return ui.model.settings[key._plateId]?.profile?.options || null;});
                 ui.mixedProfiles=profiles.some(function(p){return JSON.stringify(p)!==JSON.stringify(profiles[0]);});
                 if(profiles[0]) {
-                    ui.options=angular.copy(profiles[0]);
+                    ui.options=angular.extend({axis:'auto',spacing:'',mxPattern:'legacy'},angular.copy(profiles[0]));
                     var style=ui.options.stabilizer || 'original';
                     ui.stabChoice=style.startsWith('alps-')?'alps':style;
                     if(ui.stabChoice==='alps')ui.alpsFamily=ui.options.stabilizer;
