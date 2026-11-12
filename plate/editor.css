@@ -3,14 +3,16 @@
 .plate-workspace h1 {font-size:26px;margin:0 0 6px;}
 .plate-workspace h2 {font-size:19px;margin:0 0 12px;}
 .plate-workspace h2 small {font-size:13px;display:inline-block;line-height:1.5;}
-.plate-heading,.plate-actions,.plate-units,.plate-buttons,.plate-legend {display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+.plate-heading,.plate-actions,.plate-file-actions,.plate-units,.plate-buttons,.plate-legend {display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
 .plate-heading {justify-content:space-between;margin-bottom:12px;}
 .plate-heading p {margin:0;color:#526176;}
-.plate-actions {margin-bottom:12px;}
+.plate-actions {margin-bottom:12px;align-items:flex-end;justify-content:space-between;}
+.plate-file-actions {flex:1 1 auto;}
 .plate-fixed-frame {padding:12px 14px;border-left:4px solid #7560ac;background:#f1edf8;line-height:1.6;}
 .plate-workspace .alert {padding:10px 13px;margin-bottom:12px;}
-.plate-units {padding:12px 0;margin-bottom:10px;align-items:flex-end;}
-.plate-units > span {margin-right:15px;}
+.plate-units {margin-left:auto;align-items:flex-end;justify-content:flex-end;flex:0 1 auto;}
+.plate-units label {margin-bottom:0;}
+.plate-units .text-warning {flex-basis:100%;text-align:right;}
 .plate-workspace label {font-weight:500;font-size:13px;}
 .plate-workspace label .form-control {margin-top:4px;}
 .plate-columns {display:grid;grid-template-columns:minmax(0,1fr) minmax(295px,350px);gap:20px;align-items:start;}
@@ -26,16 +28,16 @@
 .plate-legend span:nth-child(3):before {background:#06837e;}
 .plate-legend span:nth-child(4):before {background:#2474d4;}
 .plate-controls {min-width:0;}
-.plate-controls fieldset,.plate-alignment {border:1px solid #cbd1da;border-radius:6px;padding:8px 13px 12px;margin:0 0 14px;min-width:0;}
-.plate-controls legend,.plate-alignment legend {width:auto;border:0;margin:0 0 3px;padding:0 6px;font-size:16px;}
-.plate-controls label:not(.plate-force) {display:block;}
+.plate-controls fieldset,.plate-stabilizers fieldset,.plate-reference,.plate-alignment {border:1px solid #cbd1da;border-radius:6px;padding:8px 13px 12px;margin:0 0 14px;min-width:0;}
+.plate-controls legend,.plate-stabilizers legend,.plate-reference legend,.plate-alignment legend {width:auto;border:0;margin:0 0 3px;padding:0 6px;font-size:16px;}
+.plate-controls label:not(.plate-force),.plate-stabilizers label:not(.plate-force) {display:block;}
 .plate-block {margin-top:10px;}
 .plate-buttons {gap:6px;}
 .plate-secondary-actions {margin-top:8px;}
 .plate-buttons .btn.active {background:#66518e;color:#fff;border-color:#514070;box-shadow:inset 0 2px 4px #0003;}
 .plate-pair {display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;align-items:end;}
 .plate-coordinates {font-variant-numeric:tabular-nums;font-size:12px;}
-.plate-controls .help-block,.plate-drawing .help-block {font-size:12px;line-height:1.55;margin:9px 0 0;color:#566377;}
+.plate-controls .help-block,.plate-stabilizers .help-block,.plate-reference .help-block,.plate-drawing .help-block {font-size:12px;line-height:1.55;margin:9px 0 0;color:#566377;}
 .plate-force {padding-bottom:7px;}
 .plate-apply .btn {flex:1;white-space:normal;min-height:38px;}
 .plate-warnings {padding-left:19px;color:#996015;font-size:12px;max-height:160px;overflow:auto;}
@@ -43,8 +45,42 @@
 .plate-workspace .plate-kle-heading {border-top:1px solid #cbd1da;padding-top:18px;margin-top:20px;}
 .plate-anchor-key .keyborder {outline:2px solid #2474d4;}
 .plate-page .body > .row {margin-right:0;}
-@media (max-width:850px) {.plate-columns {grid-template-columns:1fr;}.plate-controls {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}.plate-controls fieldset {margin:0;}.plate-apply,.plate-controls>p {grid-column:1/-1;}}
-@media (max-width:540px) {.plate-controls {display:block;}.plate-controls fieldset {margin-bottom:12px;}.plate-heading {align-items:flex-start;}.plate-units label {flex:1;min-width:120px;}}
+/* Full-width reference and support bars frame the drawing/side controls. */
+.plate-file-info {display:flex;gap:12px;flex-wrap:wrap;font-size:12px;margin-bottom:8px;overflow-wrap:anywhere;}
+.plate-reference-row {display:flex;gap:12px 22px;flex-wrap:wrap;align-items:center;}
+.plate-reference-row p {margin:0;}
+.plate-reference-row>.help-block {flex:1 1 280px;margin:0;}
+.plate-reference>.text-warning {margin:8px 0 0;}
+.plate-stabilizers {min-width:0;margin-top:16px;}
+.plate-stab-main {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 18px;align-items:end;}
+.plate-stab-note {grid-column:1/-1;order:1;}
+.plate-stab-options {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 18px;align-items:end;margin-top:14px;}
+.plate-stab-options .plate-pair,.plate-stab-mx {display:contents;}
+.plate-stab-options .help-block {grid-column:1/-1;order:1;}
+.plate-stab-orientation .plate-block {margin-top:0;}
+.plate-stabilizers .plate-apply {justify-content:flex-end;}
+.plate-stabilizers .plate-apply .btn {flex:0 1 240px;}
+@media (max-width:1100px) {
+    .plate-actions {align-items:flex-start;}
+    .plate-file-actions {flex:1 1 420px;}
+    .plate-units {flex:1 1 420px;}
+}
+@media (max-width:850px) {
+    .plate-columns {grid-template-columns:1fr;}
+    .plate-controls {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+    .plate-controls fieldset {margin:0;}
+    .plate-stab-main,.plate-stab-options {grid-template-columns:repeat(2,minmax(0,1fr));}
+    .plate-units {justify-content:flex-start;margin-left:0;}
+    .plate-units .text-warning {text-align:left;}
+}
+@media (max-width:540px) {
+    .plate-controls {display:block;}
+    .plate-controls fieldset {margin-bottom:12px;}
+    .plate-heading {align-items:flex-start;}
+    .plate-units label {flex:1;min-width:120px;}
+    .plate-reference-row {gap:10px;}
+    .plate-stab-main,.plate-stab-options {grid-template-columns:1fr;}
+}
 
 .plate-preset-menu { max-height: 65vh; overflow-y: auto; }
 
@@ -71,7 +107,3 @@
 .plate-open-dialog {background:#fff;border:1px solid #cbd1da;border-radius:8px;padding:24px;max-width:520px;box-shadow:0 8px 32px #0004;}
 .plate-open-dialog p {line-height:1.6;overflow-wrap:anywhere;}
 .plate-open-dialog .plate-buttons {justify-content:flex-end;}
-
-.plate-review-summary { margin: 12px 10px; padding: 10px 14px; border: 1px solid #b78b32; background: #fff7df; }
-.plate-review-summary summary { cursor: pointer; font-weight: bold; }
-.plate-review-summary ul { max-height: 260px; overflow: auto; padding-left: 20px; }
