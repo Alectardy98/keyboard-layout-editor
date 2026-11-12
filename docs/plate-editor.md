@@ -225,3 +225,24 @@ Recognition requires each complete measured assembly, independently of filename
 or key numbering. Switch centres remain unchanged. Mounting holes and the long
 plate-relief slots stay fixed and are not part of either key. Both measured patterns
 are available under **Add Alps Keys** and as explicit Alps stabilizer profiles.
+
+## Intersecting openings (probable keys)
+
+Recognition uses switch-sized edge pairs and interior samples, not filenames or
+an inventory of combined cutouts. Multiple switches sharing a contour and
+switch notches in an enclosing plate outline appear as **probable keys**.
+Select and inspect them, then choose **Confirm recovered geometry** before
+moving, removing or converting them. Confirmation is saved in plate projects.
+
+Shared contours are rebuilt once as a group. The neighbouring switches stay in
+place. Surviving circular arcs and paired straight channel edges identify fixed
+mounting openings and flex slots; inferred portions are clipped to the original
+opening so they cannot invent additional cuts. Untouched drawings still export
+byte for byte, including after confirmation alone.
+
+This is geometric inference, not guaranteed reconstruction of the original CAD.
+It needs evidence on all four switch sides; a completely missing edge, an
+unusual switch, insufficient surrounding keys to identify plate material, or
+an unrecognizable intersecting shape may require manual CAD work. Hidden
+boundaries cannot always be recovered uniquely. Inspect the regenerated shared
+contour before manufacture; confirmation means accepting that interpretation.
