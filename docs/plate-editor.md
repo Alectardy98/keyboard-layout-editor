@@ -502,6 +502,13 @@ the opening regenerates its contour. Review the warning before manufacturing.
 Closed unrecognized outlines assembled from separate LINE/ARC entities can now
 be selected by clicking inside them, then mapped, deleted or attached to a key.
 
-New plate projects record recognition version 3. Older saved projects keep their
+New plate projects record recognition version 4. Older saved projects keep their
 previous interpretation so new detections do not silently reassign existing
 key edits. Open the original DXF afresh to use the new recognition rules.
+
+The Manta-style alternate-stem bottom row is resolved as
+1.25 / 1.25 / 1.25 / 6.25 / 1.25 / 1.25 when the complete pattern agrees.
+This changes inferred cap positions, not the imported cuts. Version 3 projects
+retain their previous positions and profile templates. The combined 2u PCB
+opening also recognizes split-keyboard rotations; 7 × 15 mm stabilizer slots
+with complete but overshooting corner joins can be recovered as supports.
