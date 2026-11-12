@@ -6,7 +6,7 @@
     function attach(scope,hooks) {
         var workspace=!!root.KLE_PLATE_WORKSPACE;
         var ui=scope.plate={workspace:workspace,model:null,error:'',notice:'',busy:false,paths:[],warnings:[],
-            units:'mm',layer:'',layers:[],options:{switch:'original',stabilizer:'original',direction:'south',mount:'plate',
+            units:'mm',layer:'',layers:[],options:{switch:'original',stabilizer:'original',direction:'south',mount:'plate',mxPattern:'cherry',
                 axis:'auto',switchRotation:0,extraSize:0,spacing:'',stemOffset:0},alpsFamily:'alps-default',
             stabChoice:'original',pending:null,mappingShapes:false,pickedShapes:[],shapeKey:{name:'Custom key',width:1,height:1}};
         function guarded(fn) {
@@ -102,6 +102,11 @@
             guarded(function(){var d=ui.model.document;load(D.exportBytes(d),d.name,{units:ui.units,layer:ui.layer});});
         };
         ui.presets=root.PlateProfiles?.presets || [];
+        ui.mxPresets=root.PlateProfiles?.mxPresets || [];
+        ui.mxSpacings=[{value:'',label:'From key size'},{value:23.8,label:'2–2.75u: Cherry 23.8 mm'},
+            {value:23.876,label:'2–2.75u: 0.94 inch / 23.876 mm'},{value:38.1,label:'3u: 38.1 mm'},
+            {value:95.25,label:'6u: 95.25 mm'},{value:100,label:'6.25u: 100 mm'},
+            {value:114.3,label:'7u: 114.3 mm'},{value:133.35,label:'8u: 133.35 mm'}];
         ui.addPreset=function(id){guarded(function(){
             if(!ui.model)throw Error('Open a DXF first.');
             var preset=root.PlateProfiles.preset(id);
@@ -285,7 +290,7 @@
                     ui.stabChoice=style.startsWith('alps-')?'alps':style;
                     if(ui.stabChoice==='alps')ui.alpsFamily=ui.options.stabilizer;
                 } else {
-                    ui.options={switch:'original',stabilizer:'original',direction:'south',mount:'plate',axis:'auto',switchRotation:0,extraSize:0,spacing:'',stemOffset:0};
+                    ui.options={switch:'original',stabilizer:'original',direction:'south',mount:'plate',mxPattern:'cherry',axis:'auto',switchRotation:0,extraSize:0,spacing:'',stemOffset:0};
                     ui.stabChoice='original';
                 }
             } else ui.mixedProfiles=false;

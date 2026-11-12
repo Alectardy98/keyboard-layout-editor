@@ -71,9 +71,11 @@
       </fieldset>
       <fieldset><legend>Switch opening</legend>
         <p class="text-warning" ng-if="plate.mixedProfiles">Mixed selection. Apply uses the options shown below.</p>
-        <label>Profile <select class="form-control" ng-model="plate.options.switch" aria-label="Switch profile"><option value="original">Keep imported opening</option><option value="mx">MX — 14 × 14 mm</option><option value="alps-multistep">Caps Multistep</option><option value="alps">Alps — 15.5 × 12.8 mm</option><option value="ec11">EC11 — Zenith clearance</option><option value="custom">Custom rectangle</option></select></label>
+        <label>Profile <select class="form-control" ng-model="plate.options.switch" aria-label="Switch profile"><option value="original">Keep imported opening</option><option value="mx">MX — 14 × 14 mm</option><option value="universal">MX + Alps shared opening</option><option value="alps">Alps — 15.5 × 12.8 mm</option><option value="ec11">EC11 — Zenith clearance</option><option value="custom">Custom rectangle</option></select></label>
+        <p class="help-block" ng-if="plate.options.switch==='mx-multistep' || plate.options.switch==='alps-multistep'">Current preset: Caps Multistep. Choose a different switch profile only to replace this opening.</p>
         <div class="plate-pair" ng-if="plate.options.switch==='custom'"><label>Width (mm)<input type="number" class="form-control" ng-model="plate.options.customWidth" min="5" max="30" step="0.01"></label><label>Height (mm)<input type="number" class="form-control" ng-model="plate.options.customHeight" min="5" max="30" step="0.01"></label></div>
         <div class="plate-pair" ng-if="plate.options.switch!=='original'"><label>Switch rotation <select class="form-control" ng-model="plate.options.switchRotation" ng-options="v as (v+'°') for v in [0,90,180,270]"></select></label><label>Extra size (mm)<input type="number" class="form-control" ng-model="plate.options.extraSize" min="0" max="1" step="0.01"></label></div>
+        <label ng-if="plate.options.switch==='mx' || plate.options.switch==='alps' || plate.options.switch==='custom'">Switch corner radius (mm)<input class="form-control" type="number" min="0" max="0.5" step="0.05" ng-model="plate.options.switchRadius" placeholder="0"></label>
       </fieldset>
       <fieldset ng-if="plate.supportCandidates.length">
         <legend>Nearby support openings</legend>
@@ -93,6 +95,17 @@
           <label class="plate-block">Orientation</label>
           <div class="plate-buttons" role="group" aria-label="Stabilizer orientation"><button class="btn btn-default" ng-class="{active:plate.options.direction==='north'}" ng-attr-aria-pressed="{{plate.options.direction==='north'}}" ng-click="plate.options.direction='north'">North</button><button class="btn btn-default" ng-class="{active:plate.options.direction==='south'}" ng-attr-aria-pressed="{{plate.options.direction==='south'}}" ng-click="plate.options.direction='south'">South</button></div>
           <div ng-if="plate.stabChoice==='mx'"><label class="plate-block">MX mounting</label><div class="plate-buttons" role="group" aria-label="MX mounting"><button class="btn btn-default" ng-class="{active:plate.options.mount==='plate'}" ng-attr-aria-pressed="{{plate.options.mount==='plate'}}" ng-click="plate.options.mount='plate'">Plate mount</button><button class="btn btn-default" ng-class="{active:plate.options.mount==='pcb'}" ng-attr-aria-pressed="{{plate.options.mount==='pcb'}}" ng-click="plate.options.mount='pcb'">PCB mount</button></div></div>
+          <div ng-if="plate.stabChoice==='mx'">
+            <label ng-if="plate.options.mount==='plate'">Clip-in template<select class="form-control" ng-model="plate.options.mxPattern"><option value="cherry">Cherry nominal — short/long wire clearance</option><option value="legacy">Earlier editor template (saved-project compatibility)</option></select></label>
+            <div ng-if="plate.options.mount==='pcb'" class="plate-pair">
+              <label>Housing clearance width (mm)<input class="form-control" type="number" min="6" max="10" step="0.05" ng-model="plate.options.pcbWidth" placeholder="7"></label>
+              <label>Housing clearance height (mm)<input class="form-control" type="number" min="12" max="20" step="0.05" ng-model="plate.options.pcbHeight" placeholder="15"></label>
+              <label>Housing Y offset (mm)<input class="form-control" type="number" min="-5" max="5" step="0.05" ng-model="plate.options.pcbOffset" placeholder="-1.5"></label>
+              <label>Corner radius (mm)<input class="form-control" type="number" min="0" max="1" step="0.05" ng-model="plate.options.pcbRadius" placeholder="0"></label>
+            </div>
+            <p class="help-block">Plate mount retains clip-in ledges. PCB mount makes housing clearance only: it does not add PCB holes. Match the PCB, stabilizer and plate thickness before fabrication.</p>
+            <label>Spacing preset<select class="form-control" ng-model="plate.options.spacing" ng-options="p.value as p.label for p in plate.mxSpacings"></select></label>
+          </div>
           <div class="plate-pair"><label>Key axis<select class="form-control" ng-model="plate.options.axis"><option value="auto">Auto from key size</option><option value="horizontal">Horizontal</option><option value="vertical">Vertical</option></select></label><label>Custom spacing (mm)<input type="number" class="form-control" ng-model="plate.options.spacing" min="10" max="250" step="0.01" placeholder="Preset"></label></div>
           <div class="plate-pair"><label>Stem offset (mm)<input type="number" class="form-control" ng-model="plate.options.stemOffset" min="-100" max="100" step="0.01"></label><label class="plate-force"><input type="checkbox" ng-model="plate.options.forceStabilizer"> Force on short key</label></div>
           <p class="help-block">North/South is relative to the key. Native Alps presets start at 1.75u; MX/Costar at 2u. Unusual caps need measured spacing. PCB mount requires compatible PCB support.</p>

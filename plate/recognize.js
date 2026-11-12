@@ -410,6 +410,69 @@
                 label:'Caps Multistep',type:'alps',core:{width:15.5,height:b.height},contours:[c],stabilizers:[],editable:c.editable,width:1.75,height:1});
             counts.alps++;
         });
+        // Broad MX compatibility windows lose the 14 mm vertical core edges.
+        // Match the complete contour, not a large rectangle's bounding box.
+        // Append new discoveries so existing saved-project IDs stay unchanged.
+        [{pattern:Measured.mxWide2,width:2,label:'2u plate mount'},
+         {pattern:Measured.mxWide225,width:2.25,label:'2.25u plate mount'},
+         {pattern:Measured.mxCapsMultistep,width:1.75,label:'Caps Multistep',caps:true}].forEach(function(preset){
+            document.contours.forEach(function(c){
+                if(options.layer && !c.parts.some(function(p){return p.layer===options.layer;}))return;
+                if(keys.some(function(k){return k.contours.includes(c)||k.stabilizers.includes(c);}))return;
+                [0,Math.PI/2,Math.PI,3*Math.PI/2].some(function(angle){
+                    var local=c.points.map(function(p){return G.rotate(p,-angle);}),b=G.bounds(local),t=G.bounds(preset.pattern);
+                    var center=G.rotate({x:b.cx-t.cx,y:b.cy-t.cy},angle);
+                    if(!matches(c.points,preset.pattern,center,angle,preset.caps?.25:.04))return false;
+                    // A multi-position modifier slot is not always Caps Lock.
+                    // Require the neighbouring 1u key at the 1.75u row pitch.
+                    if(preset.caps && !keys.some(function(k){var n=G.rotate({x:k.center.x-center.x,y:k.center.y-center.y},-angle);
+                        return k.width===1 && Math.abs(n.y)<.1 && Math.abs(n.x-1.375*19.05)<.1;}))return false;
+                    keys.push({id:'key-'+String(keys.length+1).padStart(3,'0'),center:center,holeAngle:angle,capAngle:angle,
+                        label:preset.label,type:'mx',core:{width:14,height:14},contours:[c],stabilizers:[],editable:c.editable,
+                        width:preset.width,height:1,compound:!preset.caps});counts.mx++;return true;
+                });
+            });
+        });
+        // Clearance slots vary by vendor. Associate only a symmetric pair at
+        // a known wire spacing and verify rectangular area, not just bounds.
+        keys.filter(function(k){return k.type==='mx' && !k.recovered && !k.compound;}).forEach(function(key){
+            if(!key.stabilizers.length){
+                [key.capAngle,key.capAngle+Math.PI/2].some(function(angle,axis){
+                    var candidates=document.contours.filter(function(c){return c.editable &&
+                        (!options.layer || c.parts.some(function(p){return p.layer===options.layer;})) &&
+                        !keys.some(function(k){return k.contours.includes(c)||k.stabilizers.includes(c);});}).map(function(c){
+                        var points=c.points.map(function(p){return G.rotate({x:p.x-key.center.x,y:p.y-key.center.y},-angle);}),b=G.bounds(points);
+                        return {c:c,b:b,area:Math.abs(G.area(points))};
+                    }).filter(function(v){return v.b.width>=6.7 && v.b.width<=7.2 && v.b.height>=13.9 && v.b.height<=16.1 &&
+                        Math.abs(v.b.cy)<=2 && v.area/(v.b.width*v.b.height)>.985;});
+                    var pair=null;
+                    candidates.filter(function(v){return v.b.cx<0;}).some(function(a){return candidates.some(function(b){
+                        var span=b.b.cx-a.b.cx;
+                        var asymmetry=a.b.cx+b.b.cx;
+                        var offset6=Math.abs(span-95.25)<.15 && Math.abs(Math.abs(asymmetry)-19.05)<.15;
+                        if(b.b.cx<=0 || (!offset6 && Math.abs(asymmetry)>.15) || Math.abs(a.b.cy-b.b.cy)>.1 ||
+                           Math.abs(a.b.width-b.b.width)>.1 || Math.abs(a.b.height-b.b.height)>.1 ||
+                           ![23.8,23.876,38.1,95.25,100,114.3,133.35].some(function(n){return Math.abs(n-span)<.15;}))return false;
+                        pair=[a,b];return true;
+                    });});
+                    if(!pair)return false;
+                    var span=pair[1].b.cx-pair[0].b.cx;
+                    key.stabilizers=pair.map(function(v){return v.c;});
+                    key.detectedStabilizer={family:'mx-pcb',spacing:span,vertical:!!axis,stemOffset:-(pair[0].b.cx+pair[1].b.cx)/2,direction:pair[0].b.cy>0?'north':'south'};
+                    var size=span<24?2:span<39?3:span<98?6:span<105?6.25:span<120?7:8;
+                    if(axis)key.height=size;else key.width=size;return true;
+                });
+            }
+            // ISO has the 2u vertical pair and a neighbouring main typing row
+            // half a pitch below its stem. A numpad 2u stays rectangular.
+            if(key.detectedStabilizer?.vertical && key.height===2 && keys.some(function(k){
+                return k!==key && k.width===1 && Math.abs(k.center.y-(key.center.y-9.525))<.15 &&
+                    Math.abs(k.center.x-(key.center.x-21.43125))<.15;
+            })){
+                key.width=1.25;key.label='ISO plate mount';
+                key.capShape={width2:1.5,height2:1,x2:-.25,y2:0};
+            }
+        });
         var types=Object.keys(counts).filter(function(type){return counts[type]>0;});
         return {keys:keys,counts:counts,type:types.length===1?types[0]:types.length?'mixed':'unknown',
             ambiguous:ambiguous,duplicates:duplicate,unassigned:document.contours.filter(function(c) {

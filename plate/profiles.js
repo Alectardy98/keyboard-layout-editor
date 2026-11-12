@@ -46,6 +46,22 @@
         if(table[size]!==undefined) return table[size];
         throw Error('No '+(style.startsWith('alps')?'Alps':'MX/Costar')+' spacing preset for '+size+'u. Enter the measured stabilizer spacing.');
     }
+    // Empty values retain the documented template; reject invalid dimensions
+    // before committing any edit to the plate document.
+    function dimension(value,fallback,min,max,label) {
+        var n=value===undefined || value===null || value===''?fallback:Number(value);
+        if(!Number.isFinite(n) || n<min || n>max)throw Error(label+' must be between '+min+' and '+max+' mm.');
+        return n;
+    }
+    function roundedRectangle(width,height,x,y,radius) {
+        if(!radius)return rectangle(width,height,x,y);
+        var points=[],steps=Math.max(2,Math.ceil(Math.PI/2/Math.acos(Math.max(-1,1-.005/radius))));
+        [[1,1],[-1,1],[-1,-1],[1,-1]].forEach(function(sign,index){
+            var cx=x+sign[0]*(width/2-radius),cy=y+sign[1]*(height/2-radius);
+            for(var i=0;i<=steps;i++){var a=(index+i/steps)*Math.PI/2;points.push({x:cx+radius*Math.cos(a),y:cy+radius*Math.sin(a)});}
+        });
+        return polygon(points);
+    }
     function stabilizers(options,key) {
         var style=options.stabilizer || 'original';
         if(style==='original' || style==='none') return [];
@@ -95,8 +111,23 @@
         if(style==='mx') {
             if(options.mount==='pcb') {
                 // Clearance around a PCB-supported housing; no plate latch.
-                centers.forEach(function(x){pieces.push(rectangle(7,15,x,-1.5));});
-            } else {
+                var cw=dimension(options.pcbWidth,7,6,10,'PCB clearance width'),
+                    ch=dimension(options.pcbHeight,15,12,20,'PCB clearance height'),
+                    cy=dimension(options.pcbOffset,-1.5,-5,5,'PCB clearance Y offset'),
+                    cr=dimension(options.pcbRadius,0,0,1,'PCB clearance corner radius');
+                centers.forEach(function(x){pieces.push(roundedRectangle(cw,ch,x,cy,cr));});
+            } else if(options.mxPattern==='cherry') {
+                // Cherry switch catalogue (2010), p71: nominal clip openings.
+                // This template is opt-in; old saved projects keep the legacy
+                // geometry below until the user explicitly changes the pattern.
+                centers.forEach(function(x,index){
+                    pieces.push(rectangle(6.65,12.3,x,-.62));
+                    pieces.push(rectangle(.875,2.8,x+(index===0?-1:1)*3.7625,.9));
+                    pieces.push(rectangle(3,1.2,x,-7.37));
+                });
+                var shortKey=size<3;
+                pieces.push(rectangle(distance-6.65,shortKey?11:4.6,-offset,shortKey?-.77:0));
+            } else if(!options.mxPattern || options.mxPattern==='legacy') {
                 // Clip-in plate housing: body, outside ear and latch relief.
                 centers.forEach(function(x,index) {
                     pieces.push(rectangle(6.75,12.3,x,-0.62));
@@ -104,7 +135,7 @@
                     pieces.push(rectangle(3.3,1.2,x,-7.37));
                 });
                 pieces.push(rectangle(distance-6.75,4.6,(centers[0]+centers[1])/2,0));
-            }
+            } else throw Error('Unknown MX plate-mount pattern.');
         } else if(style==='costar') {
             centers.forEach(function(x){pieces.push(rectangle(3.3,14.2,x,-0.65));});
         } else if(style==='alps-default' || style==='alps-aek' || style==='alps-at101') {
@@ -122,9 +153,10 @@
         });
     }
     function switchShape(options) {
+        if(options.switch==='mx-multistep')return polygon(Measured.mxCapsMultistep);
         if(options.switch==='alps-multistep')return polygon(Measured.capsMultistep);
         if(options.switch==='ec11') return polygon(Measured.ec11);
-        var preset=switches[options.switch];
+        var preset=options.switch==='universal'?switches.mx:switches[options.switch];
         if(options.switch==='custom') {
             var width=Number(options.customWidth),height=Number(options.customHeight);
             if(!Number.isFinite(width) || !Number.isFinite(height) || width<5 || height<5 || width>30 || height>30)
@@ -136,8 +168,10 @@
         if(!Number.isFinite(extra) || extra<0 || extra>1) throw Error('Extra cutout size must be between 0 and 1 mm.');
         var rotation=Number(options.switchRotation || 0);
         if(!Number.isFinite(rotation)) throw Error('Choose a valid switch orientation.');
-        var result=G.rectangle(preset.width+extra,preset.height+extra,{x:0,y:0},rotation*Math.PI/180);
-        return polygon(result);
+        var radius=dimension(options.switchRadius,0,0,.5,'Switch corner radius');
+        var body=roundedRectangle(preset.width+extra,preset.height+extra,0,0,radius);
+        if(options.switch==='universal')body=union([body,roundedRectangle(15.5+extra,12.8+extra,0,0,radius)])[0];
+        return place([body],{x:0,y:0},rotation*Math.PI/180)[0];
     }
     function generate(options,key) {
         var body=switchShape(options),parts=stabilizers(options,key);
@@ -179,15 +213,27 @@
         {id:'alps-625-barrels',label:'6.25u — two barrel stabilizers',width:6.25,barrels:true,stabs:true},
         {id:'alps-55',label:'5.5u — complete spacebar supports',width:5.5,stabs:true}
     ];
+    // Explicit sizes rather than rounding unknown spacebars to a nearby wire.
+    var mxPresets=[1,1.25,1.5,1.75].map(function(size){return {id:'mx-'+size,label:size+'u',width:size};});
+    mxPresets.push({id:'mx-multistep',label:'1.75u Caps Multistep',width:1.75},
+        {id:'mx-stepped',label:'1.75u stepped Caps — 1.25u raised area',width:1.25,full:1.75});
+    ['plate','pcb'].forEach(function(mount){
+        [2,2.25,2.75,3,6,6.25,7,8].forEach(function(size){mxPresets.push({id:'mx-'+size+'-'+mount,
+            label:size+'u '+(mount==='plate'?'plate mount':'PCB mount'),width:size,mount:mount,stabs:true});});
+        mxPresets.push({id:'mx-vertical-'+mount,label:'Vertical 2u — '+mount+' mount',width:1,height:2,mount:mount,stabs:true},
+            {id:'mx-iso-'+mount,label:'ISO Enter — '+mount+' mount',width:1.25,height:2,iso:true,mount:mount,stabs:true},
+            {id:'mx-6-offset-'+mount,label:'6u offset stem — '+mount+' mount',width:6,mount:mount,stabs:true,offset:9.525});
+    });
     function preset(id) {
         if(id==='alps-625-all')id='alps-7-all';
-        var p=presets.find(function(p){return p.id===id;});
+        var mx=id.startsWith('mx-'),p=(mx?mxPresets:presets).find(function(p){return p.id===id;});
         if(id==='ec11')p={label:'EC11',width:1};
         if(!p)throw Error('Unknown key preset.');
-        return {key:{width:p.width,width2:p.z150?2:p.bae?1.5:p.zkb2?1:p.full || p.width,height:p.height || 1,height2:p.z150?1:(p.zkb2 || p.bae)?2:p.height || 1,
-            x2:p.z150?-1:p.bae?.75:p.zkb2?1.25:p.left?p.width-p.full:0,y2:p.z150?1:(p.zkb2 || p.bae)?-1:0,stepped:!!p.full,labels:[p.label]},
-            options:{switch:id==='ec11'?'ec11':id==='alps-multistep'?'alps-multistep':'alps',switchRotation:p.height===2?90:0,stabilizer:p.canon || (p.barrels?'alps-barrel625':p.bae?'alps-bae':p.zkb2?'alps-zkb2':p.stabs?'alps-default':'none'),direction:'south'}};
+        return {key:{width:p.width,width2:p.iso?1.5:p.z150?2:p.bae?1.5:p.zkb2?1:p.full || p.width,height:p.height || 1,height2:p.iso?1:p.z150?1:(p.zkb2 || p.bae)?2:p.height || 1,
+            x2:p.iso?-.25:p.z150?-1:p.bae?.75:p.zkb2?1.25:p.left?p.width-p.full:0,y2:p.z150?1:(p.zkb2 || p.bae)?-1:0,stepped:!!p.full,labels:[p.label]},
+            options:mx?{switch:id==='mx-multistep'?'mx-multistep':'mx',switchRotation:p.height===2?90:0,
+                stabilizer:p.stabs?'mx':'none',mount:p.mount || 'plate',mxPattern:'cherry',direction:'south',stemOffset:p.offset || 0}: {switch:id==='ec11'?'ec11':id==='alps-multistep'?'alps-multistep':'alps',switchRotation:p.height===2?90:0,stabilizer:p.canon || (p.barrels?'alps-barrel625':p.bae?'alps-bae':p.zkb2?'alps-zkb2':p.stabs?'alps-default':'none'),direction:'south'}};
     }
-    return {presets:presets,preset:preset,switches:switches,spacing:spacing,stabilizers:stabilizers,switchShape:switchShape,generate:generate,
+    return {presets:presets,mxPresets:mxPresets,preset:preset,switches:switches,spacing:spacing,stabilizers:stabilizers,switchShape:switchShape,generate:generate,
         polygon:polygon,rings:rings,union:union,place:place,clip:clip};
 }));
