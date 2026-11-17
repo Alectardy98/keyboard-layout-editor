@@ -719,3 +719,34 @@ stem centre, associates only the selected source contours, and leaves their DXF
 records unchanged. Undo restores the prior assignment; plate projects retain the
 inferred centre across reloads. It never sweeps the entire plate or silently
 absorbs nearby mounting holes.
+
+### Additional Alps assemblies: Constance TKL and Brutal60
+
+**Add Alps Keys → Alps default** and the matching **Stabilizers → Alps →
+Alps default → Hole** list include four additional measured choices:
+
+- **2u ISO Enter — wire north/south**: four wire openings; ISO cap outline.
+- **2.25u BAE — wire and Costar**: two wire slots and the two upper support
+  openings; a BAE cap with an upper-right extension.
+- **7u spacebar — wire north/south and twin barrels**: ten support contours.
+- **7u spacebar — wire north/south, Costar and twin barrels**: twelve support
+  contours, including the outer compatibility openings.
+
+These are complete combined assemblies, so the Costar-compatible geometry stays
+with its wire/barrel pattern rather than appearing as an independent replacement.
+North/South flips the entire pattern 180°; the dual-sided patterns already contain
+both sets of wire slots. Add and Apply use the same geometry and cap dimensions.
+
+References are the user-confirmed working files
+`Constance_TKL_FK2001_BAE_0.4kerf-v0.2.dxf` and
+`brutal60_Alps_switch_plate_hhkb_v4_2_.dxf`, supplied November 17, 2026.
+The Constance filename states 0.4 kerf; its measured support dimensions are kept
+as supplied, not converted into nominal manufacturer dimensions. Neither file is
+rescaled or given additional kerf compensation. Verify the measured openings
+against your cutting process before fabricating a replacement.
+
+Recognition checks the complete support geometry relative to the switch opening,
+not filenames, key numbers or nearby circles alone. Partial matches retain the
+existing detection/manual-review behavior. Original DXF records remain unchanged
+until edited; moves carry the complete assembly. Project recognition version 12
+adds these matches; older saved projects retain their previous interpretation.
