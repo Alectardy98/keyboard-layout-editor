@@ -770,3 +770,9 @@ opposed wire pairs with one key and selects Both; an isolated extra slot is
 insufficient. Asymmetric north/south wire offsets are permitted within bounded
 matching tolerances, as in the supplied Brutal60 Backspace. Version 13 preserves
 these display and association changes separately from older project behavior.
+
+An orange **Unrecognized spacing detected** banner reports a reliably measured
+non-nominal repeated pitch, its detected switch family, the expected 19.05 mm
+pitch, and the measured source spacing. Deliberate gaps and quarter-unit
+staggering alone do not trigger it. It is a warning about the imported physical
+spacing, not a claim that the inferred KLE grid has corrected the drawing.
