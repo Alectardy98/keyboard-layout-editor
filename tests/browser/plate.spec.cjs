@@ -269,7 +269,7 @@ test('separate MX menus and Topre presets retain complete geometry through proje
  await expect(page.getByLabel('Switch profile',{exact:true})).toHaveValue('topre');
  await expect(page.getByLabel('Stabilizer hole',{exact:true}).locator('option:checked')).toHaveText('7u spacebar');
  const save=page.waitForEvent('download');await page.getByRole('button',{name:'Save plate project',exact:true}).click();const file=await(await save).path(),data=fs.readFileSync(file);
- expect(JSON.parse(data).recognitionVersion).toBe(11);
+ expect(JSON.parse(data).recognitionVersion).toBe(12);
  await page.reload();const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open plate project',exact:true}).click();await(await chooser).setFiles({name:'topre.plate.json',mimeType:'application/json',buffer:data});
  await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Download edited DXF'}).click();
