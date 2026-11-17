@@ -269,7 +269,7 @@ test('separate MX menus and Topre presets retain complete geometry through proje
  await expect(page.getByLabel('Switch profile',{exact:true})).toHaveValue('topre');
  await expect(page.getByLabel('Stabilizer hole',{exact:true}).locator('option:checked')).toHaveText('7u spacebar');
  const save=page.waitForEvent('download');await page.getByRole('button',{name:'Save plate project',exact:true}).click();const file=await(await save).path(),data=fs.readFileSync(file);
- expect(JSON.parse(data).recognitionVersion).toBe(12);
+ expect(JSON.parse(data).recognitionVersion).toBe(13);
  await page.reload();const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open plate project',exact:true}).click();await(await chooser).setFiles({name:'topre.plate.json',mimeType:'application/json',buffer:data});
  await expect(page.locator('#keyboard .keycap')).toHaveCount(5);
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Download edited DXF'}).click();
@@ -432,4 +432,18 @@ test('best guess adds selected unmatched geometry to KLE without replacing cuts 
  const bytes=await page.evaluate(()=>{const s=angular.element(document.body).scope();return Array.from(s.plate.model.exportFile(s.keys()));});
  expect(Buffer.from(bytes).toString()).toBe(source);
  await page.getByRole('button',{name:/Undo$/}).click();await expect(page.locator('#keyboard .keycap')).toHaveCount(4);
+});
+
+test('Both orientation applies both wire pairs and survives project reload',async({page})=>{
+ await open(page);await page.locator('#keyboard').getByText('Key 3',{exact:true}).click();
+ await page.getByLabel('Switch profile',{exact:true}).selectOption('alps');await selectStab(page,'alps');
+ await page.getByLabel('Stabilizer hole').selectOption({label:'2u standard'});
+ await page.getByRole('button',{name:'Both',exact:true}).click();await expect(page.getByRole('button',{name:'Both',exact:true})).toHaveAttribute('aria-pressed','true');
+ await page.getByRole('button',{name:'Apply to selected keys',exact:true}).click();
+ const download=page.waitForEvent('download');await page.getByRole('button',{name:'Download edited DXF'}).click();
+ const d=D.parse(fs.readFileSync(await(await download).path())),k=R.analyze(d).keys.find(k=>Math.abs(k.center.x-47.625)<.01);
+ expect(k.stabilizers).toHaveLength(4);expect(k.detectedStabilizer.both).toBe(true);
+ const save=page.waitForEvent('download');await page.getByRole('button',{name:'Save plate project',exact:true}).click();const data=fs.readFileSync(await(await save).path());
+ await page.reload();const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open plate project',exact:true}).click();await(await chooser).setFiles({name:'both.plate.json',mimeType:'application/json',buffer:data});
+ await page.locator('#keyboard').getByText('Key 3',{exact:true}).click();await expect(page.getByRole('button',{name:'Both',exact:true})).toHaveAttribute('aria-pressed','true');
 });
