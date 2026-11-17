@@ -447,3 +447,14 @@ test('Both orientation applies both wire pairs and survives project reload',asyn
  await page.reload();const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open plate project',exact:true}).click();await(await chooser).setFiles({name:'both.plate.json',mimeType:'application/json',buffer:data});
  await page.locator('#keyboard').getByText('Key 3',{exact:true}).click();await expect(page.getByRole('button',{name:'Both',exact:true})).toHaveAttribute('aria-pressed','true');
 });
+
+test('non-nominal repeated spacing shows an orange expected-versus-measured banner',async({page})=>{
+ await open(page);await expect(page.locator('.plate-spacing-warning')).toHaveCount(0);
+ const G=require('../../plate/geometry'),rings=[];
+ for(let row=0;row<3;row++)for(let col=0;col<10;col++)rings.push(G.rectangle(15.5,12.8,{x:100+col*19.3267,y:100-row*19.3267}));
+ const source='0\nSECTION\n2\nENTITIES\n'+rings.map(p=>'0\nLWPOLYLINE\n8\nCUT\n90\n'+p.length+'\n70\n1\n'+p.map(q=>'10\n'+q.x+'\n20\n'+q.y+'\n').join('')).join('')+'0\nENDSEC\n0\nEOF\n';
+ const chooser=page.waitForEvent('filechooser');await page.getByRole('button',{name:'Open DXF plate',exact:true}).click();await(await chooser).setFiles({name:'spacing.dxf',mimeType:'application/dxf',buffer:Buffer.from(source)});
+ const banner=page.locator('.plate-spacing-warning');await expect(banner).toBeVisible();await expect(banner).toContainText('Alps openings detected');await expect(banner).toContainText('19.05 mm');await expect(banner).toContainText('19.327 mm');await expect(banner).toHaveCSS('background-color','rgb(255, 241, 217)');
+ await page.getByRole('button',{name:'Confirm / re-read',exact:true}).click();
+ const download=page.waitForEvent('download');await page.getByRole('button',{name:'Download edited DXF'}).click();expect(fs.readFileSync(await(await download).path(),'utf8')).toBe(source);
+});
