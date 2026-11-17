@@ -36,7 +36,7 @@
         var frame={x:document.bounds.minX-margin,y:document.bounds.maxY+margin,pitch:PITCH};
         // Derive the display origin from a key, not arbitrary drawing margins.
         // Only the coordinate transform changes: physical DXF centres stay exact.
-        if(keys.length && keys.every(function(k){return Math.abs(k.capAngle)<EPS;})) {
+        if(keys.length && keys.every(function(k){return Math.abs(k.capAngle)<.001;})) {
             var ref=keys[0],left=ref.center.x-ref.width*PITCH/2,top=ref.center.y+ref.height*PITCH/2;
             var minLeft=Math.min(...keys.map(function(k){return k.center.x-k.width*PITCH/2+Math.min(0,k.capShape?.x2 || 0)*PITCH;}));
             var maxTop=Math.max(...keys.map(function(k){return k.center.y+k.height*PITCH/2-Math.min(0,k.capShape?.y2 || 0)*PITCH;}));
@@ -77,7 +77,14 @@
                 var key=defaultKey();key.width=key.width2=source.width;key.height=key.height2=source.height;
                 if(source.capShape)Object.assign(key,source.capShape);
                 key.labels=[source.label || (source.recovered?'Probable '+source.type:source.type==='ec11'?'EC11':'Key '+(index+1))];key._plateId=source.id;
-                position(key,source.center,source.capAngle,frame);snapDisplay(key);return key;
+                position(key,source.center,source.capAngle,frame);
+                if(recognized.layoutPitch && recognized.layoutPitch!==PITCH){
+                    var before=physical(key),ref=keys[0].center,ratio=PITCH/recognized.layoutPitch;
+                    framePosition(key,{x:ref.x+(source.center.x-ref.x)*ratio,y:ref.y+(source.center.y-ref.y)*ratio},source.capAngle,frame);
+                    var after=framePhysical(key,frame);
+                    settings[key._plateId].gridOffset=G.rotate({x:after.center.x-before.center.x,y:after.center.y-before.center.y},-after.angle);
+                }
+                snapDisplay(key);return key;
             });
         }
         function ensure(key,seen) {

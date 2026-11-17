@@ -118,7 +118,7 @@
         <div class="plate-stab-hole" ng-if="plate.stabAction==='replace'">
           <label>Hole <select class="form-control" ng-model="plate.stabChoice" ng-change="plate.changeStabPattern()" ng-options="p.id as p.label for p in plate.stabPatterns()" aria-label="Stabilizer hole"></select></label>
           <div class="plate-stab-orientation"><label class="plate-block">Orientation</label>
-            <div class="plate-buttons" role="group" aria-label="Stabilizer orientation"><button class="btn btn-default" ng-class="{active:plate.holeDirection()==='north'}" ng-attr-aria-pressed="{{plate.holeDirection()==='north'}}" ng-click="plate.flipHole('north')">North</button><button class="btn btn-default" ng-class="{active:plate.holeDirection()==='south'}" ng-attr-aria-pressed="{{plate.holeDirection()==='south'}}" ng-click="plate.flipHole('south')">South</button></div>
+            <div class="plate-buttons" role="group" aria-label="Stabilizer orientation"><button class="btn btn-default" ng-class="{active:plate.holeDirection()==='north'}" ng-attr-aria-pressed="{{plate.holeDirection()==='north'}}" ng-click="plate.flipHole('north')">North</button><button class="btn btn-default" ng-class="{active:plate.holeDirection()==='south'}" ng-attr-aria-pressed="{{plate.holeDirection()==='south'}}" ng-click="plate.flipHole('south')">South</button><button class="btn btn-default" ng-class="{active:plate.holeDirection()==='both'}" ng-attr-aria-pressed="{{plate.holeDirection()==='both'}}" ng-click="plate.flipHole('both')">Both</button></div>
           </div>
         </div>
         <details class="plate-stab-advanced" ng-if="plate.stabAction==='replace' &amp;&amp; !plate.isIntegratedPattern(plate.stabChoice)"><summary>Advanced</summary>

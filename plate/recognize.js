@@ -72,6 +72,26 @@
         if(result>Math.PI/4) result-=Math.PI/2;
         return Math.abs(result)<1e-8?0:result;
     }
+    // Learn display pitch only from repeated horizontal runs confirmed by
+    // matching row spacing. This never scales imported contours or CAD units.
+    function displayPitch(keys) {
+        var rows=[];
+        keys.filter(function(k){return Math.abs(k.capAngle)<.001;}).forEach(function(k){
+            var row=rows.find(function(r){return Math.abs(r.y-k.center.y)<.35;});
+            if(!row){row={y:k.center.y,keys:[]};rows.push(row);}row.keys.push(k);
+        });
+        var samples=[],supportingRows=0;
+        rows.forEach(function(row){row.keys.sort(function(a,b){return a.center.x-b.center.x;});var count=0;
+            row.keys.slice(1).forEach(function(k,i){var dx=k.center.x-row.keys[i].center.x;if(Math.abs(dx-19.05)<.6){samples.push(dx);count++;}});
+            if(count>=3)supportingRows++;
+        });
+        if(samples.length<8 || supportingRows<2)return 19.05;
+        samples.sort(function(a,b){return a-b;});var pitch=samples[Math.floor(samples.length/2)];
+        if(Math.abs(pitch-19.05)<.05 || samples.filter(function(v){return Math.abs(v-pitch)<.04;}).length<samples.length*.85)return 19.05;
+        rows.sort(function(a,b){return a.y-b.y;});
+        if(rows.slice(1).filter(function(r,i){return Math.abs(r.y-rows[i].y-pitch)<.08;}).length<2)return 19.05;
+        return pitch;
+    }
     function unknownCandidate(loop) {
         if(loop.parts.every(function(p){return p.type==='CIRCLE';})) return null;
         var box=G.minimumBox(loop.points),area=Math.abs(G.area(loop.points)),perimeter=0;
@@ -155,6 +175,7 @@
             } else uniqueKeys.push(key);
         });
         keys=uniqueKeys;
+        var layoutPitch=options.legacyLayoutPitch?19.05:displayPitch(keys);
         var keyContours=new Set(keys.flatMap(function(key){return key.contours.map(function(c){return c.id;});}));
         var small=document.contours.filter(function(c){return !keyContours.has(c.id) && c.editable;});
         var pairCandidates=[];
@@ -163,7 +184,7 @@
                 var features=small.map(function(contour) {
                     var local=contour.points.map(function(p){return G.rotate({x:p.x-key.center.x,y:p.y-key.center.y},-angle);});
                     var b=G.bounds(local),family=null;
-                    if(b.width>2.2 && b.width<2.9 && b.height>4.5 && b.height<5.5 && Math.abs(Math.abs(b.cy)-6.45)<0.45) family='alps';
+                    if(b.width>2.2 && b.width<2.9 && b.height>4.5 && b.height<5.5 && Math.abs(Math.abs(b.cy)-6.45)<(options.legacyLayoutPitch?.45:1.15)) family='alps';
                     if(b.width>6.8 && b.width<7.2 && b.height>14.7 && b.height<15.9 && Math.abs(Math.abs(b.cy)-1.5)<1) family='mx-pcb';
                     if(b.width>3.1 && b.width<3.5 && b.height>13.9 && b.height<14.5 && Math.abs(Math.abs(b.cy)-0.65)<0.5) family='costar';
                     return {contour:contour,box:b,family:family};
@@ -185,9 +206,15 @@
         pairCandidates.forEach(function(pair) {
             if(pair.key.stabilizers.length || pair.parts.some(function(c){return usedStabs.has(c.id);})) return;
             pair.parts.forEach(function(c){usedStabs.add(c.id);});
-            pair.key.stabilizers=pair.parts;
+            pair.key.stabilizers=pair.parts.slice();
+            var opposite=!options.legacyLayoutPitch && pairCandidates.find(function(other){
+                return other.key===pair.key && other.family===pair.family && other.axis===pair.axis &&
+                    Math.abs(other.span-pair.span)<.25 && other.offsetY*pair.offsetY<0 &&
+                    Math.abs(other.offsetY+pair.offsetY)<1.25 && other.parts.every(function(c){return !usedStabs.has(c.id);});
+            });
+            if(opposite){opposite.parts.forEach(function(c){usedStabs.add(c.id);pair.key.stabilizers.push(c);});}
             pair.key.detectedStabilizer={family:pair.family,spacing:pair.span,vertical:!!pair.axis,
-                direction:pair.offsetY>0?'north':'south'};
+                direction:pair.offsetY>0?'north':'south',both:!!opposite};
             var guesses=pair.family==='alps'?[[23,1.75],[24,1.75],[28,2],[41,2.75],[83.72,6.25],[90.6,6.5]]:
                 [[23.8,2],[38.1,3],[95.25,6],[100,6.25],[114.3,7],[133.35,8]];
             var nearest=guesses.slice().sort(function(a,b){return Math.abs(a[0]-pair.span)-Math.abs(b[0]-pair.span);})[0];
@@ -306,7 +333,7 @@
             keys.every(function(k){return G.contains(c.points,k.center);});});
         function capFits(key,width){
             return outlines.every(function(c){
-                var corners=G.rectangle(width*19.05-1.2,key.height*19.05-1.2,key.center);
+                var corners=G.rectangle(width*layoutPitch-1.2,key.height*layoutPitch-1.2,key.center);
                 return corners.every(function(a,i){var b=corners[(i+1)%corners.length],steps=Math.ceil(G.distance(a,b));
                     for(var j=0;j<=steps;j++)if(!G.contains(c.points,{x:a.x+(b.x-a.x)*j/steps,y:a.y+(b.y-a.y)*j/steps}))return false;
                     return true;
@@ -317,7 +344,7 @@
             // Plate corner reliefs need not follow the cap silhouette. When
             // row alignment and neighbouring caps independently agree, check
             // the actual horizontal row span rather than its lower corners.
-            var half=(width*19.05-1.2)/2,steps=Math.ceil(half*2);
+            var half=(width*layoutPitch-1.2)/2,steps=Math.ceil(half*2);
             return outlines.every(function(c){
                 for(var i=0;i<=steps;i++)if(!G.contains(c.points,{x:key.center.x-half+2*half*i/steps,y:key.center.y}))return false;
                 return true;
@@ -333,20 +360,20 @@
             [0,list.length-1].forEach(function(i){
                 var k=list[i],n=list[i===0?1:i-1];
                 if(!k || !n || k.height!==1 || Math.abs(k.capAngle)>1e-6)return;
-                var unitRun=k.width===1 && n.width===1 && Math.abs(Math.abs(n.center.x-k.center.x)-19.05)<.03;
+                var unitRun=k.width===1 && n.width===1 && Math.abs(Math.abs(n.center.x-k.center.x)-layoutPitch)<.03;
                 if(!unitRun && !(k.stabilizers.length && k.width<=2.75))return;
-                (i===0?leftEdges:rightEdges).push(k.center.x+(i===0?-1:1)*k.width*19.05/2);
+                (i===0?leftEdges:rightEdges).push(k.center.x+(i===0?-1:1)*k.width*layoutPitch/2);
             });
         });
         var leftEdge=leftEdges.length?Math.min(...leftEdges):null,rightEdge=rightEdges.length?Math.max(...rightEdges):null;
         rows.forEach(function(row){
             var list=row.keys,trusted=new Set(list.filter(function(k,i){
-                return k.width>1 || [list[i-1],list[i+1]].some(function(n){return n && Math.abs(Math.abs(n.center.x-k.center.x)-19.05)<0.03;});
+                return k.width>1 || [list[i-1],list[i+1]].some(function(n){return n && Math.abs(Math.abs(n.center.x-k.center.x)-layoutPitch)<0.03;});
             }));
             function edgeWidth(k,i){
                 var edge=i===0?leftEdge:i===list.length-1?rightEdge:null;
                 if(edge===null)return null;
-                var w=2*Math.abs(k.center.x-edge)/19.05;
+                var w=2*Math.abs(k.center.x-edge)/layoutPitch;
                 return w>=1 && w<=2.75 && Math.abs(w*4-Math.round(w*4))<.006?Math.round(w*4)/4:null;
             }
             for(var pass=0;pass<list.length;pass++){
@@ -356,13 +383,13 @@
                     var limit=k.width>=5?12:2.75;
                     var neighbours=[list[i-1],list[i+1]].filter(Boolean),edge=edgeWidth(k,i);
                     var proposals=neighbours.filter(function(n){return trusted.has(n);}).map(function(n){
-                        return 2*Math.abs(n.center.x-k.center.x)/19.05-n.width;
+                        return 2*Math.abs(n.center.x-k.center.x)/layoutPitch-n.width;
                     }).filter(function(w){return w>=k.width-0.002 && w<=limit && Math.abs(w*4-Math.round(w*4))<0.006;});
                     var edgeAgrees=edge!==null && proposals.some(function(w){return Math.abs(w-edge)<.002;});
                     if(edge!==null && edge>=k.width-.002)proposals.push(edge);
                     if(!proposals.length)return;
                     var width=Math.round(Math.min(...proposals)*4)/4;
-                    if(neighbours.some(function(n){return (width+n.width)*19.05/2>Math.abs(n.center.x-k.center.x)+0.03;}))return;
+                    if(neighbours.some(function(n){return (width+n.width)*layoutPitch/2>Math.abs(n.center.x-k.center.x)+0.03;}))return;
                     if(width>k.width+0.01){if(!capFits(k,width) && !(edgeAgrees && Math.abs(width-edge)<.002 && rowSpanFits(k,width)))return;k.width=width;changed=true;}
                     if(!trusted.has(k)){trusted.add(k);changed=true;}
                 });
@@ -374,11 +401,11 @@
         var bottom=rows.reduce(function(a,b){return !a || b.y<a.y?b:a;},null);
         if(bottom)bottom.keys.filter(function(k){return k.width>=5 && k.height===1;}).forEach(function(space){
             var modifiers=[-6.75,-4.25,4.25,6.75].map(function(offset){return bottom.keys.find(function(k){
-                return k!==space && k.height===1 && Math.abs(k.center.x-space.center.x-offset*19.05)<.04;
+                return k!==space && k.height===1 && Math.abs(k.center.x-space.center.x-offset*layoutPitch)<.04;
             });});
             if(modifiers.some(function(k){return !k;}))return;
             var assembly=[modifiers[0],modifiers[1],space,modifiers[2],modifiers[3]];
-            if(bottom.keys.some(function(k){return !assembly.includes(k) && Math.abs(k.center.x-space.center.x)<7.5*19.05;}))return;
+            if(bottom.keys.some(function(k){return !assembly.includes(k) && Math.abs(k.center.x-space.center.x)<7.5*layoutPitch;}))return;
             space.width=7;modifiers.forEach(function(k){k.width=1.5;});
         });
         keys=[];
@@ -689,17 +716,26 @@
                     key.type='alps';key.holeAngle=angle+preset.switchRotation*Math.PI/180;
                     key.stabilizers=parts;key.width=preset.width;key.height=preset.height;key.capAngle=angle;key.label=preset.label;
                     key.capShape=preset.capShape?Object.assign({},preset.capShape):undefined;
-                    key.detectedStabilizer={family:preset.id,vertical:preset.height>preset.width,direction:'south'};
+                    key.detectedStabilizer={family:preset.id,vertical:preset.height>preset.width,direction:'south',both:!options.legacyLayoutPitch && !!preset.dualWire};
                     return true;
                 });
             });
         });
+        if(!options.legacyLayoutPitch){
+            var confirmed=Measured.alpsSupportAssemblies.filter(function(p){return keys.some(function(k){return k.detectedStabilizer?.family===p.id;});});
+            keys.filter(function(k){return k.type==='unknown' && k.contours.length===1;}).forEach(function(k){
+                confirmed.some(function(p){return [0,Math.PI/2,Math.PI,3*Math.PI/2].some(function(turn){
+                    if(!matches(k.contours[0].points,p.core,k.center,k.capAngle+turn,.12))return false;
+                    k.type='alps';k.holeAngle=k.capAngle+turn+p.switchRotation*Math.PI/180;return true;
+                });});
+            });
+        }
         var review=[];
         if(!options.legacyRefine){review=Refine.run(document,keys,{layer:options.layer,cores:cores,matches:matches,legacyReadOnlyPcb:options.legacyReadOnlyPcb});
             counts={mx:0,alps:0,universal:0,unknown:0,topre:0};keys.forEach(function(k){counts[k.type]=(counts[k.type] || 0)+1;});}
         counts={mx:0,alps:0,universal:0,unknown:0,topre:0};keys.forEach(function(k){counts[k.type]=(counts[k.type] || 0)+1;});
         var types=Object.keys(counts).filter(function(type){return counts[type]>0;});
-        return {keys:keys,counts:counts,review:review,type:types.length===1?types[0]:types.length?'mixed':'unknown',
+        return {keys:keys,counts:counts,review:review,layoutPitch:layoutPitch,type:types.length===1?types[0]:types.length?'mixed':'unknown',
             ambiguous:ambiguous,duplicates:duplicate,unassigned:document.contours.filter(function(c) {
                 return !keys.some(function(k){return k.contours.includes(c) || k.stabilizers.includes(c);});
             })};

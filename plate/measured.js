@@ -4,7 +4,7 @@
 // Complete user-confirmed assemblies; source dimensions are not normalized.
 data.alpsSupportAssemblies=[
   {
-    ...{"id":"alps-7-wire-costar-barrels","label":"7u spacebar — wire north/south, Costar and twin barrels","width":7,"height":1,"capShape":null,"switchRotation":0,"source":"Constance_TKL_FK2001_BAE_0.4kerf-v0.2.dxf"},
+    ...{"id":"alps-7-wire-costar-barrels","label":"7u spacebar — wire north/south, Costar and twin barrels","width":7,"height":1,"capShape":null,"switchRotation":0,"dualWire":true,"source":"Constance_TKL_FK2001_BAE_0.4kerf-v0.2.dxf"},
     parts:[
       [{"x":-40.644061,"y":-8.976131},{"x":-43.309248,"y":-8.976037},{"x":-43.309072,"y":-3.972508},{"x":-40.643885,"y":-3.972602}],
       [{"x":-30.107797,"y":1.100405},{"x":-30.107874,"y":-1.09828},{"x":-27.90912,"y":-1.098358},{"x":-27.909043,"y":1.100327}],
@@ -32,7 +32,7 @@ data.alpsSupportAssemblies=[
     core:[{"x":-7.795078,"y":6.395897},{"x":-7.795078,"y":-6.395898},{"x":7.795078,"y":-6.395898},{"x":7.795078,"y":6.395897}]
   },
   {
-    ...{"id":"alps-7-wire-barrels","label":"7u spacebar — wire north/south and twin barrels","width":7,"height":1,"capShape":null,"switchRotation":0,"source":"brutal60_Alps_switch_plate_hhkb_v4_2_.dxf"},
+    ...{"id":"alps-7-wire-barrels","label":"7u spacebar — wire north/south and twin barrels","width":7,"height":1,"capShape":null,"switchRotation":0,"dualWire":true,"source":"brutal60_Alps_switch_plate_hhkb_v4_2_.dxf"},
     parts:[
       [{"x":-46.707722,"y":-8.862571},{"x":-49.423402,"y":-8.862477},{"x":-49.423226,"y":-3.763963},{"x":-46.707546,"y":-3.764057}],
       [{"x":-33.854463,"y":1.121287},{"x":-33.854541,"y":-1.119202},{"x":-31.614052,"y":-1.11928},{"x":-31.613974,"y":1.121209}],
@@ -48,7 +48,7 @@ data.alpsSupportAssemblies=[
     core:[{"x":-7.63754,"y":6.518664},{"x":-7.853708,"y":6.428977},{"x":-7.943408,"y":6.212552},{"x":-7.943575,"y":-6.21253},{"x":-7.854154,"y":-6.428698},{"x":-7.638257,"y":-6.518664},{"x":7.637707,"y":-6.518664},{"x":7.85361,"y":-6.429242},{"x":7.943575,"y":-6.213611},{"x":7.943478,"y":6.212529},{"x":7.854056,"y":6.428433},{"x":7.638424,"y":6.517605}]
   },
   {
-    ...{"id":"alps-iso-wire-both","label":"2u ISO Enter — wire north/south","width":1.25,"height":2,"capShape":{"width2":1.5,"height2":1,"x2":-0.25,"y2":0},"switchRotation":90,"source":"brutal60_Alps_switch_plate_hhkb_v4_2_.dxf"},
+    ...{"id":"alps-iso-wire-both","label":"2u ISO Enter — wire north/south","width":1.25,"height":2,"capShape":{"width2":1.5,"height2":1,"x2":-0.25,"y2":0},"switchRotation":90,"dualWire":true,"source":"brutal60_Alps_switch_plate_hhkb_v4_2_.dxf"},
     parts:[
       [{"x":3.926412,"y":-12.948031},{"x":9.21278,"y":-12.948031},{"x":9.21278,"y":-15.653392},{"x":3.926412,"y":-15.653392}],
       [{"x":3.926412,"y":15.653656},{"x":9.21278,"y":15.653656},{"x":9.21278,"y":12.94803},{"x":3.926412,"y":12.94803}],

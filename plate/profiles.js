@@ -63,6 +63,8 @@
         return polygon(points);
     }
     function stabilizers(options,key) {
+        if(options.holeOrientation==='both' && Measured.alpsSupportAssemblies.some(function(p){return p.id===options.stabilizer && p.dualWire;}))return stabilizers(Object.assign({},options,{holeOrientation:'south',direction:'south'}),key);
+        if(options.holeOrientation==='both'){var south=stabilizers(Object.assign({},options,{holeOrientation:'south',direction:'south'}),key);return union(south.concat(place(south,{x:0,y:0},Math.PI)));}
         if(options.holeOrientation==='north')return place(stabilizers(Object.assign({},options,{holeOrientation:'south',direction:'south'}),key),{x:0,y:0},Math.PI);
         if(options.components)return stabilizers(geometryOptions(options),key);
         var style=options.stabilizer || 'original';
@@ -281,7 +283,7 @@
             return base;
         }
         var assembly=Measured.alpsSupportAssemblies.find(function(p){return p.id===id;});
-        if(assembly)return {key:Object.assign({width:assembly.width,height:assembly.height,width2:assembly.width,height2:assembly.height,labels:[assembly.label]},assembly.capShape||{}),options:{switch:'alps',switchRotation:assembly.switchRotation,stabilizer:id,direction:'south'}};
+        if(assembly)return {key:Object.assign({width:assembly.width,height:assembly.height,width2:assembly.width,height2:assembly.height,labels:[assembly.label]},assembly.capShape||{}),options:{switch:'alps',switchRotation:assembly.switchRotation,stabilizer:id,direction:'south',holeOrientation:assembly.dualWire?'both':undefined}};
         var family=Families.find(function(f){return f.id===id;});
         if(family)return {key:Object.assign({width:family.width,height:family.height,width2:family.width,height2:family.height,labels:[family.label]},family.capShape || {}),options:{switch:id,stabilizer:family.parts.length>1?id:'none',mount:family.mount || 'pcb'}};
         if(id==='alps-625-all')id='alps-7-all';
@@ -383,6 +385,7 @@
             var span=Math.hypot(a.cx-b.cx,a.cy-b.cy);
             o.stabilizer=key.width===7&&span>110?'topre-7-wide':'topre-'+key.width;
         } else if(!key.stabilizers.length&&simpleOpening(key)&&o.switch!=='original')o.stabilizer='none';
+        if(d.both){o.holeOrientation='both';o.direction='south';}
         var f=family(o.stabilizer),p=integratedPatterns[o.stabilizer];
         if(f){o.mount=f.mount||o.mount;category=f.type==='mx'?'mx-'+(f.mount||'pcb'):f.type;}
         if(p){o.mount=p.mount||o.mount;category=p.type==='mx'?'mx-'+p.mount:p.type;}
