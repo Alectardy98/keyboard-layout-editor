@@ -750,3 +750,23 @@ not filenames, key numbers or nearby circles alone. Partial matches retain the
 existing detection/manual-review behavior. Original DXF records remain unchanged
 until edited; moves carry the complete assembly. Project recognition version 12
 adds these matches; older saved projects retain their previous interpretation.
+
+### Display pitch and dual-sided supports
+
+For a regular unrotated plate, repeated key runs can establish a display pitch
+slightly different from 19.05 mm. At least eight matching adjacent gaps across
+multiple rows, plus matching row spacing, are required. This improves inferred
+cap sizes and KLE alignment for dimensional deviations in imported drawings.
+It does **not** rescale the DXF: each key retains its exact physical centre via
+its saved display offset. A subsequent 0.25u edit still moves the cutouts by
+4.7625 mm, not by a fraction of the estimated source pitch. Unresolved bottom-row
+or alternate-layout overlaps remain flagged rather than deleting real openings.
+
+Orientation offers **North**, **South**, and **Both**. Both combines opposed
+support cuts and unions shared contours instead of exporting duplicate cuts.
+Measured assemblies that already contain both wire sets retain their native
+combined geometry. Automatic recognition associates two complete, matching
+opposed wire pairs with one key and selects Both; an isolated extra slot is
+insufficient. Asymmetric north/south wire offsets are permitted within bounded
+matching tolerances, as in the supplied Brutal60 Backspace. Version 13 preserves
+these display and association changes separately from older project behavior.
