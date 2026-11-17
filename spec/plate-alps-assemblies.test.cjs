@@ -30,7 +30,7 @@ for(const pattern of assemblies){
   assert.ok(!R.analyze(d,{legacyAlpsAssemblies:true}).keys.some(k=>k.detectedStabilizer?.family===pattern.id));
  });
  test(pattern.id+' generates all supports and flips the complete pattern',()=>{
-  const p=P.preset(pattern.id),south=P.stabilizers(p.options,p.key),north=P.stabilizers({...p.options,direction:'north'},p.key);
+  const p=P.preset(pattern.id),south=P.stabilizers(p.options,p.key),north=P.stabilizers({...p.options,holeOrientation:'north',direction:'south'},p.key);
   assert.equal(south.length,pattern.parts.length);assert.equal(north.length,south.length);
   for(let i=0;i<south.length;i++){const a=G.bounds(P.rings([south[i]])[0]),b=G.bounds(P.rings([north[i]])[0]);assert.ok(Math.abs(a.cx+b.cx)<.00001&&Math.abs(a.cy+b.cy)<.00001);}
  });
