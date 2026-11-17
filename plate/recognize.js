@@ -674,9 +674,30 @@
             keys.forEach(function(k){counts[k.type]=(counts[k.type] || 0)+1;});
         }
         if(!options.legacyPcb)PcbRefine.run(document,keys,{layer:options.layer,matches:matches,legacyRoundedPcb:options.legacyRoundedPcb,legacyWidePcb:options.legacyWidePcb,legacyReadOnlyPcb:options.legacyReadOnlyPcb});
+        // Complete support assemblies take precedence over a partial wire pair.
+        // Require every contour at its measured relative position; no filename,
+        // key index or proximity-only claim of barrels or mounting holes.
+        if(!options.legacyAlpsAssemblies)Measured.alpsSupportAssemblies.forEach(function(preset){
+            keys.filter(function(k){return k.type==='alps' || k.type==='unknown';}).forEach(function(key){
+                [0,Math.PI/2,Math.PI,3*Math.PI/2].some(function(turn){
+                    var angle=key.capAngle+turn;
+                    if(key.contours.length!==1 || !matches(key.contours[0].points,preset.core,key.center,angle,.45))return false;
+                    var parts=preset.parts.map(function(pattern){return small.find(function(c){
+                        return matches(c.points,pattern,key.center,angle,.08);
+                    });});
+                    if(parts.some(function(c){return !c || keys.some(function(other){return other!==key && other.stabilizers.includes(c);});}) || new Set(parts).size!==parts.length)return false;
+                    key.type='alps';key.holeAngle=angle+preset.switchRotation*Math.PI/180;
+                    key.stabilizers=parts;key.width=preset.width;key.height=preset.height;key.capAngle=angle;key.label=preset.label;
+                    key.capShape=preset.capShape?Object.assign({},preset.capShape):undefined;
+                    key.detectedStabilizer={family:preset.id,vertical:preset.height>preset.width,direction:'south'};
+                    return true;
+                });
+            });
+        });
         var review=[];
         if(!options.legacyRefine){review=Refine.run(document,keys,{layer:options.layer,cores:cores,matches:matches,legacyReadOnlyPcb:options.legacyReadOnlyPcb});
             counts={mx:0,alps:0,universal:0,unknown:0,topre:0};keys.forEach(function(k){counts[k.type]=(counts[k.type] || 0)+1;});}
+        counts={mx:0,alps:0,universal:0,unknown:0,topre:0};keys.forEach(function(k){counts[k.type]=(counts[k.type] || 0)+1;});
         var types=Object.keys(counts).filter(function(type){return counts[type]>0;});
         return {keys:keys,counts:counts,review:review,type:types.length===1?types[0]:types.length?'mixed':'unknown',
             ambiguous:ambiguous,duplicates:duplicate,unassigned:document.contours.filter(function(c) {

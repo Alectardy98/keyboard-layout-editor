@@ -66,6 +66,11 @@
         if(options.holeOrientation==='north')return place(stabilizers(Object.assign({},options,{holeOrientation:'south',direction:'south'}),key),{x:0,y:0},Math.PI);
         if(options.components)return stabilizers(geometryOptions(options),key);
         var style=options.stabilizer || 'original';
+        var assembly=Measured.alpsSupportAssemblies.find(function(p){return p.id===style;});
+        if(assembly){
+            if(key.width!==assembly.width || key.height!==assembly.height)throw Error('This support assembly requires its named key dimensions.');
+            return place(assembly.parts.map(polygon),{x:0,y:0},options.direction==='north'?Math.PI:0);
+        }
         var family=Families.find(function(f){return f.id===style;});
         if(family)return family.parts.slice(1).map(polygon);
         if(style==='mx-compat-2.75-split'){
@@ -267,6 +272,7 @@
     mxPresets.push({id:'mx-6-plate-compat',label:'6u plate mount stabilizer — alternate stem',width:6,mount:'plate',stabs:true});
     Families.filter(function(f){return f.type==='mx' && !f.legacy;}).forEach(function(f){mxPresets.push({id:f.id,label:f.label,width:f.width,mount:f.mount});});
     var toprePresets=Families.filter(function(f){return f.type==='topre';}).map(function(f){return {id:f.id,label:f.label,width:f.width};});
+    Measured.alpsSupportAssemblies.forEach(function(p){presets.push({id:p.id,label:p.label,width:p.width,height:p.height,canon:p.id});});
     function preset(id) {
         if(holeRecipes && holeRecipes[id]){
             var recipe=holeRecipes[id],base=preset(recipe.presetId);
@@ -274,6 +280,8 @@
             if(recipe.style==='costar')base.options.switch='alps';
             return base;
         }
+        var assembly=Measured.alpsSupportAssemblies.find(function(p){return p.id===id;});
+        if(assembly)return {key:Object.assign({width:assembly.width,height:assembly.height,width2:assembly.width,height2:assembly.height,labels:[assembly.label]},assembly.capShape||{}),options:{switch:'alps',switchRotation:assembly.switchRotation,stabilizer:id,direction:'south'}};
         var family=Families.find(function(f){return f.id===id;});
         if(family)return {key:Object.assign({width:family.width,height:family.height,width2:family.width,height2:family.height,labels:[family.label]},family.capShape || {}),options:{switch:id,stabilizer:family.parts.length>1?id:'none',mount:family.mount || 'pcb'}};
         if(id==='alps-625-all')id='alps-7-all';
@@ -403,6 +411,7 @@
         {id:'mx-plate',label:'MX Plate Mount',patterns:[['mx','Standard clip-in stabilizer'],['mx-6-plate-compat','6u alternate-stem compatibility']]},
         {id:'topre',label:'Topre',patterns:[]}
     ];
+    Measured.alpsSupportAssemblies.forEach(function(p){stabilizerCategories[0].patterns.push([p.id,p.label]);});
     stabilizerCategories.forEach(function(group){
         group.patterns=group.patterns.map(function(p){return {id:p[0],label:p[1]};});
         Families.filter(function(f){return !baseTopre(f.id)&&(f.type==='topre'?group.id==='topre':f.type==='mx'?group.id==='mx-'+(f.mount||'pcb'):group.id==='alps');})
