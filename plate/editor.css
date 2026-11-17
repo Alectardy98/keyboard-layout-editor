@@ -119,3 +119,7 @@
 .plate-switch-fields>p {grid-column:1/-1;order:1;}
 @media(max-width:850px) {.plate-switch-fields {grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(max-width:540px) {.plate-switch-fields {grid-template-columns:1fr;}.plate-switch-fields>label:first-of-type {grid-column:auto;}}
+
+.plate-spacing-warning {background:#fff1d9;border:1px solid #e5a245;border-left:4px solid #dd8500;color:#754000;line-height:1.6;}
+.plate-spacing-warning>strong {display:block;font-size:15px;margin-bottom:4px;}
+.plate-spacing-warning p {margin:6px 0 0;}

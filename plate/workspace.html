@@ -30,6 +30,12 @@
   <p class="plate-fixed-frame"><i class="fa fa-anchor" aria-hidden="true"></i> The original plate outline, mounting holes and coordinate frame stay fixed. Keycap resizing keeps the switch centre; stabilizer changes require Apply.</p>
   <p class="alert alert-danger" role="alert" ng-if="plate.error &amp;&amp; !plate.model">{{plate.error}}</p>
   <p class="alert alert-info" role="status" ng-if="plate.notice">{{plate.notice}}</p>
+  <div class="alert plate-spacing-warning" role="alert" ng-if="plate.model &amp;&amp; plate.recognized.layoutPitch &amp;&amp; plate.recognized.layoutPitch!==19.05">
+    <strong>Unrecognized spacing detected</strong>
+    <div>{{plate.spacingFamily()}} openings detected — expected spacing: <strong>19.05 mm</strong></div>
+    <div>Current measured spacing in this DXF: <strong>{{plate.recognized.layoutPitch | number:3}} mm</strong></div>
+    <p>The inferred KLE uses an estimated grid. Original DXF cutouts have not been rescaled. Check the drawing units and intended key spacing before fabrication.</p>
+  </div>
   <div class="alert alert-warning" ng-if="plate.recoveredCount">
     {{plate.recoveredCount}} probable keys share fixed geometry. Select a candidate and inspect its opening before confirming.
     Surviving edges determine the key; recognizable circular intrusions stay fixed. Hidden boundaries can be ambiguous.

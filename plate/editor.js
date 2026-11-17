@@ -9,6 +9,7 @@
             units:'mm',layer:'',layers:[],options:{switch:'original',stabilizer:'original',direction:'south',mount:'plate',mxPattern:'cherry',
                 axis:'auto',switchRotation:0,extraSize:0,spacing:'',stemOffset:0},
             stabChoice:'original',pending:null,mappingShapes:false,pickedShapes:[],shapeKey:{name:'Custom key',width:1,height:1}};
+        ui.spacingFamily=function(){return {alps:'Alps',mx:'MX',topre:'Topre',universal:'MX/Alps'}[ui.recognized?.type] || 'Switch';};
         function guarded(fn) {
             try {ui.error='';fn();}catch(error){ui.error=error.message || String(error);}
         }
